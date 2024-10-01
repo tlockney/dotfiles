@@ -1,1 +1,0 @@
-/Users/tlockney/src/dotfiles/dotconf/zshrc
