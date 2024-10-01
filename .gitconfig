@@ -1,0 +1,14 @@
+# This is Git's per-user configuration file.
+[user]
+  name = Thomas Lockney
+  email = thomas@lockney.net
+  github = tlockney
+
+[core]
+  editor = emacs -nw
+
+[pull]
+	rebase = false
+
+[init]
+  defaultBranch = main
