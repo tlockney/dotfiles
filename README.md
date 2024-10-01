@@ -1,5 +1,7 @@
 # Home Setup
 
+Based on [this helpful guide](https://www.atlassian.com/git/tutorials/dotfiles) from Atlassian.
+
 ## Tips
 
 Init config:
