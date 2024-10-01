@@ -1,0 +1,3 @@
+#!/bin/sh
+
+/usr/local/bin/icalBuddy -ic "tlockney@hubspot.com" -nc -tf "time: %I:%M%p" -eed -iep "datetime,title,attendees" -b "title: " -ps "/\n/" eventsToday

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+UUID="y2zuzh4e6ra4npazlxmaqw2qde"
+
+if [ ! $OP_SESSION_lockney ]; then
+    eval $(op signin lockney.1password.com thomas@lockney.net)
+else
+    op list users > /dev/null 2>&1
+    test $? -eq 0 || eval $(op signin lockney.1password.com thomas@lockney.net)
+fi
+
+ITEM=`op get item $UUID`
+export AWS_ACCESS_KEY_ID=`echo $ITEM | jq -Mcr '.details.fields[] | select(.name=="username") | .value'`
+export AWS_SECRET_ACCESS_KEY=`echo $ITEM | jq -Mcr '.details.fields[] | select(.name=="password") | .value'`

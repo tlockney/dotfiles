@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euC
+
+NOTEBOOK_DIR=~/Development/notebooks
+SESSION=jupyter-session
+
+cd $NOTEBOOK_DIR
+
+function attach() {
+	[ -n "${TMUX:-}" ] && 
+		tmux switch-client -t "=$SESSION" ||
+		tmux attach-session -t "=$SESSION"
+}
+
+if tmux has-session -t "=$SESSION" 2> /dev/null; then
+	attach
+	exit 0
+fi
+
+tmux new-session -d -s $SESSION
+
+tmux new-window -d -t "=$SESSION" -n server 
+tmux send-keys -t "=$SESSION:=server" 'jupyter-lab --no-browser --port=5000' Enter
+
+tmux new-window -d -t "=$SESSION" -n shell
+
+
