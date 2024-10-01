@@ -14,5 +14,5 @@ config config --local status.showUntrackedFiles no
 Get all currently tracked files:
 
 ```sh
-config ls-tree -r master --name-only
+config ls-tree -r main --name-only
 ```
