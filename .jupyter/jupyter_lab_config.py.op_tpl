@@ -1,0 +1,4 @@
+c = get_config()
+c.ServerApp.ip = "*"
+c.ServerApp.open_browser = False
+c.PasswordIdentityProvider.hashed_password = "op://Dev/Jupyter/hashed_password"
