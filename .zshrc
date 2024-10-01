@@ -261,4 +261,6 @@ if test -e $HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/Ma
     alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
 fi
 
-. "$HOME/.atuin/bin/env"
+if test -e ~/.config/op/plugins.sh; then
+	source ~/.config/op/plugins.sh
+fi
