@@ -18,3 +18,12 @@ Get all currently tracked files:
 ```sh
 config ls-tree -r main --name-only
 ```
+
+Run 1password secret injection on all `.op_tpl` files:
+
+```sh
+for file in $(config ls-tree -r main --name-only | grep '.op_tpl'); do
+	out=${file%%.op_tpl}
+	op inject -i $HOME/$file -o $HOME/$out
+done
+```
