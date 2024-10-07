@@ -265,7 +265,7 @@ if test -e ~/.config/op/plugins.sh; then
 	source ~/.config/op/plugins.sh
 fi
 
-if test -e $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
+if type brew &>/dev/null && test -e $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
 		source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
 		source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
