@@ -11,8 +11,6 @@ prepend_to_path /usr/local/sbin
 prepend_to_path $HOME/bin
 prepend_to_path $HOME/.local/bin
 
-test -f "$HOME/.atuin/bin" && prepend_to_path $HOME/.atuin/bin
-
 test -f "/usr/libexec/path_helper" && eval "$(/usr/libexec/path_helper)"
 
 set -o emacs
@@ -228,8 +226,9 @@ if test -f ~/.config/op/plugins.sh; then
     source ~/.config/op/plugins.sh
 fi
 
-if type atuin &>/dev/null; then
-   eval "$(atuin init zsh)"
+if test -d "$HOME/.atuin/bin"; then
+		prepend_to_path $HOME/.atuin/bin
+		eval "$(atuin init zsh)"
 fi
 
 if type exa &>/dev/null; then
