@@ -166,9 +166,8 @@ if [[ $DEV -eq 1 ]]; then
 		pandas \
 		numpy \
 		matplotlib \
-		jupyterlab-git \
-		jupyterlab_github \
-		nbconvert
+		nbconvert \
+		nbclassic
 
 	echo Install Rust tools
 	#rustup component add rust-src
