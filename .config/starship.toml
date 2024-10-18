@@ -1,10 +1,58 @@
+# Get editor completions based on the config schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Inserts a blank line between shell prompts
+add_newline = true
+
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_state\
+$git_status\
+$cmd_duration\
+$line_break\
+$python\
+$character"""
+
 # Replace the '❯' symbol in the prompt with '➜'
 [character] # The name of the module we are configuring is 'character'
-success_symbol = '[->](bold green)' # The 'success_symbol' segment is being set to '➜' with the color 'bold green'
+# success_symbol = '[->](bold green)' # The 'success_symbol' segment is being set to '➜' with the color 'bold green'
+success_symbol = "[->](bold green)"
+error_symbol = "[->](bold red)"
 
 [directory]
-truncation_length = 3
+truncation_length = 2
 truncation_symbol = '…/'
+style = "blue"
+
+[git_status]
+format = "[[(*$conflicted$untracked$modified$staged$renamed$deleted)](218) ($ahead_behind$stashed)]($style)"
+style = "cyan"
+conflicted = "​"
+untracked = "​"
+modified = "​"
+staged = "​"
+renamed = "​"
+deleted = "​"
+stashed = "≡"
+
+[git_state]
+format = '\([$state( $progress_current/$progress_total)]($style)\) '
+style = "bright-black"
+
+[cmd_duration]
+format = "[$duration]($style) "
+style = "yellow"
+
+[python]
+format = "[$virtualenv]($style) "
+style = "bright-yellow"
+
+# Disable the package module, hiding it from the prompt completely
+[package]
+disabled = true
 
 [battery]
 disabled=true
