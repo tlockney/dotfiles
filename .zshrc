@@ -269,3 +269,13 @@ if type brew &>/dev/null && test -e $(brew --prefix)/share/zsh-autosuggestions/z
 elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
 		source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 fi
+
+# pnpm
+if test -e ~/.local/share/pnpm; then
+    export PNPM_HOME="/home/tlockney/.local/share/pnpm"
+    case ":$PATH:" in
+	*":$PNPM_HOME:"*) ;;
+	*) export PATH="$PNPM_HOME:$PATH" ;;
+    esac
+fi
+# pnpm end
