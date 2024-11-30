@@ -279,3 +279,11 @@ if test -e ~/.local/share/pnpm; then
     esac
 fi
 # pnpm end
+
+if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
+	source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+	# Disable underline
+	(( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
+	ZSH_HIGHLIGHT_STYLES[path]=none
+	ZSH_HIGHLIGHT_STYLES[path_prefix]=none
+fi
