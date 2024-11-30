@@ -99,6 +99,8 @@ alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
 alias ll="ls -lG"
 alias la="ls -alG"
 
+alias less="less --mouse -INF"
+
 # fd is installed as fdfind on Ubuntu/Debian
 command -v fdfind > /dev/null && alias fd=fdfind
 
