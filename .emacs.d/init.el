@@ -93,6 +93,21 @@
 
 (require 'use-package)
 
+(use-package tree-sitter
+  :ensure t)
+
+(use-package eglot
+  :ensure t
+  :init (add-hook 'rust-mode-hook 'eglot-ensure)
+  :config
+  (progn (with-eval-after-load 'eglot (add-to-list 'eglot-server-programs
+		      '((rust-ts-mode rust-mode) .
+			("rust-analyzer" :initializationOptions (:check
+								 (:command "clippy"))))))))
+
+(use-package rust-mode
+  :ensure t)
+
 (use-package company
   :ensure t)
 
