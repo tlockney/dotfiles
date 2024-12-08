@@ -33,25 +33,6 @@ else
     fi
 fi
 
-###-begin-hs-completions-###
-#
-# yargs command completion script
-#
-# Installation: hs completion >> ~/.zshrc
-#    or hs completion >> ~/.zsh_profile on OSX.
-#
-_hs_yargs_completions()
-{
-  local reply
-  local si=$IFS
-  IFS=$'
-' reply=($(COMP_CWORD="$((CURRENT-1))" COMP_LINE="$BUFFER" COMP_POINT="$CURSOR" hs --get-yargs-completions "${words[@]}"))
-  IFS=$si
-  _describe 'values' reply
-}
-compdef _hs_yargs_completions hs
-###-end-hs-completions-###
-
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=10000000
 SAVEHIST=10000000
@@ -74,9 +55,9 @@ PS1='%B%F{yellow1}%~@%m%f -> %b'
 CURRENT_OS=$(uname -s)
 
 if test -f /etc/manpaths; then
-	for dir in $(cat /etc/manpaths); do
-		export MANPATH="$MANPATH:$dir"
-	done
+    for dir in $(cat /etc/manpaths); do
+	export MANPATH="$MANPATH:$dir"
+    done
 fi
 export MANPATH="/usr/local/man:$MANPATH"
 
@@ -109,23 +90,23 @@ export CURRENT_ARCH=$(uname -p)
 
 # set up homebrew paths
 if test $CURRENT_OS = "Darwin"; then
-	if test -d /opt/homebrew; then
-		eval $(/opt/homebrew/bin/brew shellenv)
-	fi
-	if test -d /usr/local/Cellar; then
-		eval $(/usr/local/bin/brew shellenv)
-	fi
+    if test -d /opt/homebrew; then
+	eval $(/opt/homebrew/bin/brew shellenv)
+    fi
+    if test -d /usr/local/Cellar; then
+	eval $(/usr/local/bin/brew shellenv)
+    fi
 fi
 
 if test -f /etc/manpaths; then
-	for dir in $(cat /etc/manpaths); do
-		export MANPATH="$MANPATH:$dir"
-	done
+    for dir in $(cat /etc/manpaths); do
+	export MANPATH="$MANPATH:$dir"
+    done
 fi
 
 # set up cargo
 if test -d "HOME/.cargo"; then
-	. "$HOME/.cargo/env"
+    . "$HOME/.cargo/env"
 fi
 
 # init nvm
@@ -134,9 +115,9 @@ test -s "$NVM_DIR/nvm.sh" && source "$NVM_DIR/nvm.sh"  # This loads nvm
 test -s "$NVM_DIR/bash_completion" && source "$NVM_DIR/bash_completion"
 
 # init pipx completions
-if type pipx &>/dev/null; then
-    eval "$(register-python-argcomplete pipx)"
-fi
+#if type pipx &>/dev/null; then
+#    eval "$(register-python-argcomplete pipx)"
+#fi
 
 if type rustup &>/dev/null && ! test -d $HOME/.zfunc; then
     mkdir $HOME/.zfunc &>/dev/null
@@ -220,17 +201,13 @@ if test -d "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims" &>/dev/null; then
     eval "$(mise hook-env)"
 fi
 
-if test -d "$HOME/.asdf"; then
-    . "$HOME/.asdf/asdf.sh"
-fi
-
 if test -f ~/.config/op/plugins.sh; then
     source ~/.config/op/plugins.sh
 fi
 
 if test -d "$HOME/.atuin/bin"; then
-		prepend_to_path $HOME/.atuin/bin
-		eval "$(atuin init zsh)"
+    prepend_to_path $HOME/.atuin/bin
+    eval "$(atuin init zsh)"
 fi
 
 if type exa &>/dev/null; then
@@ -263,13 +240,13 @@ if test -e $HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/Ma
 fi
 
 if test -e ~/.config/op/plugins.sh; then
-	source ~/.config/op/plugins.sh
+    source ~/.config/op/plugins.sh
 fi
 
 if type brew &>/dev/null && test -e $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
-		source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
-		source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 fi
 
 # pnpm
@@ -283,9 +260,9 @@ fi
 # pnpm end
 
 if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
-	source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-	# Disable underline
-	(( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
-	ZSH_HIGHLIGHT_STYLES[path]=none
-	ZSH_HIGHLIGHT_STYLES[path_prefix]=none
+    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+    # Disable underline
+    (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
+    ZSH_HIGHLIGHT_STYLES[path]=none
+    ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 fi
