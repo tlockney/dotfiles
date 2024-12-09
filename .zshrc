@@ -64,7 +64,7 @@ export MANPATH="/usr/local/man:$MANPATH"
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US.UTF-8
-export EDITOR="emacs"
+export EDITOR="emacsclient -c -a 'emacs'"
 export ALTERNATE_EDITOR="code"
 export JAVA_OPTIONS="-Djava.awt.headless=true"
 export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
@@ -76,6 +76,8 @@ alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
 alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
+alias e="emacsclient -c -a 'emacs'"
+alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 
 alias ll="ls -lG"
 alias la="ls -alG"
