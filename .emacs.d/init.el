@@ -74,41 +74,41 @@
 ;; set up some essentials
 (setq user-full-name "Thomas Lockney"
       user-mail-address "thomas@lockney.net"
-      custom-file "~/.emacs.d/custom.el")
+      custom-file (expand-file-name "custom.el" user-emacs-directory))
 
 (require 'server)
 (unless (server-running-p) (server-start))
 
 ;; Set up package management
-(require 'package)
-(setq
- use-package-always-ensure t
- package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
-		    ("melpa-stable" . "https://stable.melpa.org/packages/")
-		    ("melpa" . "https://melpa.org/packages/")))
+(setq package-install-upgrade-built-in t)
+(setq package-archives
+      '(("melpa" . "https://melpa.org/packages/")
+	("elpa" . "https://elpa.gnu.org/packages/")
+	("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 (package-initialize)
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
 
 (require 'use-package)
 
-(use-package tree-sitter
-  :ensure t)
+(use-package tree-sitter)
 
-(use-package eglot
+(use-package which-key
   :ensure t
-  :init (add-hook 'rust-mode-hook 'eglot-ensure)
   :config
-  (progn (with-eval-after-load 'eglot (add-to-list 'eglot-server-programs
-		      '((rust-ts-mode rust-mode) .
-			("rust-analyzer" :initializationOptions (:check
-								 (:command "clippy"))))))))
+  (which-key-mode))
+
+(use-package lsp-mode
+  :diminish "LSP"
+  :ensure t
+  :hook (((rust-mode
+	   tsx-ts-mode
+	   typescript-ts-mode
+	   js-ts-mode) . lsp-deferred)
+	 (lsp-mode . lsp-enable-which-key-integration))
+  :commands lsp)
+
+(use-package lsp-ui :commands lsp-ui-mode)
 
 (use-package rust-mode
-  :ensure t)
-
-(use-package company
   :ensure t)
 
 (use-package material-theme
@@ -118,3 +118,12 @@
 
 (use-package writeroom-mode
   :ensure t)
+
+(use-package corfu
+  :custom
+  (curfu-cycle t)
+  (corfu-auto t)
+  (corfu-auto-prefix 2)
+  (corfu-auto-delay 0.0)
+  :init
+  (global-corfu-mode))
