@@ -4,25 +4,28 @@
 ;;   https://www.guilhermesalome.com/posts/making-emacs-look-good.html
 ;;
 
+;; You will most likely need to adjust this font size for your system!
+(defvar tlockney/default-font-size 180)
+
 (fset `yes-or-no-p `y-or-n-p)
 (transient-mark-mode t)
 (column-number-mode t)
 
-(setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3"
-      major-mode 'text-mode
-      inhibit-splash-screen t
-      inhibit-startup-message t
-      inhibit-startup-screen t
-      inhibit-startup-echo-area-message t
-      initial-scratch-message nil
-      initial-major-mode 'org-mode
-      confirm-nonexistent-file-or-buffer nil
-      delete-old-version -1
-      version-control t
-      vc-make-backup-files t
-      backup-directory-alist `((".*" . "~/.emacs.d/backups"))
-      vc-follow-symlinks t
-      kill-buffer-query-functions (remq 'process-kill-buffer-query-function
+(setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
+(setq major-mode 'text-mode)
+(setq inhibit-splash-screen t)
+(setq inhibit-startup-message t)
+(setq inhibit-startup-screen t)
+(setq inhibit-startup-echo-area-message t)
+(setq initial-scratch-message nil)
+(setq initial-major-mode 'org-mode)
+(setq confirm-nonexistent-file-or-buffer nil)
+(setq delete-old-version -1)
+(setq version-control t)
+(setq vc-make-backup-files t)
+(setq backup-directory-alist `((".*" . "~/.emacs.d/backups")))
+(setq vc-follow-symlinks t)
+(setq kill-buffer-query-functions (remq 'process-kill-buffer-query-function
 					kill-buffer-query-functions))
 
 (desktop-save-mode 1)
@@ -38,17 +41,22 @@
 (add-to-list 'desktop-modes-not-to-save 'fundamental-mode)
 
 ;; Remove toolbar, scrollbar, and menubar
-(if (display-graphic-p)
-    (progn
-      (tool-bar-mode -1)
-      (scroll-bar-mode -1)
-      (menu-bar-mode -1)
-      (tooltip-mode -1))
-  (progn
-    (require 'mouse)
-    (xterm-mouse-mode t)
-    (when (require 'mwheel nil 'noerror)(mouse-wheel-mode t))
-  ))
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+(menu-bar-mode -1)
+(tooltip-mode -1)
+
+(load-theme 'wombat)
+
+(column-number-mode)
+(global-display-line-numbers-mode t)
+
+
+;; Enable mouse
+(require 'mouse)
+(xterm-mouse-mode t)
+(require 'mwheel nil 'noerror)
+(mouse-wheel-mode t)
 
 ;; Maximize emacs on startup and removes title bar (borderless fullscreen)
 ;(set-frame-parameter nil 'fullscreen 'fullboth)
@@ -70,6 +78,9 @@
 (add-hook 'before-save-hook 'whitespace-cleanup)
 (add-hook 'before-save-hook (lambda() (delete-trailing-whitespace)))
 
+;; Make ESC quit prompts
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
 
 ;; set up some essentials
 (setq user-full-name "Thomas Lockney"
@@ -88,17 +99,16 @@
 (package-initialize)
 
 (require 'use-package)
+(setq use-package-always-ensure t)
 
 (use-package tree-sitter)
 
 (use-package which-key
-  :ensure t
   :config
   (which-key-mode))
 
 (use-package lsp-mode
   :diminish "LSP"
-  :ensure t
   :hook (((rust-mode
 	   tsx-ts-mode
 	   typescript-ts-mode
@@ -108,16 +118,24 @@
 
 (use-package lsp-ui :commands lsp-ui-mode)
 
-(use-package rust-mode
-  :ensure t)
+(use-package rust-mode)
+
+(use-package company)
 
 (use-package material-theme
-  :ensure t
   :config
   (progn (load-theme 'material t)))
 
-(use-package writeroom-mode
-  :ensure t)
+(use-package writeroom-mode)
+
+(use-package doom-modeline
+  :init (doom-modeline-mode 1))
+
+;; (use-package doom-themes
+;;   :init (load-theme 'doom-gruvbox))
+
+(use-package rainbow-delimiters
+  :hook (prog-mode . rainbow-delimiters-mode))
 
 (use-package corfu
   :custom
