@@ -15,9 +15,6 @@ test -f "/usr/libexec/path_helper" && eval "$(/usr/libexec/path_helper)"
 
 set -o emacs
 
-autoload -U +X bashcompinit && bashcompinit
-autoload -U +X compinit && compinit
-
 if type brew &>/dev/null
 then
     if test -d $(brew --prefix zsh-completions); then
@@ -114,7 +111,6 @@ fi
 # init nvm
 export NVM_DIR="$HOME/.nvm"
 test -s "$NVM_DIR/nvm.sh" && source "$NVM_DIR/nvm.sh"  # This loads nvm
-test -s "$NVM_DIR/bash_completion" && source "$NVM_DIR/bash_completion"
 
 # init pipx completions
 #if type pipx &>/dev/null; then
@@ -268,3 +264,5 @@ if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
     ZSH_HIGHLIGHT_STYLES[path]=none
     ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 fi
+
+autoload -U +X compinit && compinit
