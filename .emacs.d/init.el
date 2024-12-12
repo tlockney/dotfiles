@@ -107,8 +107,6 @@
 
 (use-package tree-sitter)
 
-(use-package rust-mode)
-
 (use-package company)
 
 (use-package material-theme
@@ -125,3 +123,23 @@
 
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
+
+(use-package lsp-mode
+  :commands (lsp lsp-deferred)
+  :init
+  (setq lsp-keymap-prefix "C-l"))
+
+(use-package lsp-ui
+  :hook (lsp-mode . lsp-ui-mode))
+
+(use-package lsp-treemacs
+  :after lsp)
+
+(use-package rust-mode
+  :mode "\\.rs\\'")
+
+(use-package typescript-mode
+  :mode "\\.ts\\'"
+  :hook (typescript-mode . lsp-deferred)
+  :config
+  (setq typescript-indent-mode 2))
