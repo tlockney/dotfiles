@@ -15,21 +15,6 @@ test -f "/usr/libexec/path_helper" && eval "$(/usr/libexec/path_helper)"
 
 set -o emacs
 
-if type brew &>/dev/null
-then
-    if test -d $(brew --prefix zsh-completions); then
-	FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-    fi
-
-    if test -d $(brew --prefix zsh-autosuggestions); then
-	source $(brew --prefix zsh-autosuggestions)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-    fi
-else
-    if test -d /usr/share/zsh-autosuggestions; then
-	source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-    fi
-fi
-
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=10000000
 SAVEHIST=10000000
@@ -46,6 +31,21 @@ setopt HIST_SAVE_NO_DUPS         # Don't write duplicate entries in the history 
 setopt HIST_REDUCE_BLANKS        # Remove superfluous blanks before recording entry.
 setopt HIST_VERIFY               # Don't execute immediately upon history expansion.
 setopt HIST_BEEP                 # Beep when accessing nonexistent history.
+
+if type brew &>/dev/null
+then
+    if test -d $(brew --prefix zsh-completions); then
+	FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
+    fi
+
+    if test -d $(brew --prefix zsh-autosuggestions); then
+	source $(brew --prefix zsh-autosuggestions)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    fi
+else
+    if test -d /usr/share/zsh-autosuggestions; then
+	source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    fi
+fi
 
 PS1='%B%F{yellow1}%~@%m%f -> %b'
 
@@ -81,16 +81,6 @@ if test $CURRENT_OS = "Darwin"; then
     fi
 fi
 
-alias mkdir="mkdir -p"
-alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
-alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
-alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
-alias e="emacsclient -c -a 'emacs'"
-alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
-alias ll="ls -lG"
-alias la="ls -alG"
-alias less="less --mouse -INF"
-
 # fd is installed as fdfind on Ubuntu/Debian
 command -v fdfind > /dev/null && alias fd=fdfind
 
@@ -102,11 +92,6 @@ fi
 # init nvm
 export NVM_DIR="$HOME/.nvm"
 test -s "$NVM_DIR/nvm.sh" && source "$NVM_DIR/nvm.sh"  # This loads nvm
-
-# init pipx completions
-#if type pipx &>/dev/null; then
-#    eval "$(register-python-argcomplete pipx)"
-#fi
 
 if type rustup &>/dev/null && ! test -d $HOME/.zfunc; then
     mkdir $HOME/.zfunc &>/dev/null
@@ -122,7 +107,7 @@ elif test $CURRENT_OS = "Linux"; then
 fi
 export PATH=$JAVA_HOME/bin:$PATH
 
-# set up Maven path
+ set up Maven path
 if test -d /opt/maven; then
     export MAVEN_HOME=/opt/maven
     prepend_to_path $MAVEN_HOME/bin
@@ -133,19 +118,14 @@ if test -d $HOME/go; then
     prepend_to_path $GOPATH/bin
 fi
 
-# Check for processing
-if test -d /opt/processing/; then
-    prepend_to_path /opt/processing/
-fi
-
 test -e "$HOME/.shellfishrc" && source "$HOME/.shellfishrc"
 
 # opam configuration
 test ! -r ~/.opam/opam-init/init.zsh || source ~/.opam/opam-init/init.zsh  > /dev/null 2> /dev/null
 
-if type starship &>/dev/null; then
-  eval "$(starship init zsh)"
-fi
+#if type starship &>/dev/null; then
+#  eval "$(starship init zsh)"
+#fi
 
 if test -d "/opt/homebrew/opt/llvm/bin"; then
     prepend_to_path /opt/homebrew/opt/llvm/bin
@@ -240,5 +220,15 @@ if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
     ZSH_HIGHLIGHT_STYLES[path]=none
     ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 fi
+
+alias mkdir="mkdir -p"
+alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
+alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
+alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
+alias e="emacsclient -c -a 'emacs'"
+alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
+alias ll="ls -lG"
+alias la="ls -alG"
+alias less="less --mouse -INF"
 
 autoload -U +X compinit && compinit
