@@ -96,14 +96,17 @@
 
 (use-package tree-sitter)
 
-(use-package which-key
-  :config
-  (which-key-mode))
+;(setq treesit-language-source-alist
+;      '((typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+;	(tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")))
+
+;(mapc #'treesit-install-language-grammar (mapcar #'car treesit-language-source-alist))
 
 (use-package lsp-mode
   :diminish "LSP"
   :init (setq lsp-keymap-prefix "C-l")
-  :hook (((rust-mode
+  :hook (((deno-ts-mode
+	   rust-mode
 	   tsx-ts-mode
 	   typescript-ts-mode
 	   js-ts-mode))
@@ -117,7 +120,11 @@
 (use-package lsp-treemacs
   :after lsp)
 
-(use-package company)
+(use-package deno-ts-mode)
+
+(use-package typescript-ts-mode)
+
+;(use-package company)
 
 (use-package material-theme
   :config

@@ -18,7 +18,7 @@ if [[ -f /etc/manpaths ]]; then
 fi
 
 # set up cargo
-if [[ -d "HOME/.cargo" ]]; then
+if [[ -d "$HOME/.cargo" ]]; then
 	. "$HOME/.cargo/env"
 fi
 if [ -n "$BASH_VERSION" ]; then
@@ -27,4 +27,6 @@ if [ -n "$BASH_VERSION" ]; then
   fi
 fi
 
-. "$HOME/.atuin/bin/env"
+if [[ -d "$HOME/.atuin" ]]; then
+    . "$HOME/.atuin/bin/env"
+fi
