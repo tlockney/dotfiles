@@ -103,13 +103,16 @@
 
 (use-package tree-sitter)
 
-(use-package which-key
-  :config
-  (which-key-mode))
+;(setq treesit-language-source-alist
+;      '((typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+;	(tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")))
+
+;(mapc #'treesit-install-language-grammar (mapcar #'car treesit-language-source-alist))
 
 (use-package lsp-mode
   :diminish "LSP"
-  :hook (((rust-mode
+  :hook (((deno-ts-mode
+	   rust-mode
 	   tsx-ts-mode
 	   typescript-ts-mode
 	   js-ts-mode) . lsp-deferred)
@@ -120,7 +123,11 @@
 
 (use-package rust-mode)
 
-(use-package company)
+(use-package deno-ts-mode)
+
+(use-package typescript-ts-mode)
+
+;(use-package company)
 
 (use-package material-theme
   :config
@@ -128,11 +135,8 @@
 
 (use-package writeroom-mode)
 
-(use-package doom-modeline
-  :init (doom-modeline-mode 1))
-
-;; (use-package doom-themes
-;;   :init (load-theme 'doom-gruvbox))
+;(use-package doom-modeline
+;  :init (doom-modeline-mode 1))
 
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
