@@ -1,9 +1,3 @@
-;; Emacs config
-;;
-;; Much of the following is based on these resources:
-;;   https://www.guilhermesalome.com/posts/making-emacs-look-good.html
-;;
-
 ;; You will most likely need to adjust this font size for your system!
 (defvar tlockney/default-font-size 180)
 
@@ -81,31 +75,47 @@
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
-
 ;; set up some essentials
 (setq user-full-name "Thomas Lockney"
       user-mail-address "thomas@lockney.net"
-      custom-file "~/.emacs.d/custom.el")
+      custom-file (expand-file-name "custom.el" user-emacs-directory))
 
 (require 'server)
 (unless (server-running-p) (server-start))
 
 ;; Set up package management
-(require 'package)
-(setq
- use-package-always-ensure t
- package-archives '(("gnu" . "https://elpa.gnu.org/packages/")
-		    ("melpa-stable" . "https://stable.melpa.org/packages/")
-		    ("melpa" . "https://melpa.org/packages/")))
+(setq package-install-upgrade-built-in t)
+(setq package-archives
+      '(("melpa" . "https://melpa.org/packages/")
+	("elpa" . "https://elpa.gnu.org/packages/")
+	("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 (package-initialize)
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
 
 (require 'use-package)
 (setq use-package-always-ensure t)
 
 (use-package tree-sitter)
+
+(use-package which-key
+  :config
+  (which-key-mode))
+
+(use-package lsp-mode
+  :diminish "LSP"
+  :init (setq lsp-keymap-prefix "C-l")
+  :hook (((rust-mode
+	   tsx-ts-mode
+	   typescript-ts-mode
+	   js-ts-mode))
+	 (lsp-mode . lsp-enable-which-key-integration))
+  :commands (lsp lsp-deferred))
+
+(use-package lsp-ui
+  :commands lsp-ui-mode
+  :hook (lsp-mode . lsp-ui-mode))
+
+(use-package lsp-treemacs
+  :after lsp)
 
 (use-package company)
 
@@ -118,22 +128,8 @@
 (use-package doom-modeline
   :init (doom-modeline-mode 1))
 
-;; (use-package doom-themes
-;;   :init (load-theme 'doom-gruvbox))
-
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
-
-(use-package lsp-mode
-  :commands (lsp lsp-deferred)
-  :init
-  (setq lsp-keymap-prefix "C-l"))
-
-(use-package lsp-ui
-  :hook (lsp-mode . lsp-ui-mode))
-
-(use-package lsp-treemacs
-  :after lsp)
 
 (use-package rust-mode
   :mode "\\.rs\\'")
@@ -143,3 +139,12 @@
   :hook (typescript-mode . lsp-deferred)
   :config
   (setq typescript-indent-mode 2))
+
+(use-package corfu
+  :custom
+  (curfu-cycle t)
+  (corfu-auto t)
+  (corfu-auto-prefix 2)
+  (corfu-auto-delay 0.0)
+  :init
+  (global-corfu-mode))

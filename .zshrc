@@ -68,22 +68,6 @@ export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
 export ANDROID_NDK_ROOT="/usr/local/share/android-ndk"
 export NVM_DIR="$HOME/.nvm"
 export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
-
-alias mkdir="mkdir -p"
-alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
-alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
-alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
-alias e="emacsclient -c -a 'emacs'"
-alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
-
-alias ll="ls -lG"
-alias la="ls -alG"
-
-alias less="less --mouse -INF"
-
-# fd is installed as fdfind on Ubuntu/Debian
-command -v fdfind > /dev/null && alias fd=fdfind
-
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -p)
 
@@ -97,11 +81,18 @@ if test $CURRENT_OS = "Darwin"; then
     fi
 fi
 
-if test -f /etc/manpaths; then
-    for dir in $(cat /etc/manpaths); do
-	export MANPATH="$MANPATH:$dir"
-    done
-fi
+alias mkdir="mkdir -p"
+alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
+alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
+alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
+alias e="emacsclient -c -a 'emacs'"
+alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
+alias ll="ls -lG"
+alias la="ls -alG"
+alias less="less --mouse -INF"
+
+# fd is installed as fdfind on Ubuntu/Debian
+command -v fdfind > /dev/null && alias fd=fdfind
 
 # set up cargo
 if test -d "HOME/.cargo"; then
@@ -127,9 +118,8 @@ fi
 if test $CURRENT_OS = "Darwin"; then
     export JAVA_HOME=$(/usr/libexec/java_home)
 elif test $CURRENT_OS = "Linux"; then
-    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    export JAVA_HOME=/usr/lib/jvm/default-java
 fi
-
 export PATH=$JAVA_HOME/bin:$PATH
 
 # set up Maven path
@@ -146,10 +136,6 @@ fi
 # Check for processing
 if test -d /opt/processing/; then
     prepend_to_path /opt/processing/
-fi
-
-if test -f ~/.hubspot/shellrc; then
-    . ~/.hubspot/shellrc
 fi
 
 test -e "$HOME/.shellfishrc" && source "$HOME/.shellfishrc"
@@ -227,18 +213,8 @@ if type rlwrap &>/dev/null; then
     alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
 fi
 
-if test -d $HOME/Tools/google-cloud-sdk; then
-    # prepend_to_path $HOME/Tools/google-cloud-sdk/bin
-    source $HOME/Tools/google-cloud-sdk/path.zsh.inc
-    source $HOME/Tools/google-cloud-sdk/completion.zsh.inc
-fi
-
 if test -e $HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea; then
     alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
-fi
-
-if test -e ~/.config/op/plugins.sh; then
-    source ~/.config/op/plugins.sh
 fi
 
 if type brew &>/dev/null && test -e $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
