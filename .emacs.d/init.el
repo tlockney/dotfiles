@@ -1,9 +1,3 @@
-;; Emacs config
-;;
-;; Much of the following is based on these resources:
-;;   https://www.guilhermesalome.com/posts/making-emacs-look-good.html
-;;
-
 ;; You will most likely need to adjust this font size for your system!
 (defvar tlockney/default-font-size 180)
 
@@ -20,7 +14,7 @@
 (setq initial-scratch-message nil)
 (setq initial-major-mode 'org-mode)
 (setq confirm-nonexistent-file-or-buffer nil)
-(setq delete-old-version -1)
+(setq delete-old-version t)
 (setq version-control t)
 (setq vc-make-backup-files t)
 (setq backup-directory-alist `((".*" . "~/.emacs.d/backups")))
@@ -51,7 +45,6 @@
 (column-number-mode)
 (global-display-line-numbers-mode t)
 
-
 ;; Enable mouse
 (require 'mouse)
 (xterm-mouse-mode t)
@@ -81,7 +74,6 @@
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
-
 ;; set up some essentials
 (setq user-full-name "Thomas Lockney"
       user-mail-address "thomas@lockney.net"
@@ -101,26 +93,52 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
-(use-package tree-sitter)
+;(setq treesit-language-source-alist
+;      '((c . ("https://github.com/tree-sitter/tree-sitter-c" "v0.23.4"))
+;	(css . ("https://github.com/tree-sitter/tree-sitter-css" "v0.20.0"))
+;	(go . ("https://github.com/tree-sitter/tree-sitter-go" "v0.20.0"))
+;	(html . ("https://github.com/tree-sitter/tree-sitter-html" "v0.20.1"))
+;	(javascript . ("https://github.com/tree-sitter/tree-sitter-javascript" "v0.20.1" "src"))
+;	(json . ("https://github.com/tree-sitter/tree-sitter-json" "v0.20.2"))
+;	(markdown . ("https://github.com/ikatyang/tree-sitter-markdown" "v0.7.1"))
+;	(python . ("https://github.com/tree-sitter/tree-sitter-python" "v0.20.4"))
+;	(rust . ("https://github.com/tree-sitter/tree-sitter-rust" "v0.21.2"))
+;	(toml . ("https://github.com/tree-sitter/tree-sitter-toml" "v0.5.1"))
+;	(tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "tsx/src"))
+;	(typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "typescript/src"))
+;	(yaml . ("https://github.com/ikatyang/tree-sitter-yaml" "v0.5.0"))))
+					;(mapc #'treesit-install-language-grammar (mapcar #'car treesit-language-source-alist))
 
-(use-package which-key
+(use-package treesit-auto
+  :custom
+  (treesit-auto-install 'prompt)
   :config
-  (which-key-mode))
+  (treesit-auto-add-to-auto-mode-alist 'all)
+  (global-treesit-auto-mode))
 
 (use-package lsp-mode
   :diminish "LSP"
-  :hook (((rust-mode
+  :init (setq lsp-keymap-prefix "C-l")
+  :hook (((deno-ts-mode
+	   rust-mode
 	   tsx-ts-mode
 	   typescript-ts-mode
-	   js-ts-mode) . lsp-deferred)
+	   js-ts-mode))
 	 (lsp-mode . lsp-enable-which-key-integration))
-  :commands lsp)
+  :commands (lsp lsp-deferred))
 
-(use-package lsp-ui :commands lsp-ui-mode)
+(use-package lsp-ui
+  :commands lsp-ui-mode
+  :hook (lsp-mode . lsp-ui-mode))
 
-(use-package rust-mode)
+(use-package lsp-treemacs
+  :after lsp)
 
-(use-package company)
+(use-package deno-ts-mode)
+
+(use-package typescript-ts-mode)
+
+;(use-package company)
 
 (use-package material-theme
   :config
@@ -131,11 +149,17 @@
 (use-package doom-modeline
   :init (doom-modeline-mode 1))
 
-;; (use-package doom-themes
-;;   :init (load-theme 'doom-gruvbox))
-
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
+
+(use-package rust-mode
+  :mode "\\.rs\\'")
+
+(use-package typescript-mode
+  :mode "\\.ts\\'"
+  :hook (typescript-mode . lsp-deferred)
+  :config
+  (setq typescript-indent-mode 2))
 
 (use-package corfu
   :custom
