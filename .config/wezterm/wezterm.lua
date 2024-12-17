@@ -2,7 +2,7 @@ local wezterm = require("wezterm")
 
 local config = {}
 config.automatically_reload_config = true
-config.enable_tab_bar = false
+-- config.enable_tab_bar = false
 config.window_close_confirmation = "NeverPrompt"
 config.window_decorations = "RESIZE"
 -- config.default_cursor_style = "BlinkingBar"
