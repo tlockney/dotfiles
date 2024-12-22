@@ -227,8 +227,6 @@ alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
 alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
 alias e="emacsclient -n -c -a 'emacs'"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
-alias ll="ls -lG"
-alias la="ls -alG"
 alias less="less --mouse -INF"
 
 autoload -U +X compinit && compinit
