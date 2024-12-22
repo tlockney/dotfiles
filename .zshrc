@@ -87,6 +87,15 @@ if [ -z "$XDG_RUNTIME_DIR" ]; then
   fi
 fi
 
+case "$CURRENT_OS" in
+    Linux*)
+	export EMACS_SOCKET_NAME="$XDG_RUNTIME_DIR/emacs/server"
+	;;
+    Darwin*)
+	export EMACS_SOCKET_NAME="${TMPDIR}emacs$(id -u)/server"
+	;;
+esac
+
 # fd is installed as fdfind on Ubuntu/Debian
 command -v fdfind > /dev/null && alias fd=fdfind
 
@@ -192,7 +201,7 @@ if type eza &>/dev/null; then
 fi
 
 if type bat &>/dev/null; then
-    alias cat='bat --theme Catppuccin-macchiato'
+    alias cat='bat --theme Catppuccin-macchiato --pager "less --mouse -RIF"'
 fi
 
 if type rlwrap &>/dev/null; then
@@ -231,7 +240,7 @@ alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
 alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
-alias e="emacsclient -n -c -a 'emacs'"
+alias e="emacsclient -n -c -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
 
