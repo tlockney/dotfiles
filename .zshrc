@@ -174,9 +174,9 @@ if test -d "$HOME/.atuin/bin"; then
     eval "$(atuin init zsh)"
 fi
 
-if type exa &>/dev/null; then
+if type eza &>/dev/null; then
     TREE_IGNORE="cache|log|logs|node_modules|vendor"
-    alias ls='exa --group-directories-first'
+    alias ls='eza --group-directories-first --icons --hyperlink'
     alias la='ls -a'
     alias ll='ls --git -l'
     alias lt='ls --tree -D -L 2 -I ${TREE_IGNORE}'
@@ -225,7 +225,7 @@ alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
 alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
-alias e="emacsclient -c -a 'emacs'"
+alias e="emacsclient -n -c -a 'emacs'"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias ll="ls -lG"
 alias la="ls -alG"
