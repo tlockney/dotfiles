@@ -82,8 +82,8 @@ cargo install evcxr_repl
 cargo install --locked evcxr_jupyter
 evcxr_jupyter --install
 
-# Better ls via exa
-cargo install exa
+# Better ls via eza
+cargo install eza
 
 # Better cat via bat
 cargo install bat
