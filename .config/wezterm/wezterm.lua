@@ -19,7 +19,7 @@ local config = {
 	top = 2,
 	bottom = 2,
    },
-   window_background_opacity = 0.80,
+   window_background_opacity = 0.90,
    macos_window_background_blur = 20,
 
    scrollback_lines = 5000,
