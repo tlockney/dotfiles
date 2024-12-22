@@ -1,3 +1,12 @@
+if [ -z "$XDG_RUNTIME_DIR" ]; then
+  XDG_RUNTIME_DIR=/run/user/$(id -u)
+  if [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RUNTIME_DIR" ]; then
+    export XDG_RUNTIME_DIR
+  else
+    unset XDG_RUNTIME_DIR
+  fi
+fi
+
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -p)
 
