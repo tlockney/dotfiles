@@ -1,6 +1,3 @@
-;; You will most likely need to adjust this font size for your system!
-(defvar tlockney/default-font-size 180)
-
 (fset `yes-or-no-p `y-or-n-p)
 (transient-mark-mode t)
 (column-number-mode t)
@@ -39,6 +36,12 @@
 (scroll-bar-mode -1)
 (menu-bar-mode -1)
 (tooltip-mode -1)
+
+;; set font
+(defun font-exists-p (font) (if (null (x-list-fonts font)) nil t))
+(when (window-system)
+  (cond ((font-exists-p "FiraCode Nerd Font Mono") (set-frame-font "FiraCode Nerd Font Mono:spacing=100:size=16" nil t))
+    ((font-exists-p "Fira Code") (set-frame-font "Fira Code:spacing=100:size=16" nil t))))
 
 (load-theme 'wombat)
 
@@ -122,7 +125,7 @@
 
 (use-package typescript-ts-mode)
 
-;(use-package company)
+(use-package company)
 
 (use-package material-theme
   :config
