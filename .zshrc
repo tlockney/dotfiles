@@ -49,15 +49,12 @@ fi
 
 PS1='%B%F{yellow1}%~@%m%f -> %b'
 
-CURRENT_OS=$(uname -s)
-
 if test -f /etc/manpaths; then
     for dir in $(cat /etc/manpaths); do
 	export MANPATH="$MANPATH:$dir"
     done
 fi
 export MANPATH="/usr/local/man:$MANPATH"
-
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US.UTF-8
@@ -79,6 +76,15 @@ if test $CURRENT_OS = "Darwin"; then
     if test -d /usr/local/Cellar; then
 	eval $(/usr/local/bin/brew shellenv)
     fi
+fi
+
+if [ -z "$XDG_RUNTIME_DIR" ]; then
+  XDG_RUNTIME_DIR=/run/user/$(id -u)
+  if [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RUNTIME_DIR" ]; then
+    export XDG_RUNTIME_DIR
+  else
+    unset XDG_RUNTIME_DIR
+  fi
 fi
 
 # fd is installed as fdfind on Ubuntu/Debian
@@ -107,7 +113,7 @@ elif test $CURRENT_OS = "Linux"; then
 fi
 export PATH=$JAVA_HOME/bin:$PATH
 
- set up Maven path
+# set up Maven path
 if test -d /opt/maven; then
     export MAVEN_HOME=/opt/maven
     prepend_to_path $MAVEN_HOME/bin
