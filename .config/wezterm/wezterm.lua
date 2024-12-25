@@ -19,7 +19,10 @@ local config = {
    color_scheme = color_scheme_for_appearance(wezterm.gui.get_appearance()),
    native_macos_fullscreen_mode = false,
 
-   font = wezterm.font "JetBrainsMono Nerd Font",
+   font = wezterm.font_with_fallback {
+      "JetBrainsMono Nerd Font",
+      "FiraCode Nerd Font Mono"
+   },
    font_size = 16,
 
    window_close_confirmation = "NeverPrompt",
