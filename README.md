@@ -8,6 +8,7 @@ Based on [this helpful guide](https://www.atlassian.com/git/tutorials/dotfiles) 
 alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
 git clone --bare git@github.com:tlockney/dotfiles.git $HOME/.cfg
 config checkout
+config config --local status.showUntrackedFiles no
 ```
 
 If you get errors because of existing files, run:
@@ -26,7 +27,6 @@ Delete `.config-backup` once you've verified nothing important will be lost.
 ```sh
 git init --bare $HOME/.cfg
 alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
-config config --local status.showUntrackedFiles no
 ```
 
  - Get all currently tracked files:
