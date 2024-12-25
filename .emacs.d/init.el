@@ -133,6 +133,21 @@
   (setq company-idle-delay 0.3)
   (global-company-mode t))
 
+;; Display possible completions at all places
+(use-package ido-completing-read+
+  :ensure t
+  :config
+  ;; This enables ido in all contexts where it could be useful, not just
+  ;; for selecting buffer and file names
+  (ido-mode t)
+  (ido-everywhere t)
+  ;; This allows partial matches, e.g. "uzh" will match "Ustad Zakir Hussain"
+  (setq ido-enable-flex-matching t)
+  (setq ido-use-filename-at-point nil)
+  ;; Includes buffer names of recently opened files, even if they're not open now.
+  (setq ido-use-virtual-buffers t)
+  :diminish nil)
+
 (use-package material-theme
   :config
   (progn (load-theme 'material t)))
@@ -162,3 +177,12 @@
   (corfu-auto-delay 0.0)
   :init
   (global-corfu-mode))
+
+;; Recent buffers in a new Emacs session
+(use-package recentf
+  :config
+  (setq recentf-auto-cleanup 'never
+	recentf-max-saved-items 1000
+	recentf-save-file (concat user-emacs-directory ".recentf"))
+  (recentf-mode t)
+  :diminish nil)
