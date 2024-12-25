@@ -125,7 +125,13 @@
 
 (use-package typescript-ts-mode)
 
-(use-package company)
+(use-package company
+  :bind (:map company-active-map
+	      ("C-n" . company-select-next)
+	      ("C-p" . company-select-previous))
+  :config
+  (setq company-idle-delay 0.3)
+  (global-company-mode t))
 
 (use-package material-theme
   :config
