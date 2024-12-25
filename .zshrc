@@ -191,6 +191,7 @@ fi
 
 if type eza &>/dev/null; then
     TREE_IGNORE="cache|log|logs|node_modules|vendor"
+    alias l='eza --group-directories-first --icons --hyperlink'
     alias ls='eza --group-directories-first --icons --hyperlink'
     alias la='ls -a'
     alias ll='ls --git -l'
