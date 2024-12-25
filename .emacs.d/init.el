@@ -11,7 +11,7 @@
 (setq initial-scratch-message nil)
 (setq initial-major-mode 'org-mode)
 (setq confirm-nonexistent-file-or-buffer nil)
-(setq delete-old-version t)
+(setq delete-old-versions t)
 (setq version-control t)
 (setq vc-make-backup-files t)
 (setq backup-directory-alist `((".*" . "~/.emacs.d/backups")))

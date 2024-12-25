@@ -1,14 +1,25 @@
+local function color_scheme_for_appearance(appearance)
+   if appearance:find "Dark" then
+      return "Catppuccin Mocha"
+   else
+      return "Catppuccin Latte"
+   end
+end
+
+
 local wezterm = require("wezterm")
 
 local config = {
    automatically_reload_config = true,
 
-   -- enable_tab_bar = false,
-   -- default_cursor_style = "BlinkingBar",
-   -- color_scheme = "Nord (Gogh)",
-   color_scheme = 'Catppuccin Mocha',
+   hide_tab_bar_if_only_one_tab = true,
 
-   font = wezterm.font("FiraCode Nerd Font Mono", {weight=450, stretch="Normal", style="Normal"}),
+   -- color_scheme = "Nord (Gogh)",
+   -- color_scheme = 'Catppuccin Mocha',
+   color_scheme = color_scheme_for_appearance(wezterm.gui.get_appearance()),
+   native_macos_fullscreen_mode = false,
+
+   font = wezterm.font "JetBrainsMono Nerd Font",
    font_size = 16,
 
    window_close_confirmation = "NeverPrompt",

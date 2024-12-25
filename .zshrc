@@ -190,14 +190,18 @@ if test -d "$HOME/.atuin/bin"; then
 fi
 
 if type eza &>/dev/null; then
+    STD_OPTIONS='-g --group-directories-first --icons --hyperlink'
     TREE_IGNORE="cache|log|logs|node_modules|vendor"
-    alias ls='eza --group-directories-first --icons --hyperlink'
-    alias la='ls -a'
-    alias ll='ls --git -l'
-    alias lt='ls --tree -D -L 2 -I ${TREE_IGNORE}'
-    alias ltt='ls --tree -D -L 3 -I ${TREE_IGNORE}'
-    alias lttt='ls --tree -D -L 4 -I ${TREE_IGNORE}'
-    alias ltttt='ls --tree -D -L 5 -I ${TREE_IGNORE}'
+    alias l="eza $STD_OPTIONS"
+    alias ls="l"
+    alias la="l -a"
+    alias lg="l --git -l"
+    alias lt='l --tree -D --level=2 -I "${TREE_IGNORE}"'
+    alias llt='lt -l'
+    alias ltt='l --tree -D --level=2 -I "${TREE_IGNORE}"'
+    alias lltt='ltt -l'
+    alias lttt='l --tree -D --level=3 -I "${TREE_IGNORE}"'
+    alias llttt='lttt -l'
 fi
 
 if type bat &>/dev/null; then
