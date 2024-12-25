@@ -36,8 +36,8 @@ local config = {
    scrollback_lines = 5000,
 }
 
-require("wuake").setup {
-   config = config,
-}
+-- require("wuake").setup {
+--   config = config,
+-- }
 
 return config
