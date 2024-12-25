@@ -4,3 +4,9 @@
 /.esphome/
 /secrets.yaml
 .cfg
+.cargo/
+.ssh/
+.rustup/
+.npm/
+.local/
+src/
