@@ -195,6 +195,7 @@ if type eza &>/dev/null; then
     alias l="eza $STD_OPTIONS"
     alias ls="l"
     alias la="l -a"
+    alias ll="la -l"
     alias lg="l --git -l"
     alias lt='l --tree -D --level=2 -I "${TREE_IGNORE}"'
     alias llt='lt -l'
