@@ -244,7 +244,6 @@ fi
 alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
-alias config='/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME'
 alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
