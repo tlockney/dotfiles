@@ -8,6 +8,7 @@ osascript -e 'tell application "System Settings" to quit'
 osascript -e 'tell application "System Preferences" to quit'
 
 # Ask for the administrator password upfront
+echo "Enter your password to enable updating system settings"
 sudo -v
 
 # Keep-alive: update existing `sudo` time stamp until `.macos` has finished
@@ -137,3 +138,7 @@ defaults write com.apple.finder FXInfoPanesExpanded -dict \
 defaults write com.apple.dock show-recents -bool false
 
 defaults write org.hammerspoon.Hammerspoon MJConfigFile "~/.config/hammerspoon/init.lua"
+
+# Configure custom iTerm settings location
+defaults write com.googlecode.iterm2 PrefsCustomFolder "$HOME/config/iterm2"
+defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder 1
