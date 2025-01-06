@@ -96,6 +96,18 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
+(use-package vertico
+  :init
+  (vertico-mode))
+
+(use-package savehist
+  :init
+  (savehist-mode))
+
+(use-package marginalia
+  :init
+  (marginalia-mode))
+
 (use-package treesit-auto
   :custom
   (treesit-auto-install 'prompt)
