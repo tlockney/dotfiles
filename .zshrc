@@ -173,12 +173,12 @@ if test -d ~/.wasmer; then
     fi
 fi
 
-if test -d "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims" &>/dev/null; then
-    prepend_to_path "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
-    eval "$(mise activate zsh)"
-    # run this just in case we need to update the end before getting a prompt
-    eval "$(mise hook-env)"
-fi
+# if test -d "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims" &>/dev/null; then
+#     prepend_to_path "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
+#     eval "$(mise activate zsh)"
+#     # run this just in case we need to update the end before getting a prompt
+#     eval "$(mise hook-env)"
+# fi
 
 if test -f ~/.config/op/plugins.sh; then
     source ~/.config/op/plugins.sh

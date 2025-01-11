@@ -1,2 +1,4 @@
 emulate sh -c 'source ~/.profile'
-eval "$($HOME/.local/bin/mise activate zsh --shims)"
+if [[ -x $HOME/.local/bin/mise ]]; then
+    eval "$($HOME/.local/bin/mise activate zsh --shims)"
+fi
