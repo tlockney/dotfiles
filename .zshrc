@@ -247,5 +247,6 @@ alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
 alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
+alias get_uuid="echo ${(L)$(uuidgen)}"
 
 autoload -U +X compinit && compinit
