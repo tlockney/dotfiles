@@ -152,22 +152,14 @@ if [[ $DEV -eq 1 ]]; then
 	uv tool install httpie
 	uv tool install poetry
 	uv tool install pipenv
-
-	if ! type pipx &>/dev/null; then
-		echo Installing pipx
-		# Make sure to use the mise installed version of pip3
-		`mise which pip3` install --user pipx
-	fi
-
-	echo Installing pipx packages
-	pipx install --include-deps jupyter
-	pipx inject --include-deps --include-apps jupyter \
-		requests \
-		pandas \
-		numpy \
-		matplotlib \
-		nbconvert \
-		nbclassic
+	uv tool install jupyter-core \
+	   --with jupyterlab \
+	   --with requests \
+	   --with pandas \
+	   --with numpy \
+	   --with matplotlib \
+	   --with nbconvert \
+	   --with nbclassic
 
 	echo Install Rust tools
 	#rustup component add rust-src
