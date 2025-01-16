@@ -68,6 +68,10 @@ export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -p)
 
+if [[ -x $HOME/.local/bin/mise ]]; then
+    eval "$($HOME/.local/bin/mise activate zsh)"
+fi
+
 # set up homebrew paths
 if test $CURRENT_OS = "Darwin"; then
     if test -d /opt/homebrew; then
