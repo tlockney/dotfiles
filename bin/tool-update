@@ -29,8 +29,12 @@ if type cargo-install-update &>/dev/null; then
 	cargo install-update -a
 fi
 
-if type pipx &>/dev/null; then
-	echo "Updating pipx and all pipx installed tools"
-	`mise which pip3` install --user --upgrade --force pipx
-	pipx reinstall-all
-fi
+for tool in jupyter-core httpie pipenv poetry pygments yt-dlp; do
+    uv tool upgrade "$tool"
+done
+
+#if type pipx &>/dev/null; then
+#	echo "Updating pipx and all pipx installed tools"
+#	`mise which pip3` install --user --upgrade --force pipx
+#	pipx reinstall-all
+#fi

@@ -68,6 +68,10 @@ export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -p)
 
+if [[ -x $HOME/.local/bin/mise ]]; then
+    eval "$($HOME/.local/bin/mise activate zsh)"
+fi
+
 # set up homebrew paths
 if test $CURRENT_OS = "Darwin"; then
     if test -d /opt/homebrew; then
@@ -173,12 +177,12 @@ if test -d ~/.wasmer; then
     fi
 fi
 
-if test -d "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims" &>/dev/null; then
-    prepend_to_path "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
-    eval "$(mise activate zsh)"
-    # run this just in case we need to update the end before getting a prompt
-    eval "$(mise hook-env)"
-fi
+# if test -d "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims" &>/dev/null; then
+#     prepend_to_path "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
+#     eval "$(mise activate zsh)"
+#     # run this just in case we need to update the end before getting a prompt
+#     eval "$(mise hook-env)"
+# fi
 
 if test -f ~/.config/op/plugins.sh; then
     source ~/.config/op/plugins.sh
@@ -247,5 +251,6 @@ alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
 alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
+alias get_uuid="echo ${(L)$(uuidgen)}"
 
 autoload -U +X compinit && compinit
