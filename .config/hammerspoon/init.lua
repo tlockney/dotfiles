@@ -43,3 +43,34 @@ hs.hotkey.bind({ "cmd", "alt", "ctrl" }, "W", function()
 end)
 
 -- require("app-watcher")
+
+require("button_images")
+
+sdlog = hs.logger.new("streamdeck")
+
+streamdecks = {}
+streamdecks['A00WA4121N7XWN'] = {
+	buttons = {
+
+	}
+}
+
+function initStreamdeck(connected, device)
+	if streamdecks[device:serialNumber()] then
+		device:reset()
+		columns, rows = device:buttonLayout()
+		numButtons = columns * rows
+		device:setButtonImage(1, streamdeck_imageFromText('🖥️'))
+		sdlog.i(hs.inspect(device))
+		device:buttonCallback(function(sd, num, pressed)
+			-- sdlog.i(hs.inspect(sd))
+			-- sdlog.i(num)
+			-- sdlog.i(pressed)
+			if pressed then
+
+			end
+		end)
+	end
+end
+
+hs.streamdeck.init(initStreamdeck)
