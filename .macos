@@ -2,6 +2,8 @@
 
 # Heavily borrowed from https://github.com/mathiasbynens/dotfiles/blob/main/.macos
 
+# See https://macos-defaults.com for additional defaults options
+
 # Close any open System Preferences panes, to prevent them from overriding
 # settings we’re about to change. Do this for both Ventura and earlier variants
 osascript -e 'tell application "System Settings" to quit'
@@ -142,3 +144,7 @@ defaults write org.hammerspoon.Hammerspoon MJConfigFile "~/.config/hammerspoon/i
 # Configure custom iTerm settings location
 defaults write com.googlecode.iterm2 PrefsCustomFolder "$HOME/config/iterm2"
 defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder 1
+
+# Put Screenshots somewhere sane
+mkdir -p ~/Documents/Screenshots
+defaults write com.apple.screencapture "location" -string "~/Documents/Screenshots" && killall SystemUIServer
