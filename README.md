@@ -1,6 +1,21 @@
 # My Dotfiles
 
-Based on [this helpful guide](https://www.atlassian.com/git/tutorials/dotfiles) from Atlassian.
+## Prerequisites
+
+### MacOS
+
+```sh
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install tmux
+```
+
+### Linux
+
+```sh
+sudo apt install zsh tmux
+chsh -s /usr/bin/zsh
+```
 
 ## Installation
 
