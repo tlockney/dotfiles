@@ -145,15 +145,6 @@ if [[ $DEV -eq 1 ]]; then
 
 	cargo install tldc
 	cargo install onefetch
-
-	# Install Google Cloud SDK and tools
-	if ! type gcloud &>/dev/null; then
-		echo Installing Google Cloud SDK
-		curl https://sdk.cloud.google.com > gcloud-install.sh
-		mkdir -p $HOME/Tools
-		bash gcloud-install.sh --disable-prompts --install-dir=$HOME/Tools
-		rm gcloud-install.sh
-	fi
 else
 	echo "Skipping dev tools"
 fi
