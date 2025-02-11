@@ -21,7 +21,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 DENO_VERSION="latest"
-PYTHON_VERSION="3.12"
+PYTHON_VERSION="latest"
 NODE_VERSION="latest"
 
 # Update homebrew if it's installed
@@ -56,17 +56,12 @@ if !type deno &>/dev/null; then
 	echo Installing Deno version $DENO_VERSION
 
 	# Install Deno
-	mise install deno@$DENO_VERSION
 	mise use -g deno@$DENO_VERSION
 
-	if type jupyter >&/dev/null; then
-		deno jupyter --unstable --install
-	fi
 fi
 
 if !type node &>/dev/null; then
 	echo Installing Node version $NODE_VERSION
-	mise install node@$NODE_VERSION
 	mise use -g node@$NODE_VERSION
 fi
 
@@ -114,31 +109,8 @@ fi
 
 if [[ $DEV -eq 1 ]]; then
 	echo "Installing dev tools"
-	# install suggested prereqs for building python
-	# See https://github.com/pyenv/pyenv/wiki#suggested-build-environment
-	if type brew &>/dev/null; then
-		echo Installing Python prereqs via Homebrew
-		brew install openssl readline sqlite3 xz zlib tcl-tk
-	elif command -v apt; then
-		echo Installing Python prereqs via apt
-		sudo bash -c "apt update && apt install -y build-essential \
-			libssl-dev \
-			zlib1g-dev \
-			libbz2-dev \
-			libreadline-dev \
-			libsqlite3-dev \
-			curl \
-			libncursesw5-dev \
-			xz-utils \
-			tk-dev \
-			libxml2-dev \
-			libxmlsec1-dev \
-			libffi-dev \
-			liblzma-dev"
-	fi
 
 	echo Installing Python version $PYTHON_VERSION
-	mise install python@$PYTHON_VERSION
 	mise use -g python@$PYTHON_VERSION
 
 	if ! type uv &>/dev/null; then
@@ -160,6 +132,10 @@ if [[ $DEV -eq 1 ]]; then
 	   --with matplotlib \
 	   --with nbconvert \
 	   --with nbclassic
+
+	if type deno >&/dev/null; then
+		deno jupyter --unstable --install
+	fi
 
 	echo Install Rust tools
 	#rustup component add rust-src
