@@ -7,7 +7,7 @@ Based on [this helpful guide](https://www.atlassian.com/git/tutorials/dotfiles) 
 ```sh
 mkdir -p ~/bin
 curl -fLo ~/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/bin/yadm
-~/bin/yadm clone git@github.com:tlockney/dotfiles.git
+~/bin/yadm clone https://github.com/tlockney/dotfiles.git
 ```
 
 ## Tips
