@@ -65,8 +65,6 @@ if !type node &>/dev/null; then
 	mise use -g node@$NODE_VERSION
 fi
 
-npm install -g tldr
-
 echo Install Rust tools
 #rustup component add rust-src
 
@@ -143,7 +141,6 @@ if [[ $DEV -eq 1 ]]; then
 	cargo install --locked evcxr_jupyter
 	evcxr_jupyter --install
 
-	cargo install tldc
 	cargo install onefetch
 else
 	echo "Skipping dev tools"
