@@ -245,6 +245,10 @@ if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
     ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 fi
 
+if type podman &>/dev/null; then
+    alias docker=podman
+fi
+
 alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
@@ -252,5 +256,6 @@ alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
 alias get_uuid="echo ${(L)$(uuidgen)}"
+alias metron-op='op --account metron.1password.com'
 
 autoload -U +X compinit && compinit

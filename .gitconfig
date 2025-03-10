@@ -2,7 +2,12 @@
 [user]
   name = Thomas Lockney
   email = thomas@lockney.net
-  github = tlockney
+
+[includeIf "gitdir:~/src/personal"]
+  path = ~/.gitconfig-personal
+
+[includeIf "gitdir:~/src/metron/"]
+  path = ~/.gitconfig-metron
 
 [core]
   editor = emacs -nw
