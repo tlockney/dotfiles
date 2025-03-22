@@ -22,6 +22,7 @@ fi
 if type rustup &>/dev/null; then
 	echo "Updating rust tools"
 	rustup update
+        rustup self update
 fi
 
 if type cargo-install-update &>/dev/null; then
