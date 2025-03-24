@@ -1,3 +1,5 @@
+autoload -U +X compinit && compinit
+
 # prevent duplicate path entries
 typeset -U path
 
@@ -184,6 +186,9 @@ fi
 #     eval "$(mise hook-env)"
 # fi
 
+if type op &>/dev/null; then
+    eval "$(op completion zsh)"; compdef _op op
+fi
 if test -f ~/.config/op/plugins.sh; then
     source ~/.config/op/plugins.sh
 fi
@@ -249,6 +254,11 @@ if type podman &>/dev/null; then
     alias docker=podman
 fi
 
+if test -d /opt/homebrew/opt/uutils-coreutils/libexec/uubin; then
+    prepend_to_path /opt/homebrew/opt/uutils-coreutils/libexec/uubin
+fi
+
+
 alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
@@ -257,5 +267,3 @@ alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
 alias get_uuid="echo ${(L)$(uuidgen)}"
 alias metron-op='op --account metron.1password.com'
-
-autoload -U +X compinit && compinit

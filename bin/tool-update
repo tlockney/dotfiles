@@ -29,7 +29,7 @@ if type cargo-install-update &>/dev/null; then
 	cargo install-update -a
 fi
 
-for tool in jupyter-core httpie pipenv poetry pygments yt-dlp; do
+for tool in $(uv tool list | grep -v '^-' | awk '{ print $1}' | tr '\n' ' '); do
     uv tool upgrade "$tool"
 done
 
