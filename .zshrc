@@ -258,6 +258,9 @@ if test -d /opt/homebrew/opt/uutils-coreutils/libexec/uubin; then
     prepend_to_path /opt/homebrew/opt/uutils-coreutils/libexec/uubin
 fi
 
+if test -d /opt/homebrew/opt/libpq; then
+    prepend_to_path /opt/homebrew/opt/libpq/bin
+fi
 
 alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
