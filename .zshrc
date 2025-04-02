@@ -267,3 +267,4 @@ alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 alias less="less --mouse -INF"
 alias get_uuid="echo ${(L)$(uuidgen)}"
 alias metron-op='op --account metron.1password.com'
+alias tc='tmux new -s `basename $(pwd)`'
