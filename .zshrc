@@ -1,5 +1,9 @@
 autoload -U +X compinit && compinit
 
+fpath=(~/.zsh $fpath)
+autoload -Uz compinit
+compinit -u
+
 # prevent duplicate path entries
 typeset -U path
 
