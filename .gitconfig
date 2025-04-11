@@ -2,6 +2,7 @@
 [user]
   name = Thomas Lockney
   email = thomas@lockney.net
+  github = tlockney
 
 [includeIf "gitdir:~/src/personal"]
   path = ~/.gitconfig-personal
@@ -11,11 +12,10 @@
 
 [core]
   editor = emacs -nw
-
+#  sshCommand = ssh -i ~/.ssh/id_rsa_metron
 [pull]
-	rebase = false
-
+  rebase = false
 [init]
   defaultBranch = main
 [gpg]
-	format = ssh
+  format = ssh
