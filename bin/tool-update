@@ -29,12 +29,7 @@ if type cargo-install-update &>/dev/null; then
 	cargo install-update -a
 fi
 
-for tool in $(uv tool list | grep -v '^-' | awk '{ print $1}' | tr '\n' ' '); do
-    uv tool upgrade "$tool"
+uv_reinstall=$(uv tool upgrade --all 2>&1 | grep 'error' | awk 'NF{ print $NF }')
+for tool in $uv_reinstall; do
+    uv tool upgrade $tool --reinstall
 done
-
-#if type pipx &>/dev/null; then
-#	echo "Updating pipx and all pipx installed tools"
-#	`mise which pip3` install --user --upgrade --force pipx
-#	pipx reinstall-all
-#fi
