@@ -3,33 +3,34 @@
 set -euC -o pipefail
 
 if type brew &>/dev/null; then
-	echo "Updating Homebrew and all installed packages"
-	brew update && brew upgrade
-	brew cleanup
+    echo "Updating Homebrew and all installed packages"
+    brew update && brew upgrade
+    brew cleanup
 fi
 
 # check for apt-get instead of apt, since MacOS has a binary called apt
 if type apt-get &>/dev/null; then
-	echo "Updating apt and upgrading packages"
-	sudo bash -c "apt update && apt -y dist-upgrade"
+    echo "Updating apt and upgrading packages"
+    sudo bash -c "apt update && apt -y dist-upgrade"
 fi
 
 if type mise &>/dev/null; then
-	echo "Updating mise and all installed tools"
-	mise self-update -y && mise upgrade -y
+    echo "Updating mise and all installed tools"
+    mise self-update -y && mise upgrade -y
 fi
 
 if type rustup &>/dev/null; then
-	echo "Updating rust tools"
-	rustup update
+    echo "Updating rust tools"
+    rustup update
 fi
 
 if type cargo-install-update &>/dev/null; then
-	echo "Updating cargo tools"
-	cargo install-update -a
+    echo "Updating cargo tools"
+    cargo install-update -a
 fi
 
 for tool in $(uv tool list | grep -v '^-' | awk '{ print $1}' | tr '\n' ' '); do
+    echo "Updating $tool"
     uv tool upgrade "$tool"
 done
 
