@@ -1,5 +1,9 @@
 autoload -U +X compinit && compinit
 
+fpath=(~/.zsh $fpath)
+autoload -Uz compinit
+compinit -u
+
 # prevent duplicate path entries
 typeset -U path
 
@@ -262,6 +266,10 @@ fi
 
 if test -f $(brew --prefix)/etc/brew-wrap ;then
   source $(brew --prefix)/etc/brew-wrap
+fi
+
+if test -d /opt/homebrew/opt/libpq; then
+    prepend_to_path /opt/homebrew/opt/libpq/bin
 fi
 
 alias mkdir="mkdir -p"

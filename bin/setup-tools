@@ -44,10 +44,11 @@ rustup toolchain install stable
 if ! type mise &>/dev/null; then
 	echo Installing mise
 	curl https://mise.run | sh
-	path=(~/.local/share/mise/bin $PATH)
 	eval "$(mise activate zsh)"
 fi
 
+# add mise path just to be safe
+path=(~/.local/share/mise/bin $PATH)
 
 # This is just to deal with any existing pipx installations that may need to be reset
 #pipx reinstall-all
@@ -71,10 +72,6 @@ echo Install Rust tools
 cargo install cargo-update
 cargo install-update cargo-outdated
 
-cargo install evcxr_repl
-cargo install --locked evcxr_jupyter
-evcxr_jupyter --install
-
 # Better ls via eza
 cargo install eza
 
@@ -90,9 +87,6 @@ if [[ $os = "Darwin" ]]; then
 elif [[ $os = "Linux" ]]; then
 	sudo apt install fzf fd-find
 fi
-
-# install Rust TLDR client
-cargo install tlrc
 
 # Install Atuin
 curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
