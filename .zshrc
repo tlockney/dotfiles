@@ -233,13 +233,11 @@ elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
 fi
 
 # pnpm
-if test -e ~/.local/share/pnpm; then
-    export PNPM_HOME="/home/tlockney/.local/share/pnpm"
-    case ":$PATH:" in
-	*":$PNPM_HOME:"*) ;;
-	*) export PATH="$PNPM_HOME:$PATH" ;;
-    esac
-fi
+export PNPM_HOME="/Users/tlockney/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
 # pnpm end
 
 if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
@@ -258,6 +256,13 @@ if test -d /opt/homebrew/opt/uutils-coreutils/libexec/uubin; then
     prepend_to_path /opt/homebrew/opt/uutils-coreutils/libexec/uubin
 fi
 
+if test -e ~/.claude/local/claude; then
+    alias claude=~/.claude/local/claude
+fi
+
+if test -f $(brew --prefix)/etc/brew-wrap ;then
+  source $(brew --prefix)/etc/brew-wrap
+fi
 
 alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
