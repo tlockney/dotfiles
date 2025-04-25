@@ -1,17 +1,22 @@
-autoload -U +X compinit && compinit
-
+# Initialize completion system once
 fpath=(~/.zsh $fpath)
 autoload -Uz compinit
 compinit -u
+
+# ===== Path Configuration =====
 
 # prevent duplicate path entries
 typeset -U path
 
 function prepend_to_path {
-    path=($1 $path)
-    export PATH
+    # Only add path if it exists and is not already in the path
+    if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
+        path=($1 $path)
+        export PATH
+    fi
 }
 
+# Standard directories
 prepend_to_path /usr/local/bin
 prepend_to_path /usr/local/sbin
 prepend_to_path $HOME/bin
@@ -19,8 +24,28 @@ prepend_to_path $HOME/.local/bin
 
 test -f "/usr/libexec/path_helper" && eval "$(/usr/libexec/path_helper)"
 
+# ===== Shell Options and Key Bindings =====
+
+# Set emacs keybindings
 set -o emacs
 
+# Key bindings for better navigation
+bindkey '^[[1;5C' forward-word     # Ctrl+right arrow: move forward one word
+bindkey '^[[1;5D' backward-word    # Ctrl+left arrow: move backward one word
+bindkey '^[[H' beginning-of-line   # Home key: beginning of line
+bindkey '^[[F' end-of-line         # End key: end of line
+bindkey '^[[3~' delete-char        # Delete key
+
+# Add useful zsh options
+setopt AUTO_CD                  # If a command is a directory name, cd to it
+setopt AUTO_PUSHD               # Push dirs to the stack automatically
+setopt PUSHD_IGNORE_DUPS        # Don't push multiple copies of the same directory
+setopt PUSHD_SILENT             # Don't print the directory stack after pushd or popd
+setopt CORRECT                  # Try to correct command spelling
+setopt NO_FLOW_CONTROL          # Disable flow control (^S/^Q)
+setopt INTERACTIVE_COMMENTS     # Allow comments even in interactive shells
+
+# ===== History Configuration =====
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=10000000
 SAVEHIST=10000000
@@ -38,39 +63,58 @@ setopt HIST_REDUCE_BLANKS        # Remove superfluous blanks before recording en
 setopt HIST_VERIFY               # Don't execute immediately upon history expansion.
 setopt HIST_BEEP                 # Beep when accessing nonexistent history.
 
+# ===== Completions Setup =====
+
+# Add brew completions if available
 if type brew &>/dev/null
 then
-    if test -d $(brew --prefix zsh-completions); then
-	FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
-    fi
-
-    if test -d $(brew --prefix zsh-autosuggestions); then
-	source $(brew --prefix zsh-autosuggestions)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-    fi
-else
-    if test -d /usr/share/zsh-autosuggestions; then
-	source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+    if test -d "$BREW_PREFIX/share/zsh-completions"; then
+	FPATH="$BREW_PREFIX/share/zsh-completions:$FPATH"
     fi
 fi
 
+# Enable completion menu
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case insensitive completion
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"    # Colored completion
+
+# ===== Prompt Configuration =====
+
+# Default prompt (fallback if starship isn't available)
 PS1='%B%F{yellow1}%~@%m%f -> %b'
 
+# Enable starship prompt if available
+if type starship &>/dev/null; then
+  eval "$(starship init zsh)"
+fi
+
+# ===== Environment Variables =====
+
+# Man path setup
 if test -f /etc/manpaths; then
     for dir in $(cat /etc/manpaths); do
 	export MANPATH="$MANPATH:$dir"
     done
 fi
 export MANPATH="/usr/local/man:$MANPATH"
+
+# Locale settings
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US.UTF-8
+
+# Editor configuration
 export EDITOR="emacsclient -a 'emacs'"
 export ALTERNATE_EDITOR="code"
+
+# Development environments
 export JAVA_OPTIONS="-Djava.awt.headless=true"
 export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
 export ANDROID_NDK_ROOT="/usr/local/share/android-ndk"
 export NVM_DIR="$HOME/.nvm"
 export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
+
+# System information
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -p)
 
@@ -79,12 +123,14 @@ if [[ -x $HOME/.local/bin/mise ]]; then
 fi
 
 # set up homebrew paths
+# Set up homebrew once and store its prefix
 if test $CURRENT_OS = "Darwin"; then
     if test -d /opt/homebrew; then
 	eval $(/opt/homebrew/bin/brew shellenv)
-    fi
-    if test -d /usr/local/Cellar; then
+	BREW_PREFIX="$(/opt/homebrew/bin/brew --prefix)"
+    elif test -d /usr/local/Cellar; then
 	eval $(/usr/local/bin/brew shellenv)
+	BREW_PREFIX="$(/usr/local/bin/brew --prefix)"
     fi
 fi
 
@@ -110,13 +156,21 @@ esac
 command -v fdfind > /dev/null && alias fd=fdfind
 
 # set up cargo
-if test -d "HOME/.cargo"; then
+if test -d "$HOME/.cargo"; then
     . "$HOME/.cargo/env"
 fi
 
-# init nvm
-export NVM_DIR="$HOME/.nvm"
-test -s "$NVM_DIR/nvm.sh" && source "$NVM_DIR/nvm.sh"  # This loads nvm
+# Lazy-load NVM for faster shell startup
+nvm() {
+    unset -f nvm
+    if test -s "$NVM_DIR/nvm.sh"; then
+        source "$NVM_DIR/nvm.sh"
+        if test -s "$NVM_DIR/bash_completion"; then
+            source "$NVM_DIR/bash_completion"
+        fi
+    fi
+    nvm "$@"
+}
 
 if type rustup &>/dev/null && ! test -d $HOME/.zfunc; then
     mkdir $HOME/.zfunc &>/dev/null
@@ -148,9 +202,7 @@ test -e "$HOME/.shellfishrc" && source "$HOME/.shellfishrc"
 # opam configuration
 test ! -r ~/.opam/opam-init/init.zsh || source ~/.opam/opam-init/init.zsh  > /dev/null 2> /dev/null
 
-#if type starship &>/dev/null; then
-#  eval "$(starship init zsh)"
-#fi
+# Remove duplicated starship section
 
 if test -d "/opt/homebrew/opt/llvm/bin"; then
     prepend_to_path /opt/homebrew/opt/llvm/bin
@@ -202,6 +254,60 @@ if test -d "$HOME/.atuin/bin"; then
     eval "$(atuin init zsh)"
 fi
 
+# Move these aliases to the aliases section
+
+if type brew &>/dev/null && test -e "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"; then
+    source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
+    source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+fi
+
+# pnpm
+if test $CURRENT_OS = "Darwin"; then
+    export PNPM_HOME="$HOME/Library/pnpm"
+else
+    export PNPM_HOME="$HOME/.local/share/pnpm"
+fi
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+if type brew &>/dev/null && test -d "$BREW_PREFIX/share/zsh-syntax-highlighting"; then
+    source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+    # Disable underline
+    (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
+    ZSH_HIGHLIGHT_STYLES[path]=none
+    ZSH_HIGHLIGHT_STYLES[path_prefix]=none
+fi
+
+if test -d /opt/homebrew/opt/uutils-coreutils/libexec/uubin; then
+    prepend_to_path /opt/homebrew/opt/uutils-coreutils/libexec/uubin
+fi
+
+if type brew &>/dev/null && test -f "$BREW_PREFIX/etc/brew-wrap"; then
+  source "$BREW_PREFIX/etc/brew-wrap"
+fi
+
+if test -d /opt/homebrew/opt/libpq; then
+    prepend_to_path /opt/homebrew/opt/libpq/bin
+fi
+
+# ===== Aliases =====
+
+# System and utility aliases
+alias mkdir="mkdir -p"
+alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
+alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
+alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
+alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
+alias less="less --mouse -INF"
+alias get_uuid="echo ${(L)$(uuidgen)}"
+alias metron-op='op --account metron.1password.com'
+alias tc='tmux new -s `basename $(pwd)`'
+
+# File system navigation and viewing
 if type eza &>/dev/null; then
     STD_OPTIONS='-g --group-directories-first --icons --hyperlink'
     TREE_IGNORE="cache|log|logs|node_modules|vendor"
@@ -218,6 +324,7 @@ if type eza &>/dev/null; then
     alias llttt='lttt -l'
 fi
 
+# Enhanced command alternatives
 if type bat &>/dev/null; then
     alias cat='bat --theme Catppuccin-macchiato --pager "less --mouse -RIF"'
 fi
@@ -226,58 +333,15 @@ if type rlwrap &>/dev/null; then
     alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
 fi
 
-if test -e $HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea; then
-    alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
-fi
-
-if type brew &>/dev/null && test -e $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
-    source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
-    source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-fi
-
-# pnpm
-export PNPM_HOME="/Users/tlockney/Library/pnpm"
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
-# pnpm end
-
-if [[ -d /opt/homebrew/share/zsh-syntax-highlighting ]]; then
-    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-    # Disable underline
-    (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
-    ZSH_HIGHLIGHT_STYLES[path]=none
-    ZSH_HIGHLIGHT_STYLES[path_prefix]=none
-fi
-
 if type podman &>/dev/null; then
     alias docker=podman
 fi
 
-if test -d /opt/homebrew/opt/uutils-coreutils/libexec/uubin; then
-    prepend_to_path /opt/homebrew/opt/uutils-coreutils/libexec/uubin
+# Application shortcuts
+if test -e $HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea; then
+    alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
 fi
 
 if test -e ~/.claude/local/claude; then
     alias claude=~/.claude/local/claude
 fi
-
-if test -f $(brew --prefix)/etc/brew-wrap ;then
-  source $(brew --prefix)/etc/brew-wrap
-fi
-
-if test -d /opt/homebrew/opt/libpq; then
-    prepend_to_path /opt/homebrew/opt/libpq/bin
-fi
-
-alias mkdir="mkdir -p"
-alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
-alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
-alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
-alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
-alias less="less --mouse -INF"
-alias get_uuid="echo ${(L)$(uuidgen)}"
-alias metron-op='op --account metron.1password.com'
-alias tc='tmux new -s `basename $(pwd)`'
