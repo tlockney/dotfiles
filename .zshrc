@@ -11,8 +11,8 @@ typeset -U path
 function prepend_to_path {
     # Only add path if it exists and is not already in the path
     if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
-        path=($1 $path)
-        export PATH
+	path=($1 $path)
+	export PATH
     fi
 }
 
@@ -143,56 +143,56 @@ fi
 # Set up homebrew paths and prefix if available
 if [[ "$CURRENT_OS" == "Darwin" ]]; then
     if [[ -d /opt/homebrew && -x /opt/homebrew/bin/brew ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        BREW_PREFIX="$(/opt/homebrew/bin/brew --prefix)"
+	eval "$(/opt/homebrew/bin/brew shellenv)"
+	BREW_PREFIX="$(/opt/homebrew/bin/brew --prefix)"
     elif [[ -d /usr/local/Cellar && -x /usr/local/bin/brew ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
-        BREW_PREFIX="$(/usr/local/bin/brew --prefix)"
+	eval "$(/usr/local/bin/brew shellenv)"
+	BREW_PREFIX="$(/usr/local/bin/brew --prefix)"
     fi
 elif [[ "$CURRENT_OS" == "Linux" ]]; then
     # Handle Homebrew on Linux if installed
     if [[ -d /home/linuxbrew/.linuxbrew && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        BREW_PREFIX="$(/home/linuxbrew/.linuxbrew/bin/brew --prefix)"
+	eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+	BREW_PREFIX="$(/home/linuxbrew/.linuxbrew/bin/brew --prefix)"
     elif [[ -d "$HOME/.linuxbrew" && -x "$HOME/.linuxbrew/bin/brew" ]]; then
-        eval "$($HOME/.linuxbrew/bin/brew shellenv)"
-        BREW_PREFIX="$($HOME/.linuxbrew/bin/brew --prefix)"
+	eval "$($HOME/.linuxbrew/bin/brew shellenv)"
+	BREW_PREFIX="$($HOME/.linuxbrew/bin/brew --prefix)"
     fi
 fi
 
 # Set up XDG runtime directory if not already set
 if [[ -z "$XDG_RUNTIME_DIR" ]]; then
     if [[ "$CURRENT_OS" == "Linux" ]]; then
-        XDG_RUNTIME_DIR=/run/user/$(id -u)
+	XDG_RUNTIME_DIR=/run/user/$(id -u)
     elif [[ "$CURRENT_OS" == "Darwin" ]]; then
-        XDG_RUNTIME_DIR="${TMPDIR%/}user/$(id -u)"
-        mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
+	XDG_RUNTIME_DIR="${TMPDIR%/}user/$(id -u)"
+	mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
     else
-        # Fallback for other Unix systems
-        XDG_RUNTIME_DIR="/tmp/runtime-$(id -u)"
-        mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
+	# Fallback for other Unix systems
+	XDG_RUNTIME_DIR="/tmp/runtime-$(id -u)"
+	mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
     fi
-    
+
     # Only set if directory exists and is writable
     if [[ -d "$XDG_RUNTIME_DIR" && -w "$XDG_RUNTIME_DIR" ]]; then
-        export XDG_RUNTIME_DIR
+	export XDG_RUNTIME_DIR
     else
-        unset XDG_RUNTIME_DIR
+	unset XDG_RUNTIME_DIR
     fi
 fi
 
 # Configure Emacs socket name based on platform
 case "$CURRENT_OS" in
     Linux*)
-        export EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR:-/tmp}/emacs/server"
-        ;;
+	export EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR:-/tmp}/emacs/server"
+	;;
     Darwin*)
-        export EMACS_SOCKET_NAME="${TMPDIR:-/tmp}emacs$(id -u)/server"
-        ;;
+	export EMACS_SOCKET_NAME="${TMPDIR:-/tmp}emacs$(id -u)/server"
+	;;
     *)
-        # Fallback for other Unix systems
-        export EMACS_SOCKET_NAME="/tmp/emacs$(id -u)/server"
-        ;;
+	# Fallback for other Unix systems
+	export EMACS_SOCKET_NAME="/tmp/emacs$(id -u)/server"
+	;;
 esac
 
 # fd is installed as fdfind on Ubuntu/Debian
@@ -207,10 +207,10 @@ fi
 nvm() {
     unset -f nvm
     if test -s "$NVM_DIR/nvm.sh"; then
-        source "$NVM_DIR/nvm.sh"
-        if test -s "$NVM_DIR/bash_completion"; then
-            source "$NVM_DIR/bash_completion"
-        fi
+	source "$NVM_DIR/nvm.sh"
+	if test -s "$NVM_DIR/bash_completion"; then
+	    source "$NVM_DIR/bash_completion"
+	fi
     fi
     nvm "$@"
 }
@@ -229,13 +229,13 @@ if [[ "$CURRENT_OS" == "Darwin" && -x /usr/libexec/java_home ]]; then
 elif [[ "$CURRENT_OS" == "Linux" ]]; then
     # Try different common Linux Java locations
     if [[ -d "/usr/lib/jvm/default-java" ]]; then
-        export JAVA_HOME=/usr/lib/jvm/default-java
+	export JAVA_HOME=/usr/lib/jvm/default-java
     elif [[ -d "/usr/lib/jvm/java-11-openjdk-amd64" ]]; then
-        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
     elif [[ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]]; then
-        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+	export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
     elif [[ -L "/etc/alternatives/java_sdk" ]]; then
-        export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
+	export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
     fi
 fi
 
@@ -247,9 +247,9 @@ fi
 # Set up Maven if installed
 for maven_path in /opt/maven "$HOME/opt/maven" "/usr/local/opt/maven"; do
     if [[ -d "$maven_path" ]]; then
-        export MAVEN_HOME="$maven_path"
-        prepend_to_path "$MAVEN_HOME/bin"
-        break
+	export MAVEN_HOME="$maven_path"
+	prepend_to_path "$MAVEN_HOME/bin"
+	break
     fi
 done
 
@@ -263,8 +263,6 @@ test -e "$HOME/.shellfishrc" && source "$HOME/.shellfishrc"
 
 # opam configuration
 test ! -r ~/.opam/opam-init/init.zsh || source ~/.opam/opam-init/init.zsh  > /dev/null 2> /dev/null
-
-# Remove duplicated starship section
 
 if test -d "/opt/homebrew/opt/llvm/bin"; then
     prepend_to_path /opt/homebrew/opt/llvm/bin
@@ -297,13 +295,6 @@ if test -d ~/.wasmer; then
     fi
 fi
 
-# if test -d "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims" &>/dev/null; then
-#     prepend_to_path "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
-#     eval "$(mise activate zsh)"
-#     # run this just in case we need to update the end before getting a prompt
-#     eval "$(mise hook-env)"
-# fi
-
 if type op &>/dev/null; then
     eval "$(op completion zsh)"; compdef _op op
 fi
@@ -316,8 +307,6 @@ if test -d "$HOME/.atuin/bin"; then
     eval "$(atuin init zsh)"
 fi
 
-# Move these aliases to the aliases section
-
 if type brew &>/dev/null && test -e "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"; then
     source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
@@ -328,25 +317,25 @@ fi
 if command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]; then
     # Set PNPM_HOME based on platform
     case "$CURRENT_OS" in
-        Darwin*)
-            export PNPM_HOME="$HOME/Library/pnpm"
-            ;;
-        Linux*|*BSD*|MSYS*|MINGW*)
-            export PNPM_HOME="$HOME/.local/share/pnpm"
-            ;;
-        *)
-            # Fallback for other systems
-            export PNPM_HOME="$HOME/.pnpm"
-            ;;
+	Darwin*)
+	    export PNPM_HOME="$HOME/Library/pnpm"
+	    ;;
+	Linux*|*BSD*|MSYS*|MINGW*)
+	    export PNPM_HOME="$HOME/.local/share/pnpm"
+	    ;;
+	*)
+	    # Fallback for other systems
+	    export PNPM_HOME="$HOME/.pnpm"
+	    ;;
     esac
-    
+
     # Create directory if it doesn't exist
     mkdir -p "$PNPM_HOME" 2>/dev/null || true
-    
+
     # Add to PATH if not already there
     case ":$PATH:" in
-        *":$PNPM_HOME:"*) ;;
-        *) export PATH="$PNPM_HOME:$PATH" ;;
+	*":$PNPM_HOME:"*) ;;
+	*) export PATH="$PNPM_HOME:$PATH" ;;
     esac
 fi
 
@@ -362,12 +351,12 @@ fi
 if [[ "$CURRENT_OS" == "Darwin" ]]; then
     # Rust-based coreutils if installed
     if [[ -d "/opt/homebrew/opt/uutils-coreutils/libexec/uubin" ]]; then
-        prepend_to_path "/opt/homebrew/opt/uutils-coreutils/libexec/uubin"
+	prepend_to_path "/opt/homebrew/opt/uutils-coreutils/libexec/uubin"
     fi
-    
+
     # PostgreSQL client if installed
     if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
-        prepend_to_path "/opt/homebrew/opt/libpq/bin"
+	prepend_to_path "/opt/homebrew/opt/libpq/bin"
     fi
 fi
 
@@ -450,12 +439,12 @@ elif command -v exa >/dev/null 2>&1; then
 else
     # Fallback to standard ls with colors if available
     case "$CURRENT_OS" in
-        Darwin*)
-            alias ls="ls -G"
-            ;;
-        Linux*)
-            alias ls="ls --color=auto"
-            ;;
+	Darwin*)
+	    alias ls="ls -G"
+	    ;;
+	Linux*)
+	    alias ls="ls --color=auto"
+	    ;;
     esac
     alias l="ls"
     alias la="ls -a"
@@ -466,9 +455,9 @@ fi
 if command -v bat >/dev/null 2>&1; then
     # Check if the Catppuccin theme is available
     if bat --list-themes 2>/dev/null | grep -q "Catppuccin-macchiato"; then
-        alias cat='bat --theme Catppuccin-macchiato --pager "less -RIF"'
+	alias cat='bat --theme Catppuccin-macchiato --pager "less -RIF"'
     else
-        alias cat='bat --pager "less -RIF"'
+	alias cat='bat --pager "less -RIF"'
     fi
 fi
 
@@ -491,14 +480,14 @@ fi
 if [[ "$CURRENT_OS" == "Darwin" ]]; then
     # macOS application paths
     if [[ -e "$HOME/Applications/IntelliJ IDEA Community Edition.app/Contents/MacOS/idea" ]]; then
-        alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
+	alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
     elif [[ -e "/Applications/IntelliJ IDEA CE.app/Contents/MacOS/idea" ]]; then
-        alias idea="/Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea > /dev/null 2>&1 &"
+	alias idea="/Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea > /dev/null 2>&1 &"
     fi
 elif [[ "$CURRENT_OS" == "Linux" ]]; then
     # Linux application paths if needed
     if command -v intellij-idea-community >/dev/null 2>&1; then
-        alias idea="intellij-idea-community > /dev/null 2>&1 &"
+	alias idea="intellij-idea-community > /dev/null 2>&1 &"
     fi
 fi
 
