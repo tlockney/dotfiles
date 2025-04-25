@@ -1,9 +1,11 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-if [ -z ${date+x} ]; then
+set -euC -o pipefail
+
+if [ -z "${date+x}" ]; then
 	DATE=$(date +%Y-%m-%d)
 else
-	DATE=$date
+	DATE="$date"
 fi
 
 /usr/local/bin/icalBuddy \

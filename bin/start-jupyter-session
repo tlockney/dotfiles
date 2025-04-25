@@ -25,4 +25,5 @@ tmux send-keys -t "=$SESSION:=server" 'jupyter-lab --no-browser --port=5000' Ent
 
 tmux new-window -d -t "=$SESSION" -n shell
 
-
+# Switch to the session after setup
+attach

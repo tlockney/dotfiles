@@ -1,5 +1,5 @@
 # Initialize completion system once
-fpath=(~/.zsh $fpath)
+[[ -d ~/.zsh ]] && fpath=(~/.zsh $fpath)
 autoload -Uz compinit
 compinit -u
 
@@ -22,7 +22,10 @@ prepend_to_path /usr/local/sbin
 prepend_to_path $HOME/bin
 prepend_to_path $HOME/.local/bin
 
-test -f "/usr/libexec/path_helper" && eval "$(/usr/libexec/path_helper)"
+# Use macOS path_helper if available
+if [[ "$CURRENT_OS" == "Darwin" && -f "/usr/libexec/path_helper" ]]; then
+    eval "$(/usr/libexec/path_helper)"
+fi
 
 # ===== Shell Options and Key Bindings =====
 
@@ -90,66 +93,106 @@ fi
 
 # ===== Environment Variables =====
 
-# Man path setup
-if test -f /etc/manpaths; then
-    for dir in $(cat /etc/manpaths); do
-	export MANPATH="$MANPATH:$dir"
-    done
-fi
-export MANPATH="/usr/local/man:$MANPATH"
+# System information - detect OS and architecture
+export CURRENT_OS=$(uname -s)
+export CURRENT_ARCH=$(uname -m)
 
-# Locale settings
-export LC_ALL=en_US.UTF-8
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US.UTF-8
+# Development environment settings
+export JAVA_OPTIONS="-Djava.awt.headless=true"
+export NVM_DIR="$HOME/.nvm"
+
+# Platform-specific SDK paths
+if [[ "$CURRENT_OS" == "Darwin" ]]; then
+    # macOS paths
+    [[ -d "/usr/local/share/android-sdk" ]] && export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
+    [[ -d "/usr/local/share/android-ndk" ]] && export ANDROID_NDK_ROOT="/usr/local/share/android-ndk"
+elif [[ "$CURRENT_OS" == "Linux" ]]; then
+    # Linux paths - adjust these if needed
+    [[ -d "$HOME/Android/Sdk" ]] && export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
+    [[ -d "$HOME/Android/Ndk" ]] && export ANDROID_NDK_ROOT="$HOME/Android/Ndk"
+fi
+
+# Set project paths if directories exist
+[[ -d "$HOME/src/pico/pick-sdk" ]] && export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
 
 # Editor configuration
-export EDITOR="emacsclient -a 'emacs'"
-export ALTERNATE_EDITOR="code"
+if command -v emacsclient >/dev/null 2>&1; then
+    export EDITOR="emacsclient -a 'emacs'"
+    [[ "$(command -v code)" ]] && export ALTERNATE_EDITOR="code"
+elif command -v code >/dev/null 2>&1; then
+    export EDITOR="code"
+elif command -v vim >/dev/null 2>&1; then
+    export EDITOR="vim"
+else
+    export EDITOR="vi"
+fi
 
-# Development environments
-export JAVA_OPTIONS="-Djava.awt.headless=true"
-export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
-export ANDROID_NDK_ROOT="/usr/local/share/android-ndk"
-export NVM_DIR="$HOME/.nvm"
-export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
+# Locale settings - set default but don't override if already set
+: ${LC_ALL:=en_US.UTF-8}
+: ${LANG:=en_US.UTF-8}
+: ${LANGUAGE:=en_US.UTF-8}
+export LC_ALL LANG LANGUAGE
 
-# System information
-export CURRENT_OS=$(uname -s)
-export CURRENT_ARCH=$(uname -p)
-
-if [[ -x $HOME/.local/bin/mise ]]; then
+# Initialize mise tool version manager if installed
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate zsh)"
+elif [[ -x $HOME/.local/bin/mise ]]; then
     eval "$($HOME/.local/bin/mise activate zsh)"
 fi
 
-# set up homebrew paths
-# Set up homebrew once and store its prefix
-if test $CURRENT_OS = "Darwin"; then
-    if test -d /opt/homebrew; then
-	eval $(/opt/homebrew/bin/brew shellenv)
-	BREW_PREFIX="$(/opt/homebrew/bin/brew --prefix)"
-    elif test -d /usr/local/Cellar; then
-	eval $(/usr/local/bin/brew shellenv)
-	BREW_PREFIX="$(/usr/local/bin/brew --prefix)"
+# Set up homebrew paths and prefix if available
+if [[ "$CURRENT_OS" == "Darwin" ]]; then
+    if [[ -d /opt/homebrew && -x /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        BREW_PREFIX="$(/opt/homebrew/bin/brew --prefix)"
+    elif [[ -d /usr/local/Cellar && -x /usr/local/bin/brew ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+        BREW_PREFIX="$(/usr/local/bin/brew --prefix)"
+    fi
+elif [[ "$CURRENT_OS" == "Linux" ]]; then
+    # Handle Homebrew on Linux if installed
+    if [[ -d /home/linuxbrew/.linuxbrew && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        BREW_PREFIX="$(/home/linuxbrew/.linuxbrew/bin/brew --prefix)"
+    elif [[ -d "$HOME/.linuxbrew" && -x "$HOME/.linuxbrew/bin/brew" ]]; then
+        eval "$($HOME/.linuxbrew/bin/brew shellenv)"
+        BREW_PREFIX="$($HOME/.linuxbrew/bin/brew --prefix)"
     fi
 fi
 
-if [ -z "$XDG_RUNTIME_DIR" ]; then
-  XDG_RUNTIME_DIR=/run/user/$(id -u)
-  if [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RUNTIME_DIR" ]; then
-    export XDG_RUNTIME_DIR
-  else
-    unset XDG_RUNTIME_DIR
-  fi
+# Set up XDG runtime directory if not already set
+if [[ -z "$XDG_RUNTIME_DIR" ]]; then
+    if [[ "$CURRENT_OS" == "Linux" ]]; then
+        XDG_RUNTIME_DIR=/run/user/$(id -u)
+    elif [[ "$CURRENT_OS" == "Darwin" ]]; then
+        XDG_RUNTIME_DIR="${TMPDIR%/}user/$(id -u)"
+        mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
+    else
+        # Fallback for other Unix systems
+        XDG_RUNTIME_DIR="/tmp/runtime-$(id -u)"
+        mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
+    fi
+    
+    # Only set if directory exists and is writable
+    if [[ -d "$XDG_RUNTIME_DIR" && -w "$XDG_RUNTIME_DIR" ]]; then
+        export XDG_RUNTIME_DIR
+    else
+        unset XDG_RUNTIME_DIR
+    fi
 fi
 
+# Configure Emacs socket name based on platform
 case "$CURRENT_OS" in
     Linux*)
-	export EMACS_SOCKET_NAME="$XDG_RUNTIME_DIR/emacs/server"
-	;;
+        export EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR:-/tmp}/emacs/server"
+        ;;
     Darwin*)
-	export EMACS_SOCKET_NAME="${TMPDIR}emacs$(id -u)/server"
-	;;
+        export EMACS_SOCKET_NAME="${TMPDIR:-/tmp}emacs$(id -u)/server"
+        ;;
+    *)
+        # Fallback for other Unix systems
+        export EMACS_SOCKET_NAME="/tmp/emacs$(id -u)/server"
+        ;;
 esac
 
 # fd is installed as fdfind on Ubuntu/Debian
@@ -178,23 +221,42 @@ if type rustup &>/dev/null && ! test -d $HOME/.zfunc; then
     fpath+=$HOME/.zfunc
 fi
 
-# set up Java paths
-if test $CURRENT_OS = "Darwin"; then
-    export JAVA_HOME=$(/usr/libexec/java_home)
-elif test $CURRENT_OS = "Linux"; then
-    export JAVA_HOME=/usr/lib/jvm/default-java
+# Set up Java environment
+# Try to detect Java home across different platforms
+if [[ "$CURRENT_OS" == "Darwin" && -x /usr/libexec/java_home ]]; then
+    # macOS has a helper to find the correct JAVA_HOME
+    export JAVA_HOME=$(/usr/libexec/java_home 2>/dev/null)
+elif [[ "$CURRENT_OS" == "Linux" ]]; then
+    # Try different common Linux Java locations
+    if [[ -d "/usr/lib/jvm/default-java" ]]; then
+        export JAVA_HOME=/usr/lib/jvm/default-java
+    elif [[ -d "/usr/lib/jvm/java-11-openjdk-amd64" ]]; then
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    elif [[ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]]; then
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    elif [[ -L "/etc/alternatives/java_sdk" ]]; then
+        export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
+    fi
 fi
-export PATH=$JAVA_HOME/bin:$PATH
 
-# set up Maven path
-if test -d /opt/maven; then
-    export MAVEN_HOME=/opt/maven
-    prepend_to_path $MAVEN_HOME/bin
+# Add Java to PATH if JAVA_HOME was found
+if [[ -n "$JAVA_HOME" && -d "$JAVA_HOME/bin" ]]; then
+    prepend_to_path "$JAVA_HOME/bin"
 fi
 
-if test -d $HOME/go; then
+# Set up Maven if installed
+for maven_path in /opt/maven "$HOME/opt/maven" "/usr/local/opt/maven"; do
+    if [[ -d "$maven_path" ]]; then
+        export MAVEN_HOME="$maven_path"
+        prepend_to_path "$MAVEN_HOME/bin"
+        break
+    fi
+done
+
+# Set up Go if installed
+if [[ -d "$HOME/go" ]]; then
     export GOPATH="$HOME/go"
-    prepend_to_path $GOPATH/bin
+    prepend_to_path "$GOPATH/bin"
 fi
 
 test -e "$HOME/.shellfishrc" && source "$HOME/.shellfishrc"
@@ -262,17 +324,31 @@ elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
     source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 fi
 
-# pnpm
-if test $CURRENT_OS = "Darwin"; then
-    export PNPM_HOME="$HOME/Library/pnpm"
-else
-    export PNPM_HOME="$HOME/.local/share/pnpm"
+# Set up PNPM if installed
+if command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]; then
+    # Set PNPM_HOME based on platform
+    case "$CURRENT_OS" in
+        Darwin*)
+            export PNPM_HOME="$HOME/Library/pnpm"
+            ;;
+        Linux*|*BSD*|MSYS*|MINGW*)
+            export PNPM_HOME="$HOME/.local/share/pnpm"
+            ;;
+        *)
+            # Fallback for other systems
+            export PNPM_HOME="$HOME/.pnpm"
+            ;;
+    esac
+    
+    # Create directory if it doesn't exist
+    mkdir -p "$PNPM_HOME" 2>/dev/null || true
+    
+    # Add to PATH if not already there
+    case ":$PATH:" in
+        *":$PNPM_HOME:"*) ;;
+        *) export PATH="$PNPM_HOME:$PATH" ;;
+    esac
 fi
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
-# pnpm end
 
 if type brew &>/dev/null && test -d "$BREW_PREFIX/share/zsh-syntax-highlighting"; then
     source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
@@ -282,16 +358,22 @@ if type brew &>/dev/null && test -d "$BREW_PREFIX/share/zsh-syntax-highlighting"
     ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 fi
 
-if test -d /opt/homebrew/opt/uutils-coreutils/libexec/uubin; then
-    prepend_to_path /opt/homebrew/opt/uutils-coreutils/libexec/uubin
+# Add Homebrew-specific paths on macOS if available
+if [[ "$CURRENT_OS" == "Darwin" ]]; then
+    # Rust-based coreutils if installed
+    if [[ -d "/opt/homebrew/opt/uutils-coreutils/libexec/uubin" ]]; then
+        prepend_to_path "/opt/homebrew/opt/uutils-coreutils/libexec/uubin"
+    fi
+    
+    # PostgreSQL client if installed
+    if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
+        prepend_to_path "/opt/homebrew/opt/libpq/bin"
+    fi
 fi
 
-if type brew &>/dev/null && test -f "$BREW_PREFIX/etc/brew-wrap"; then
-  source "$BREW_PREFIX/etc/brew-wrap"
-fi
-
-if test -d /opt/homebrew/opt/libpq; then
-    prepend_to_path /opt/homebrew/opt/libpq/bin
+# Brew wrap support if available
+if [[ -n "$BREW_PREFIX" && -f "$BREW_PREFIX/etc/brew-wrap" ]]; then
+    source "$BREW_PREFIX/etc/brew-wrap"
 fi
 
 # ===== Aliases =====
@@ -299,16 +381,44 @@ fi
 # System and utility aliases
 alias mkdir="mkdir -p"
 alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
-alias git-scrub="git branch --merged | grep -v master | xargs git branch -d"
-alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
-alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
-alias less="less --mouse -INF"
-alias get_uuid="echo ${(L)$(uuidgen)}"
-alias metron-op='op --account metron.1password.com'
-alias tc='tmux new -s `basename $(pwd)`'
+alias git-scrub="git branch --merged | grep -v main | grep -v master | xargs git branch -d"
 
-# File system navigation and viewing
-if type eza &>/dev/null; then
+# Emacs client with proper socket
+if command -v emacsclient >/dev/null 2>&1; then
+    alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
+fi
+
+# Deno web server if available
+if command -v deno >/dev/null 2>&1; then
+    alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
+fi
+
+# Enhanced less with mouse support when available
+if command -v less >/dev/null 2>&1 && less --help 2>&1 | grep -q -- '--mouse'; then
+    alias less="less --mouse -INF"
+else
+    alias less="less -INF"
+fi
+
+# UUID generation - handles both macOS and Linux
+if command -v uuidgen >/dev/null 2>&1; then
+    alias get_uuid="echo ${(L)$(uuidgen)}"
+elif command -v uuid >/dev/null 2>&1; then
+    alias get_uuid="uuid | tr '[:upper:]' '[:lower:]'"
+fi
+
+# 1Password account aliases
+if command -v op >/dev/null 2>&1; then
+    alias metron-op='op --account metron.1password.com'
+fi
+
+# Tmux session creation
+if command -v tmux >/dev/null 2>&1; then
+    alias tc='tmux new -s `basename $(pwd)`'
+fi
+
+# File system navigation and viewing with eza/exa
+if command -v eza >/dev/null 2>&1; then
     STD_OPTIONS='-g --group-directories-first --icons --hyperlink'
     TREE_IGNORE="cache|log|logs|node_modules|vendor"
     alias l="eza $STD_OPTIONS"
@@ -322,26 +432,77 @@ if type eza &>/dev/null; then
     alias lltt='ltt -l'
     alias lttt='l --tree -D --level=3 -I "${TREE_IGNORE}"'
     alias llttt='lttt -l'
+elif command -v exa >/dev/null 2>&1; then
+    # For older exa versions
+    STD_OPTIONS='-g --group-directories-first'
+    TREE_IGNORE="cache|log|logs|node_modules|vendor"
+    alias l="exa $STD_OPTIONS"
+    alias ls="l"
+    alias la="l -a"
+    alias ll="la -l"
+    alias lg="l --git -l"
+    alias lt='l --tree -D -L 2 -I "${TREE_IGNORE}"'
+    alias llt='lt -l'
+    alias ltt='l --tree -D -L 2 -I "${TREE_IGNORE}"'
+    alias lltt='ltt -l'
+    alias lttt='l --tree -D -L 3 -I "${TREE_IGNORE}"'
+    alias llttt='lttt -l'
+else
+    # Fallback to standard ls with colors if available
+    case "$CURRENT_OS" in
+        Darwin*)
+            alias ls="ls -G"
+            ;;
+        Linux*)
+            alias ls="ls --color=auto"
+            ;;
+    esac
+    alias l="ls"
+    alias la="ls -a"
+    alias ll="ls -la"
 fi
 
-# Enhanced command alternatives
-if type bat &>/dev/null; then
-    alias cat='bat --theme Catppuccin-macchiato --pager "less --mouse -RIF"'
+# Enhanced command alternatives with fallbacks
+if command -v bat >/dev/null 2>&1; then
+    # Check if the Catppuccin theme is available
+    if bat --list-themes 2>/dev/null | grep -q "Catppuccin-macchiato"; then
+        alias cat='bat --theme Catppuccin-macchiato --pager "less -RIF"'
+    else
+        alias cat='bat --pager "less -RIF"'
+    fi
 fi
 
-if type rlwrap &>/dev/null; then
+# SQLite with rlwrap if available
+if command -v rlwrap >/dev/null 2>&1 && command -v sqlite3 >/dev/null 2>&1; then
+    # Create directory if it doesn't exist
+    mkdir -p ~/.rlwrap 2>/dev/null
     alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
 fi
 
-if type podman &>/dev/null; then
+# Podman as Docker alternative, but check if Docker Desktop is installed on macOS
+if [[ "$CURRENT_OS" == "Darwin" && -e "/Applications/Docker.app" ]]; then
+    # Keep Docker as is on macOS if Docker Desktop is installed
+    true
+elif command -v podman >/dev/null 2>&1; then
     alias docker=podman
 fi
 
-# Application shortcuts
-if test -e $HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea; then
-    alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
+# Platform-specific application shortcuts
+if [[ "$CURRENT_OS" == "Darwin" ]]; then
+    # macOS application paths
+    if [[ -e "$HOME/Applications/IntelliJ IDEA Community Edition.app/Contents/MacOS/idea" ]]; then
+        alias idea="$HOME/Applications/IntelliJ\ IDEA\ Community\ Edition.app/Contents/MacOS/idea > /dev/null 2>&1 &"
+    elif [[ -e "/Applications/IntelliJ IDEA CE.app/Contents/MacOS/idea" ]]; then
+        alias idea="/Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea > /dev/null 2>&1 &"
+    fi
+elif [[ "$CURRENT_OS" == "Linux" ]]; then
+    # Linux application paths if needed
+    if command -v intellij-idea-community >/dev/null 2>&1; then
+        alias idea="intellij-idea-community > /dev/null 2>&1 &"
+    fi
 fi
 
-if test -e ~/.claude/local/claude; then
+# Claude AI CLI client if installed
+if [[ -e ~/.claude/local/claude ]]; then
     alias claude=~/.claude/local/claude
 fi
