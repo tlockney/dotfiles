@@ -41,3 +41,17 @@ for file in $(cd $HOME; yadm ls-files | grep '.op_tpl'); do
   op inject -i $HOME/$file -o $HOME/$out
 done
 ```
+
+## Using Claude Code (or similar tools) to work on these files
+
+Since yadm places all the files in situ, it's unlikely going to be a good idea to
+run `claude` in your home directory. Here's how to make this manageable.
+
+1. Run `yadm worktree add -b claude-updates ~/src/personal/yadm-dotfiles`
+2. `cd ~/src/personal/yadm-dotfiles`
+3. Run `claude` and ask it to make whatever changes you deem appropriate.
+4. `git commit -a -m "claude made some changes"`
+5. yadm merge claude-updates
+
+If you want to keep the `claude-updates` directory around, just be sure to run
+`git merge main` before doing anything so it has the latest version of the code.
