@@ -69,12 +69,7 @@ setopt HIST_BEEP                 # Beep when accessing nonexistent history.
 # ===== Completions Setup =====
 
 # Add brew completions if available
-if type brew &>/dev/null
-then
-    if test -d "$BREW_PREFIX/share/zsh-completions"; then
-	FPATH="$BREW_PREFIX/share/zsh-completions:$FPATH"
-    fi
-fi
+[[ -n "$BREW_PREFIX" && -d "$BREW_PREFIX/share/zsh-completions" ]] && FPATH="$BREW_PREFIX/share/zsh-completions:$FPATH"
 
 # Enable completion menu
 zstyle ':completion:*' menu select
@@ -101,16 +96,11 @@ export CURRENT_ARCH=$(uname -m)
 export JAVA_OPTIONS="-Djava.awt.headless=true"
 export NVM_DIR="$HOME/.nvm"
 
-# Platform-specific SDK paths
-if [[ "$CURRENT_OS" == "Darwin" ]]; then
-    # macOS paths
-    [[ -d "/usr/local/share/android-sdk" ]] && export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
-    [[ -d "/usr/local/share/android-ndk" ]] && export ANDROID_NDK_ROOT="/usr/local/share/android-ndk"
-elif [[ "$CURRENT_OS" == "Linux" ]]; then
-    # Linux paths - adjust these if needed
-    [[ -d "$HOME/Android/Sdk" ]] && export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-    [[ -d "$HOME/Android/Ndk" ]] && export ANDROID_NDK_ROOT="$HOME/Android/Ndk"
-fi
+# Platform-specific SDK paths - set if directories exist
+[[ "$CURRENT_OS" == "Darwin" && -d "/usr/local/share/android-sdk" ]] && export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"
+[[ "$CURRENT_OS" == "Darwin" && -d "/usr/local/share/android-ndk" ]] && export ANDROID_NDK_ROOT="/usr/local/share/android-ndk"
+[[ "$CURRENT_OS" == "Linux" && -d "$HOME/Android/Sdk" ]] && export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
+[[ "$CURRENT_OS" == "Linux" && -d "$HOME/Android/Ndk" ]] && export ANDROID_NDK_ROOT="$HOME/Android/Ndk"
 
 # Set project paths if directories exist
 [[ -d "$HOME/src/pico/pick-sdk" ]] && export PICO_SDK_PATH="$HOME/src/pico/pick-sdk"
@@ -227,143 +217,106 @@ if [[ "$CURRENT_OS" == "Darwin" && -x /usr/libexec/java_home ]]; then
     # macOS has a helper to find the correct JAVA_HOME
     export JAVA_HOME=$(/usr/libexec/java_home 2>/dev/null)
 elif [[ "$CURRENT_OS" == "Linux" ]]; then
-    # Try different common Linux Java locations
-    if [[ -d "/usr/lib/jvm/default-java" ]]; then
-	export JAVA_HOME=/usr/lib/jvm/default-java
-    elif [[ -d "/usr/lib/jvm/java-11-openjdk-amd64" ]]; then
-	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-    elif [[ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]]; then
-	export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-    elif [[ -L "/etc/alternatives/java_sdk" ]]; then
-	export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
-    fi
+    # Try different common Linux Java locations in order of preference
+    [[ -d "/usr/lib/jvm/default-java" ]] && export JAVA_HOME=/usr/lib/jvm/default-java ||
+    [[ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]] && export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ||
+    [[ -d "/usr/lib/jvm/java-11-openjdk-amd64" ]] && export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 ||
+    [[ -L "/etc/alternatives/java_sdk" ]] && export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
 fi
 
 # Add Java to PATH if JAVA_HOME was found
-if [[ -n "$JAVA_HOME" && -d "$JAVA_HOME/bin" ]]; then
-    prepend_to_path "$JAVA_HOME/bin"
-fi
+[[ -n "$JAVA_HOME" && -d "$JAVA_HOME/bin" ]] && prepend_to_path "$JAVA_HOME/bin"
 
 # Set up Maven if installed
 for maven_path in /opt/maven "$HOME/opt/maven" "/usr/local/opt/maven"; do
-    if [[ -d "$maven_path" ]]; then
-	export MAVEN_HOME="$maven_path"
-	prepend_to_path "$MAVEN_HOME/bin"
-	break
-    fi
+    [[ -d "$maven_path" ]] && { export MAVEN_HOME="$maven_path"; prepend_to_path "$MAVEN_HOME/bin"; break; }
 done
 
 # Set up Go if installed
-if [[ -d "$HOME/go" ]]; then
-    export GOPATH="$HOME/go"
-    prepend_to_path "$GOPATH/bin"
-fi
+[[ -d "$HOME/go" ]] && { export GOPATH="$HOME/go"; prepend_to_path "$GOPATH/bin"; }
 
-test -e "$HOME/.shellfishrc" && source "$HOME/.shellfishrc"
+# Source optional configuration files
+[[ -e "$HOME/.shellfishrc" ]] && source "$HOME/.shellfishrc"
 
 # opam configuration
-test ! -r ~/.opam/opam-init/init.zsh || source ~/.opam/opam-init/init.zsh  > /dev/null 2> /dev/null
+[[ -r ~/.opam/opam-init/init.zsh ]] && source ~/.opam/opam-init/init.zsh > /dev/null 2> /dev/null
 
-if test -d "/opt/homebrew/opt/llvm/bin"; then
+# Add LLVM to path if installed via Homebrew
+[[ -d "/opt/homebrew/opt/llvm/bin" ]] && {
     prepend_to_path /opt/homebrew/opt/llvm/bin
     export LDFLAGS="-L/opt/homebrew/opt/llvm/lib"
     export CPPFLAGS="-I/opt/homebrew/opt/llvm/include"
-fi
+}
 
 # Don't automatically enable emsdk until this issue is addressed or I find a good
 # workaround:
 #   * https://github.com/emscripten-core/emsdk/issues/1142
 #
-# if test -d ~/src/emsdk; then
-#     export EMSDK_QUIET=1
-#     source ~/src/emsdk/emsdk_env.sh
-# fi
+# [[ -d ~/src/emsdk ]] && { export EMSDK_QUIET=1; source ~/src/emsdk/emsdk_env.sh; }
 
-if test -d ~/src/wabt ; then
-    prepend_to_path ~/src/wabt/bin
-fi
+# Set up WebAssembly toolchains if installed
+[[ -d ~/src/wabt ]] && prepend_to_path ~/src/wabt/bin
 
-if test -d ~/.wasmtime; then
-    export WASMTIME_HOME="$HOME/.wasmtime"
-    prepend_to_path $WASMTIME_HOME/bin
-fi
+[[ -d ~/.wasmtime ]] && { 
+    export WASMTIME_HOME="$HOME/.wasmtime"; 
+    prepend_to_path $WASMTIME_HOME/bin;
+}
 
-if test -d ~/.wasmer; then
+[[ -d ~/.wasmer && -s ~/.wasmer/wasmer.sh ]] && {
     export WASMER_DIR=~/.wasmer
-    if test -s $WASMER_DIR/wasmer.sh; then
-	source $WASMER_DIR/wasmer.sh
-    fi
-fi
+    source $WASMER_DIR/wasmer.sh
+}
 
-if type op &>/dev/null; then
-    eval "$(op completion zsh)"; compdef _op op
-fi
-if test -f ~/.config/op/plugins.sh; then
-    source ~/.config/op/plugins.sh
-fi
+# 1Password integration
+command -v op >/dev/null 2>&1 && { eval "$(op completion zsh)"; compdef _op op; }
+[[ -f ~/.config/op/plugins.sh ]] && source ~/.config/op/plugins.sh
 
-if test -d "$HOME/.atuin/bin"; then
+# Atuin shell history
+[[ -d "$HOME/.atuin/bin" ]] && {
     prepend_to_path $HOME/.atuin/bin
     eval "$(atuin init zsh)"
-fi
+}
 
-if type brew &>/dev/null && test -e "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"; then
-    source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
-elif test -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; then
-    source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-fi
+# Zsh autosuggestions
+[[ -n "$BREW_PREFIX" && -e "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ||
+[[ -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # Set up PNPM if installed
-if command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]; then
+(command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]) && {
     # Set PNPM_HOME based on platform
     case "$CURRENT_OS" in
-	Darwin*)
-	    export PNPM_HOME="$HOME/Library/pnpm"
-	    ;;
-	Linux*|*BSD*|MSYS*|MINGW*)
-	    export PNPM_HOME="$HOME/.local/share/pnpm"
-	    ;;
-	*)
-	    # Fallback for other systems
-	    export PNPM_HOME="$HOME/.pnpm"
-	    ;;
+        Darwin*)
+            export PNPM_HOME="$HOME/Library/pnpm"
+            ;;
+        Linux*|*BSD*|MSYS*|MINGW*)
+            export PNPM_HOME="$HOME/.local/share/pnpm"
+            ;;
+        *)
+            # Fallback for other systems
+            export PNPM_HOME="$HOME/.pnpm"
+            ;;
     esac
 
-    # Create directory if it doesn't exist
+    # Create directory if it doesn't exist and add to PATH if not already there
     mkdir -p "$PNPM_HOME" 2>/dev/null || true
+    [[ ":$PATH:" != *":$PNPM_HOME:"* ]] && export PATH="$PNPM_HOME:$PATH"
+}
 
-    # Add to PATH if not already there
-    case ":$PATH:" in
-	*":$PNPM_HOME:"*) ;;
-	*) export PATH="$PNPM_HOME:$PATH" ;;
-    esac
-fi
-
-if type brew &>/dev/null && test -d "$BREW_PREFIX/share/zsh-syntax-highlighting"; then
+# Zsh syntax highlighting
+[[ -n "$BREW_PREFIX" && -d "$BREW_PREFIX/share/zsh-syntax-highlighting" ]] && {
     source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
     # Disable underline
     (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
     ZSH_HIGHLIGHT_STYLES[path]=none
     ZSH_HIGHLIGHT_STYLES[path_prefix]=none
-fi
+}
 
-# Add Homebrew-specific paths on macOS if available
-if [[ "$CURRENT_OS" == "Darwin" ]]; then
-    # Rust-based coreutils if installed
-    if [[ -d "/opt/homebrew/opt/uutils-coreutils/libexec/uubin" ]]; then
-	prepend_to_path "/opt/homebrew/opt/uutils-coreutils/libexec/uubin"
-    fi
-
-    # PostgreSQL client if installed
-    if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
-	prepend_to_path "/opt/homebrew/opt/libpq/bin"
-    fi
-fi
+# Add Homebrew-specific paths on macOS
+[[ "$CURRENT_OS" == "Darwin" && -d "/opt/homebrew/opt/uutils-coreutils/libexec/uubin" ]] && prepend_to_path "/opt/homebrew/opt/uutils-coreutils/libexec/uubin"
+[[ "$CURRENT_OS" == "Darwin" && -d "/opt/homebrew/opt/libpq/bin" ]] && prepend_to_path "/opt/homebrew/opt/libpq/bin"
 
 # Brew wrap support if available
-if [[ -n "$BREW_PREFIX" && -f "$BREW_PREFIX/etc/brew-wrap" ]]; then
-    source "$BREW_PREFIX/etc/brew-wrap"
-fi
+[[ -n "$BREW_PREFIX" && -f "$BREW_PREFIX/etc/brew-wrap" ]] && source "$BREW_PREFIX/etc/brew-wrap"
 
 # ===== Aliases =====
 
