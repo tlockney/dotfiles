@@ -490,8 +490,3 @@ elif [[ "$CURRENT_OS" == "Linux" ]]; then
 	alias idea="intellij-idea-community > /dev/null 2>&1 &"
     fi
 fi
-
-# Claude AI CLI client if installed
-if [[ -e ~/.claude/local/claude ]]; then
-    alias claude=~/.claude/local/claude
-fi
