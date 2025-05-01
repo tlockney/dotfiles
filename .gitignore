@@ -10,3 +10,5 @@
 .npm/
 .local/
 src/
+
+**/.claude/settings.local.json
