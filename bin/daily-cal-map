@@ -1,3 +1,6 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
+set -euC -o pipefail
+
+# Display today's calendar events in a formatted way
 /usr/local/bin/icalBuddy -ic "tlockney@hubspot.com" -nc -tf "time: %I:%M%p" -eed -iep "datetime,title,attendees" -b "title: " -ps "/\n/" eventsToday

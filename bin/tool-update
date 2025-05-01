@@ -2,34 +2,77 @@
 
 set -euC -o pipefail
 
+# Function to handle updates with error checking
+update_with_check() {
+    echo "=========================================="
+    echo "Updating $1"
+    echo "=========================================="
+    if ! $2; then
+	echo "WARNING: Failed to update $1"
+    fi
+}
+
+uv_update_tools() {
+    local success=true
+    if UV_TOOLS=$(uv tool list 2>/dev/null | grep -v '^-' | awk '{ print $1}'); then
+	for tool in $UV_TOOLS; do
+	    echo "  - Updating $tool"
+	    if ! uv tool upgrade "$tool"; then
+		echo "    WARNING: Failed to update $tool"
+		success=false
+	    fi
+	done
+    else
+	echo "  No UV tools found or error listing tools"
+	return 1
+    fi
+    $success
+}
+
 if type brew &>/dev/null; then
-	echo "Updating Homebrew and all installed packages"
-	brew update && brew upgrade
-	brew cleanup
+    # Run Homebrew commands separately to avoid command parsing issues
+    echo "=========================================="
+    echo "Updating Homebrew and all installed packages"
+    echo "=========================================="
+    
+    # Run each step separately for better error handling
+    if ! brew update; then
+        echo "WARNING: Failed to update Homebrew"
+    elif ! brew upgrade; then
+        echo "WARNING: Failed to upgrade Homebrew packages"
+    elif ! brew cleanup; then
+        echo "WARNING: Failed to clean up Homebrew"
+    fi
 fi
 
 # check for apt-get instead of apt, since MacOS has a binary called apt
 if type apt-get &>/dev/null; then
-	echo "Updating apt and upgrading packages"
-	sudo bash -c "apt update && apt -y dist-upgrade"
+    update_with_check "apt packages" "sudo bash -c 'apt update && apt -y dist-upgrade'"
 fi
 
 if type mise &>/dev/null; then
-	echo "Updating mise and all installed tools"
-	mise self-update -y && mise upgrade -y
+    # Run mise commands separately to avoid command parsing issues
+    echo "=========================================="
+    echo "Updating mise and installed tools"
+    echo "=========================================="
+    
+    # Run each step separately for better error handling
+    if ! mise self-update; then
+        echo "WARNING: Failed to update mise"
+    elif ! mise upgrade -y; then
+        echo "WARNING: Failed to upgrade mise tools"
+    fi
 fi
 
 if type rustup &>/dev/null; then
-	echo "Updating rust tools"
-	rustup update
+    update_with_check "rust toolchain" "rustup update"
 fi
 
 if type cargo-install-update &>/dev/null; then
-	echo "Updating cargo tools"
-	cargo install-update -a
+    update_with_check "cargo tools" "cargo install-update -a"
 fi
 
-uv_reinstall=$(uv tool upgrade --all 2>&1 | grep 'error' | awk 'NF{ print $NF }')
-for tool in $uv_reinstall; do
-    uv tool upgrade $tool --reinstall
-done
+# Update UV tools if any are installed
+if type uv &>/dev/null; then
+    update_with_check "UV tools" "uv_update_tools"
+fi

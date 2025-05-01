@@ -53,7 +53,7 @@ path=(~/.local/share/mise/bin $PATH)
 # This is just to deal with any existing pipx installations that may need to be reset
 #pipx reinstall-all
 
-if !type deno &>/dev/null; then
+if ! type deno &>/dev/null; then
 	echo Installing Deno version $DENO_VERSION
 
 	# Install Deno
@@ -61,7 +61,7 @@ if !type deno &>/dev/null; then
 
 fi
 
-if !type node &>/dev/null; then
+if ! type node &>/dev/null; then
 	echo Installing Node version $NODE_VERSION
 	mise use -g node@$NODE_VERSION
 fi
