@@ -30,7 +30,19 @@ uv_update_tools() {
 }
 
 if type brew &>/dev/null; then
-    update_with_check "Homebrew and all installed packages" "brew update && brew upgrade && brew cleanup"
+    # Run Homebrew commands separately to avoid command parsing issues
+    echo "=========================================="
+    echo "Updating Homebrew and all installed packages"
+    echo "=========================================="
+    
+    # Run each step separately for better error handling
+    if ! brew update; then
+        echo "WARNING: Failed to update Homebrew"
+    elif ! brew upgrade; then
+        echo "WARNING: Failed to upgrade Homebrew packages"
+    elif ! brew cleanup; then
+        echo "WARNING: Failed to clean up Homebrew"
+    fi
 fi
 
 # check for apt-get instead of apt, since MacOS has a binary called apt
@@ -39,7 +51,17 @@ if type apt-get &>/dev/null; then
 fi
 
 if type mise &>/dev/null; then
-    update_with_check "mise and installed tools" "mise self-update -y && mise upgrade -y"
+    # Run mise commands separately to avoid command parsing issues
+    echo "=========================================="
+    echo "Updating mise and installed tools"
+    echo "=========================================="
+    
+    # Run each step separately for better error handling
+    if ! mise self-update; then
+        echo "WARNING: Failed to update mise"
+    elif ! mise upgrade -y; then
+        echo "WARNING: Failed to upgrade mise tools"
+    fi
 fi
 
 if type rustup &>/dev/null; then
