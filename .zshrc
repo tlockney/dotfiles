@@ -280,7 +280,7 @@ command -v op >/dev/null 2>&1 && { eval "$(op completion zsh)"; compdef _op op; 
 }
 
 # Zsh autosuggestions
-[[ -n "$BREW_PREFIX" && -e "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ||
+[[ -n "$BREW_PREFIX" && -e "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 [[ -e /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # Set up PNPM if installed
