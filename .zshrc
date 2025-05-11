@@ -221,8 +221,7 @@ if [[ "$CURRENT_OS" == "Darwin" && -x /usr/libexec/java_home ]]; then
 elif [[ "$CURRENT_OS" == "Linux" ]]; then
     # Try different common Linux Java locations in order of preference
     [[ -d "/usr/lib/jvm/default-java" ]] && export JAVA_HOME=/usr/lib/jvm/default-java ||
-    [[ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]] && export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ||
-    [[ -d "/usr/lib/jvm/java-11-openjdk-amd64" ]] && export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 ||
+    [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]] && export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ||
     [[ -L "/etc/alternatives/java_sdk" ]] && export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
 fi
 
@@ -320,22 +319,16 @@ command -v op >/dev/null 2>&1 && { eval "$(op completion zsh)"; compdef _op op; 
 # Brew wrap support if available
 [[ -n "$BREW_PREFIX" && -f "$BREW_PREFIX/etc/brew-wrap" ]] && source "$BREW_PREFIX/etc/brew-wrap"
 
-# ===== Aliases =====
 
 # System and utility aliases
 alias mkdir="mkdir -p"
-alias pip-up="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs pip install -U"
 alias git-scrub="git branch --merged | grep -v main | grep -v master | xargs git branch -d"
 
 # Emacs client with proper socket
-if command -v emacsclient >/dev/null 2>&1; then
-    alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
-fi
+alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
 
-# Deno web server if available
-if command -v deno >/dev/null 2>&1; then
-    alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
-fi
+# Deno web server
+alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"
 
 # Enhanced less with mouse support when available
 if command -v less >/dev/null 2>&1 && less --help 2>&1 | grep -q -- '--mouse'; then
@@ -352,14 +345,10 @@ elif command -v uuid >/dev/null 2>&1; then
 fi
 
 # 1Password account aliases
-if command -v op >/dev/null 2>&1; then
-    alias metron-op='op --account metron.1password.com'
-fi
+command -v op >/dev/null 2>&1 && alias metron-op='op --account metron.1password.com'
 
 # Tmux session creation
-if command -v tmux >/dev/null 2>&1; then
-    alias tc='tmux new -s `basename $(pwd)`'
-fi
+alias tc='tmux new -s `basename $(pwd)`'
 
 # File system navigation and viewing with eza/exa
 if command -v eza >/dev/null 2>&1; then
@@ -375,21 +364,6 @@ if command -v eza >/dev/null 2>&1; then
     alias ltt='l --tree -D --level=2 -I "${TREE_IGNORE}"'
     alias lltt='ltt -l'
     alias lttt='l --tree -D --level=3 -I "${TREE_IGNORE}"'
-    alias llttt='lttt -l'
-elif command -v exa >/dev/null 2>&1; then
-    # For older exa versions
-    STD_OPTIONS='-g --group-directories-first'
-    TREE_IGNORE="cache|log|logs|node_modules|vendor"
-    alias l="exa $STD_OPTIONS"
-    alias ls="l"
-    alias la="l -a"
-    alias ll="la -l"
-    alias lg="l --git -l"
-    alias lt='l --tree -D -L 2 -I "${TREE_IGNORE}"'
-    alias llt='lt -l'
-    alias ltt='l --tree -D -L 2 -I "${TREE_IGNORE}"'
-    alias lltt='ltt -l'
-    alias lttt='l --tree -D -L 3 -I "${TREE_IGNORE}"'
     alias llttt='lttt -l'
 else
     # Fallback to standard ls with colors if available
@@ -417,11 +391,7 @@ if command -v bat >/dev/null 2>&1; then
 fi
 
 # SQLite with rlwrap if available
-if command -v rlwrap >/dev/null 2>&1 && command -v sqlite3 >/dev/null 2>&1; then
-    # Create directory if it doesn't exist
-    mkdir -p ~/.rlwrap 2>/dev/null
-    alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
-fi
+alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
 
 # Podman as Docker alternative, but check if Docker Desktop is installed on macOS
 if [[ "$CURRENT_OS" == "Darwin" && -e "/Applications/Docker.app" ]]; then
