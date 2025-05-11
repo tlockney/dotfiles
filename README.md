@@ -13,7 +13,7 @@ brew install tmux
 ### Linux
 
 ```sh
-sudo apt install zsh tmux
+sudo apt install zsh tmux git
 chsh -s /usr/bin/zsh
 ```
 
