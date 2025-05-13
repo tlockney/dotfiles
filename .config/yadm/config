@@ -1,0 +1,15 @@
+# This is Git's per-user configuration file.
+[user]
+  name = Thomas Lockney
+  email = thomas@lockney.net
+  github = tlockney
+
+[core]
+  editor = emacs -nw
+  sshCommand = ssh -i ~/.ssh/id_rsa
+[pull]
+  rebase = false
+[init]
+  defaultBranch = main
+[gpg]
+  format = ssh
