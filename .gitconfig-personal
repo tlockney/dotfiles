@@ -1,3 +1,6 @@
 [user]
   email = thomas@lockney.net
   github = tlockney
+
+[core]
+  sshCommand = ssh -i ~/.ssh/id_rsa_tlockney -o IdentitiesOnly=yes
