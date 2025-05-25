@@ -1,0 +1,9 @@
+[tools]
+deno = "latest"
+go = "latest"
+node = "22"
+python = "latest"
+
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
+python.uv_venv_auto = true
