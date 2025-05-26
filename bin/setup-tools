@@ -1,141 +1,269 @@
 #!/usr/bin/env zsh
 
-source ~/.zshrc
-
 set -euC -o pipefail
+
+# Load zshrc for environment setup
+if [[ -f ~/.zshrc ]]; then
+    source ~/.zshrc
+else
+    echo "Warning: ~/.zshrc not found, proceeding without it"
+fi
 
 # arch=$(uname -m)
 os=$(uname -s)
 
+# Process command line arguments
 DEV=0
+HELP=0
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--dev)
 			DEV=1
 			shift
 			;;
+		--help|-h)
+			HELP=1
+			shift
+			;;
 		*)
+			echo "Unknown option: $1"
+			HELP=1
 			shift
 			;;
 	esac
 done
 
-DENO_VERSION="latest"
-PYTHON_VERSION="latest"
-NODE_VERSION="latest"
+# Show help if requested
+if [[ $HELP -eq 1 ]]; then
+	echo "Usage: setup-tools [options]"
+	echo "Options:"
+	echo "  --dev    Install additional development tools"
+	echo "  --help   Show this help message"
+	exit 0
+fi
 
-# Update homebrew if it's installed
-if type brew &>/dev/null; then
-	echo Updating Homebrew
-	brew update
+# Tool versions - can be overridden with environment variables
+DENO_VERSION="${DENO_VERSION:-latest}"
+PYTHON_VERSION="${PYTHON_VERSION:-latest}"
+NODE_VERSION="${NODE_VERSION:-latest}"
+
+# Print banner
+echo "========================================"
+echo "Setting up tools on $os"
+echo "========================================"
+
+# Install or update Homebrew
+if [[ $os = "Darwin" || $os = "Linux" ]]; then
+	if ! type brew &>/dev/null; then
+		echo "Installing Homebrew..."
+		/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+		# Add Homebrew to PATH based on OS and architecture
+		if [[ $os = "Darwin" ]]; then
+			if [[ $(uname -m) == "arm64" ]]; then
+				eval "$(/opt/homebrew/bin/brew shellenv)"
+			else
+				eval "$(/usr/local/bin/brew shellenv)"
+			fi
+		elif [[ $os = "Linux" ]]; then
+			eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+		fi
+	else
+		echo "Updating Homebrew..."
+		brew update
+	fi
+else
+	echo "Homebrew not supported on this OS, skipping..."
 fi
 
 # Install Rustup to bootstrap Rust
 if ! type rustup &>/dev/null; then
-	echo Installing Rust
+	echo "Installing Rust..."
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y -q
-	source $HOME/.cargo/env
+	source "$HOME/.cargo/env"
+else
+	echo "Rust already installed, updating..."
 fi
 
-echo Updating Rust to latest stable toolchain
-rustup toolchain install stable
+echo "Updating Rust to latest stable toolchain..."
+rustup toolchain install stable --profile minimal
 
 # Install mise (formerly rtx)
 if ! type mise &>/dev/null; then
-	echo Installing mise
-	curl https://mise.run | sh
-	eval "$(mise activate zsh)"
+	echo "Installing mise..."
+	curl -fsSL https://mise.run | sh
+
+	# Source mise activation
+	if [[ -f "$HOME/.local/bin/mise" ]]; then
+		eval "$("$HOME/.local/bin/mise" activate zsh)"
+	else
+		# Try to find mise in common locations
+		for mise_path in ~/.local/share/mise/bin/mise ~/.mise/bin/mise; do
+			if [[ -x "$mise_path" ]]; then
+				eval "$("$mise_path" activate zsh)"
+				break
+			fi
+		done
+	fi
+else
+	echo "mise already installed, updating..."
+	mise self-update
 fi
 
-# add mise path just to be safe
-path=(~/.local/share/mise/bin $PATH)
+# Add mise path to current session
+if [[ -d "$HOME/.local/share/mise/bin" ]]; then
+	path=("$HOME/.local/share/mise/bin" $path)
+fi
+
+# Function to log steps and handle errors
+function run_step() {
+    local cmd="$1"
+    local desc="$2"
+
+    echo "→ $desc"
+    if ! eval "$cmd"; then
+        echo "⚠️  Warning: Failed to $desc"
+        return 1
+    fi
+    return 0
+}
 
 # This is just to deal with any existing pipx installations that may need to be reset
 #pipx reinstall-all
 
+# Install runtimes with mise
+echo "Installing runtimes..."
+
+# Install Deno if not present
 if ! type deno &>/dev/null; then
-	echo Installing Deno version $DENO_VERSION
-
-	# Install Deno
-	mise use -g deno@$DENO_VERSION
-
+	run_step "mise use -g deno@$DENO_VERSION" "Installing Deno version $DENO_VERSION"
+else
+	echo "Deno already installed, updating if needed..."
+	run_step "mise use -g deno@$DENO_VERSION" "Updating Deno to version $DENO_VERSION"
 fi
 
+# Install Node if not present
 if ! type node &>/dev/null; then
-	echo Installing Node version $NODE_VERSION
-	mise use -g node@$NODE_VERSION
+	run_step "mise use -g node@$NODE_VERSION" "Installing Node version $NODE_VERSION"
+else
+	echo "Node already installed, updating if needed..."
+	run_step "mise use -g node@$NODE_VERSION" "Updating Node to version $NODE_VERSION"
 fi
 
-echo Install Rust tools
-#rustup component add rust-src
+echo "Installing Rust tools..."
 
-cargo install cargo-update
-cargo install-update cargo-outdated
+# Install and update essential Rust tools
+run_step "cargo install cargo-update" "Installing cargo-update"
+run_step "cargo install-update -a cargo-outdated" "Installing/updating cargo-outdated"
 
 # Better ls via eza
-cargo install eza
+run_step "cargo install eza" "Installing eza (modern ls replacement)"
 
 # Better cat via bat
-cargo install bat
-bat cache --build
+run_step "cargo install bat" "Installing bat (modern cat replacement)"
+run_step "bat cache --build" "Building bat syntax highlighting cache"
 
-# cargo install mdbook
-# cargo install mdbook-epub
+# Optional tools (uncomment as needed)
+# run_step "cargo install mdbook mdbook-epub" "Installing mdbook and mdbook-epub"
+
+# Install OS-specific tools
+echo "Installing OS-specific tools..."
 
 if [[ $os = "Darwin" ]]; then
-	brew install fzf fd
+	run_step "brew install fzf fd ripgrep" "Installing macOS tools with Homebrew"
 elif [[ $os = "Linux" ]]; then
-	sudo apt install fzf fd-find
-fi
-
-# Install Atuin
-curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
-
-# install tpm for tmux plugins
-if [[ ! -d ~/.tmux/plugins/tpm ]]; then
-	echo Setup tmux plugin manager
-	mkdir -p ~/.tmux/plugins
-	git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-fi
-
-
-if [[ $DEV -eq 1 ]]; then
-	echo "Installing dev tools"
-
-	echo Installing Python version $PYTHON_VERSION
-	mise use -g python@$PYTHON_VERSION
-
-	if ! type uv &>/dev/null; then
-	    echo Installing uv
-	    curl -LsSf https://astral.sh/uv/install.sh | sh
+	# Check if we're using apt-based distro
+	if type apt-get &>/dev/null; then
+		run_step "sudo apt update && sudo apt install -y fzf fd-find ripgrep" "Installing Linux tools with apt"
+	# Check if we're using dnf-based distro
+	elif type dnf &>/dev/null; then
+		run_step "sudo dnf install -y fzf fd-find ripgrep" "Installing Linux tools with dnf"
+	else
+		echo "⚠️  Warning: Unsupported package manager. Please install fzf, fd-find, and ripgrep manually."
 	fi
-
-	echo Installing uv packages
-	uv tool install yt-dlp
-	uv tool install pygments
-	uv tool install httpie
-	uv tool install poetry
-	uv tool install pipenv
-	uv tool install jupyter-core \
-	   --with jupyterlab \
-	   --with requests \
-	   --with pandas \
-	   --with numpy \
-	   --with matplotlib \
-	   --with nbconvert \
-	   --with nbclassic
-
-	if type deno >&/dev/null; then
-		deno jupyter --unstable --install
-	fi
-
-	echo Install Rust tools
-	#rustup component add rust-src
-	cargo install evcxr_repl
-	cargo install --locked evcxr_jupyter
-	evcxr_jupyter --install
-
-	cargo install onefetch
 else
-	echo "Skipping dev tools"
+	echo "⚠️  Warning: Unsupported OS for tool installation: $os"
 fi
+
+# Install Atuin for shell history
+echo "Installing Atuin for shell history..."
+run_step "curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh" "Installing Atuin"
+
+# Install tmux plugin manager
+if [[ ! -d ~/.tmux/plugins/tpm ]]; then
+	echo "Setting up tmux plugin manager..."
+	run_step "mkdir -p ~/.tmux/plugins" "Creating tmux plugins directory"
+	run_step "git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm" "Cloning tmux plugin manager"
+else
+	echo "tmux plugin manager already installed, updating..."
+	run_step "cd ~/.tmux/plugins/tpm && git pull" "Updating tmux plugin manager"
+fi
+
+# Dev tools section
+if [[ $DEV -eq 1 ]]; then
+	echo "========================================"
+	echo "Installing development tools..."
+	echo "========================================"
+
+	# Install Python with mise
+	run_step "mise use -g python@$PYTHON_VERSION" "Installing Python version $PYTHON_VERSION"
+
+	# Install uv package manager
+	if ! type uv &>/dev/null; then
+		run_step "curl -LsSf https://astral.sh/uv/install.sh | sh" "Installing uv package manager"
+
+		# Try to find uv in common locations and add to path
+		for uv_path in ~/.cargo/bin/uv ~/.local/bin/uv; do
+			if [[ -x "$uv_path" ]]; then
+				path=("$(dirname "$uv_path")" $path)
+				break
+			fi
+		done
+	else
+		echo "uv already installed, updating if needed..."
+		run_step "uv self update" "Updating uv package manager"
+	fi
+
+	# Install Python packages with uv
+	echo "Installing Python packages..."
+	PYTHON_PACKAGES=(
+		"yt-dlp"
+		"pygments"
+		"httpie"
+		"juv"
+	)
+
+	for pkg in "${PYTHON_PACKAGES[@]}"; do
+		run_step "uv tool install $pkg" "Installing $pkg"
+	done
+
+	# Install Jupyter and scientific packages
+	run_step "uv tool install jupyter-core --with jupyterlab --with requests --with pandas --with numpy --with matplotlib --with nbconvert --with nbclassic" "Installing Jupyter and scientific packages"
+
+	# Install Deno Jupyter kernel if Deno is available
+	if type deno &>/dev/null; then
+		run_step "deno jupyter --unstable --install" "Installing Deno Jupyter kernel"
+	fi
+
+	# Install additional Rust dev tools
+	echo "Installing Rust development tools..."
+	run_step "cargo install evcxr_repl" "Installing evcxr_repl"
+	run_step "cargo install --locked evcxr_jupyter" "Installing evcxr_jupyter"
+	run_step "evcxr_jupyter --install" "Setting up Rust Jupyter kernel"
+	run_step "cargo install onefetch" "Installing onefetch"
+
+	# Install additional OS-specific dev tools
+	if [[ $os = "Darwin" ]]; then
+		run_step "brew install gh jq yq bat-extras" "Installing additional macOS development tools"
+	elif [[ $os = "Linux" ]]; then
+		if type apt-get &>/dev/null; then
+			run_step "sudo apt install -y jq gh bat-extras" "Installing additional Linux development tools"
+		fi
+	fi
+else
+	echo "Skipping development tools (use --dev to install)"
+fi
+
+echo "========================================"
+echo "Setup complete! 🎉"
+echo "========================================"
