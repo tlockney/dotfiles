@@ -415,3 +415,7 @@ elif [[ "$CURRENT_OS" == "Linux" ]]; then
 	alias idea="intellij-idea-community > /dev/null 2>&1 &"
     fi
 fi
+
+if command -v fzf >/dev/null 2>&1; then
+    source <(fzf --zsh)
+fi
