@@ -33,8 +33,12 @@ fi
 # Handle Homebrew initialization on macOS if it exists
 if [[ "$(uname -s)" == "Darwin" ]]; then
     if [[ -f /opt/homebrew/bin/brew ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
+	eval "$(/opt/homebrew/bin/brew shellenv)"
     elif [[ -f /usr/local/bin/brew ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
+	eval "$(/usr/local/bin/brew shellenv)"
     fi
 fi
+
+export MANPAGER="less -R --use-color -Dd+r -Du+b" # colored man pages
+
+export FZF_DEFAULT_OPTS="--style minimal --color 16 --layout=reverse --height 30% --preview='bat -p --color=always {}'"
