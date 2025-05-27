@@ -6,7 +6,7 @@
 
 [core]
   editor = emacs -nw
-  sshCommand = ssh -i ~/.ssh/id_rsa
+  sshCommand = ssh -i ~/.ssh/id_rsa_tlockney
 [pull]
   rebase = false
 [init]
