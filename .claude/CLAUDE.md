@@ -167,6 +167,15 @@ STOP immediately and ask for guidance.
 - Always use types
 - For any dependencies added, be sure to look for any type definitions and use them. If there are separate dependencies to add typing for libraries, those are reasonable dependencies to add.
 
+### Deno
+
+- Use Deno for general purpose utilities.
+- If doing a lot of shell operations, use the `dax` library.
+- Use the Deno standard library whenever possible:
+  - See https://jsr.io/@std for package information
+  - https://docs.deno.com/runtime/fundamentals/standard_library/ provides some general information about usage of the standard library
+- Use Web Standard APIs
+
 ### Python
 
 - Use `uv` as the package manager and project management tool for anything related to python
@@ -183,6 +192,12 @@ STOP immediately and ask for guidance.
 - Use go modules for dependency management
 - Implement proper error handling (don't ignore errors)
 - Use context for cancellation and timeouts
+
+### Shell Scripting
+
+- Use bash for general shell scripting needs (unless it's specific to my local environment setup where I use zsh by default)
+- Generally prefer the following style for shebang lines: `#!/usr/bin/env {binary}` where binary is the shell or binary to run, e.g., `bash`, `zsh`, `deno`.
+- When doing anything beyond simple scripting needs, it might be better to use Deno so we can use more sophisticated programming constructs
 
 ### AWS
 
