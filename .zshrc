@@ -416,3 +416,7 @@ fi
 if command -v fzf >/dev/null 2>&1; then
     source <(fzf --zsh)
 fi
+
+if [[ -x $HOME/.claude/local/claude ]]; then
+    alias claude=$HOME/.claude/local/claude
+fi
