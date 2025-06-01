@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# Get the base name of the current directory
+DIR_NAME=$(basename "$(pwd)")
+
+# Check if a tmux session with the directory name already exists
+if tmux has-session -t "$DIR_NAME" 2>/dev/null; then
+    # If the session exists, attach to it
+    tmux attach-session -t "$DIR_NAME"
+else
+    # If the session doesn't exist, create a new session with the directory name
+    tmux new-session -s "$DIR_NAME"
+fi

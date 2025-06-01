@@ -347,9 +347,6 @@ fi
 # 1Password account aliases
 command -v op >/dev/null 2>&1 && alias metron-op='op --account metron.1password.com'
 
-# Tmux session creation
-alias tc='tmux new -s `basename $(pwd)`'
-
 # File system navigation and viewing with eza/exa
 if command -v eza >/dev/null 2>&1; then
     STD_OPTIONS='-g --group-directories-first --icons --hyperlink'
