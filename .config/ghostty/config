@@ -5,6 +5,8 @@ background = #1e1e2e
 foreground = #cdd6f4
 selection-background = #585b70
 selection-foreground = #cdd6f4
+background-opacity = 0.85
+background-blur = true
 cursor-color = #f5e0dc
 cursor-text = #1e1e2e
 palette = 0=#45475a
