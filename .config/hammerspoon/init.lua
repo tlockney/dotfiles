@@ -43,7 +43,7 @@ function launchAppOnHotkey(modifiers, key, appName)
 	end)
 end
 
-launchAppOnHotkey({ "alt" }, "`", "WezTerm")
+launchAppOnHotkey({ "alt" }, "`", "Ghostty")
 launchAppOnHotkey({ "alt", "shift" }, "o", "Obsidian")
 
 hs.hotkey.bind({ "cmd", "alt", "ctrl" }, "W", function()
