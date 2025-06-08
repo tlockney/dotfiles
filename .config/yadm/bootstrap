@@ -21,14 +21,17 @@ case "$(uname -s)" in
 	    brew bundle --global
 	fi
 	if [ -x $HOME/.config/Code/User ]; then
-	    ln -sf $HOME/.config/Code/User/settings.json $HOME/Library/Application\ Support/Code/User/settings.json
-	    ln -sf $HOME/.config/Code/User/keybindings.json $HOME/Library/Application\ Support/Code/User/keybindings.json
-	    if [ -x $HOME/Library/Application\ Support/Code/User/profiles/7db57729 ]; then
-		ln -sf $HOME/.config/Code/User/settings.json \
-		   $HOME/Library/Application\ Support/Code/User/profiles/7db57729/settings.json
-		ln -sf $HOME/.config/Code/User/keybindings.json \
-		   $HOME/Library/Application\ Support/Code/User/profiles/7db57729/keybindings.json
+	    CODE_DIR=$HOME/.config/Code/User
+	    pushd $HOME/Library/Application\ Support/Code/User
+	    ln -sf $CODE_DIR/settings.json settings.json
+	    ln -sf $CODE_DIR/keybindings.json keybindings.json
+	    if [ -x "$PROFILE_DIR" ]; then
+		pushd profiles/7db57729
+		ln -sf $CODE_DIR/settings.json settings.json
+		ln -sf $CODE_DIR/keybindings.json keybindings.json
+		popd
 	    fi
+	    popd
 	fi
     ;;
     Linux)
