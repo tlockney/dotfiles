@@ -1,0 +1,350 @@
+// VS Code Settings - Organized by Category
+{
+  // ==========================================
+  // EDITOR APPEARANCE & FONTS
+  // ==========================================
+  "editor.fontFamily": "'FiraCode-Retina', 'Fira Code Medium', 'Ubuntu Mono', 'Input Mono', Menlo, Monaco, 'Courier New', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontWeight": "500",
+  "editor.fontSize": 14,
+  "editor.lineHeight": 0,
+  "editor.rulers": [
+    80,
+    120
+  ],
+  "editor.minimap.enabled": false,
+  "editor.bracketPairColorization.enabled": true,
+  // ==========================================
+  // EDITOR BEHAVIOR & EDITING
+  // ==========================================
+  "editor.wordWrap": "on",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.indentSize": "tabSize",
+  "editor.formatOnPaste": true,
+  "editor.accessibilitySupport": "off",
+  "editor.copyWithSyntaxHighlighting": false,
+  "editor.emptySelectionClipboard": false,
+  "editor.multiCursorModifier": "ctrlCmd",
+  "editor.smoothScrolling": true,
+  // ==========================================
+  // INTELLISENSE & SUGGESTIONS
+  // ==========================================
+  "editor.inlineSuggest.enabled": true,
+  "editor.suggest.showStatusBar": true,
+  "editor.suggestSelection": "first",
+  "editor.snippetSuggestions": "top",
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+  "editor.quickSuggestionsDelay": 0,
+  // ==========================================
+  // CODE ACTIONS & FORMATTING
+  // ==========================================
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll.eslint": "explicit"
+  },
+  "editor.defaultFormatter": "denoland.vscode-deno",
+  // ==========================================
+  // WORKBENCH & UI LAYOUT
+  // ==========================================
+  "workbench.colorTheme": "Nord",
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.sideBar.location": "right",
+  "workbench.startupEditor": "none",
+  "workbench.activityBar.location": "hidden",
+  "workbench.editor.showTabs": "single",
+  "workbench.editor.wrapTabs": true,
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.empty.hint": "hidden",
+  "workbench.tree.indent": 20,
+  "workbench.list.automaticKeyboardNavigation": false,
+  // ==========================================
+  // WINDOW BEHAVIOR
+  // ==========================================
+  "window.title": "${dirty}${activeEditorShort}${separator}${rootPath}",
+  "window.confirmBeforeClose": "never",
+  "window.newWindowDimensions": "inherit",
+  "window.nativeFullScreen": false,
+  "window.commandCenter": false,
+  "window.newWindowProfile": "Metron",
+  // ==========================================
+  // ZEN MODE
+  // ==========================================
+  "zenMode.showTabs": "none",
+  // ==========================================
+  // BREADCRUMBS & NAVIGATION
+  // ==========================================
+  "breadcrumbs.enabled": true,
+  // ==========================================
+  // FILE MANAGEMENT
+  // ==========================================
+  "files.associations": {
+    "*.lyaml": "yaml",
+    "*.html": "html",
+    "*.css": "css"
+  },
+  "files.exclude": {
+    "**/.classpath": true,
+    "**/.project": true,
+    "**/.settings": true,
+    "**/.factorypath": true
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  // ==========================================
+  // EXPLORER & FILE OPERATIONS
+  // ==========================================
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.autoReveal": "focusNoScroll",
+  "explorer.compactFolders": false,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js",
+    "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+    "*.tsx": "${capture}.jsx",
+    "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml",
+    "tsconfig.json": "tsconfig.*.json"
+  },
+  // ==========================================
+  // SEARCH CONFIGURATION
+  // ==========================================
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/.git": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "search.smartCase": true,
+  "search.useIgnoreFiles": true,
+  "search.followSymlinks": false,
+  // ==========================================
+  // TERMINAL INTEGRATION
+  // ==========================================
+  "terminal.integrated.env.osx": {
+    "FIG_NEW_SESSION": "1"
+  },
+  "terminal.integrated.confirmOnExit": "hasChildProcesses",
+  "terminal.integrated.fontSize": 16,
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.commandsToSkipShell": [
+    "workbench.action.togglePanel"
+  ],
+  // ==========================================
+  // DIFF EDITOR
+  // ==========================================
+  "diffEditor.ignoreTrimWhitespace": false,
+  "diffEditor.renderSideBySide": false,
+  // ==========================================
+  // DEBUG CONSOLE
+  // ==========================================
+  "debug.console.fontSize": 18,
+  // ==========================================
+  // GIT & SOURCE CONTROL
+  // ==========================================
+  "git.autofetch": true,
+  "githubPullRequests.pullBranch": "never",
+  // ==========================================
+  // GITHUB COPILOT
+  // ==========================================
+  "github.copilot.enable": {
+    "*": true,
+    "yaml": false,
+    "plaintext": false,
+    "markdown": false
+  },
+  // ==========================================
+  // TYPESCRIPT CONFIGURATION
+  // ==========================================
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.completeFunctionCalls": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.inlayHints.parameterNames.enabled": "literals",
+  "typescript.inlayHints.variableTypes.enabled": false,
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": false,
+  // ==========================================
+  // JAVASCRIPT CONFIGURATION
+  // ==========================================
+  "javascript.preferences.quoteStyle": "single",
+  "javascript.suggest.includeAutomaticOptionalChainCompletions": true,
+  // ==========================================
+  // PYTHON CONFIGURATION
+  // ==========================================
+  "python.languageServer": "Pylance",
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.variableTypes": true,
+  // ==========================================
+  // GO CONFIGURATION
+  // ==========================================
+  "go.formatTool": "goimports",
+  "go.useLanguageServer": true,
+  "go.toolsManagement.autoUpdate": true,
+  // ==========================================
+  // OTHER LANGUAGE SERVERS
+  // ==========================================
+  "Lua.workspace.library": [
+    "/Users/tlockney/.hammerspoon/Spoons/EmmyLua.spoon/annotations"
+  ],
+  // ==========================================
+  // PRETTIER CONFIGURATION
+  // ==========================================
+  "prettier.requireConfig": true,
+  "prettier.enableDebugLogs": true,
+  "prettier.printWidth": 120,
+  // ==========================================
+  // YAML CONFIGURATION (AWS CloudFormation)
+  // ==========================================
+  "yaml.customTags": [
+    "!And",
+    "!And sequence",
+    "!If",
+    "!If sequence",
+    "!Not",
+    "!Not sequence",
+    "!Equals",
+    "!Equals sequence",
+    "!Or",
+    "!Or sequence",
+    "!FindInMap",
+    "!FindInMap sequence",
+    "!Base64",
+    "!Join",
+    "!Join sequence",
+    "!Cidr",
+    "!Ref",
+    "!Sub",
+    "!Sub sequence",
+    "!GetAtt",
+    "!GetAZs",
+    "!ImportValue",
+    "!ImportValue sequence",
+    "!Select",
+    "!Select sequence",
+    "!Split",
+    "!Split sequence"
+  ],
+  // ==========================================
+  // NOTEBOOK CONFIGURATION
+  // ==========================================
+  "notebook.cellToolbarLocation": {
+    "default": "right",
+    "jupyter-notebook": "left"
+  },
+  "notebook.defaultFormatter": "denoland.vscode-deno",
+  "notebook.formatOnSave.enabled": true,
+  "workbench.editorAssociations": {
+    "*.ipynb": "jupyter-notebook"
+  },
+  "jupyter.interactiveWindow.textEditor.executeSelection": true,
+  // ==========================================
+  // MARKDOWN CONFIGURATION
+  // ==========================================
+  "markdown.preview.fontSize": 18,
+  // ==========================================
+  // EXTENSION-SPECIFIC SETTINGS
+  // ==========================================
+  "extensions.ignoreRecommendations": false,
+  "react-native-tools.showUserTips": false,
+  "vsicons.dontShowNewVersionMessage": true,
+  "redhat.telemetry.enabled": true,
+  "makefile.configureOnOpen": false,
+  "cSpell.userWords": [
+    "Metron"
+  ],
+  // ==========================================
+  // HAMMERSPOON CONFIGURATION
+  // ==========================================
+  "hammerspoon.spoons.path": "~/.config/hammerspoon/Spoons",
+  "hammerspoon.spoons.extraDocumentation": {
+    "repository-path": "",
+    "interpreter-path": ""
+  },
+  // ==========================================
+  // SETTINGS SYNC CONFIGURATION
+  // ==========================================
+  "settingsSync.ignoredExtensions": [
+    "hubspot.hubspot-frontend-vscode",
+    "platformio.platformio-ide",
+    "parallelsdesktop.parallels-desktop"
+  ],
+  "settingsSync.keybindingsPerPlatform": false,
+  // ==========================================
+  // SECURITY & WORKSPACE TRUST
+  // ==========================================
+  "security.workspace.trust.untrustedFiles": "open",
+  // ==========================================
+  // MISCELLANEOUS
+  // ==========================================
+  "json.schemas": [],
+  // ==========================================
+  // LANGUAGE-SPECIFIC FORMATTING
+  // ==========================================
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[typescript]": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[python]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.formatOnType": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[astro]": {
+    "editor.defaultFormatter": "astro-build.astro-vscode"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "[lua]": {
+    "editor.defaultFormatter": "sumneko.lua"
+  },
+  "[sql]": {
+    "editor.defaultFormatter": "adpyke.vscode-sql-formatter"
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go"
+  },
+  "[markdown]": {
+    "diffEditor.ignoreTrimWhitespace": true
+  },
+  "[mdx]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

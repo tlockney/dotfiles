@@ -1,0 +1,105 @@
+// Place your key bindings in this file to override the defaultsauto[]
+[
+	{
+		"key": "ctrl+x ctrl+s",
+		"command": "-workbench.action.files.save",
+		"when": "editorTextFocus"
+	},
+	{
+		"key": "ctrl+x ctrl+w",
+		"command": "-workbench.action.files.saveAs",
+		"when": "editorTextFocus"
+	},
+	{
+		"key": "cmd+e",
+		"command": "workbench.action.focusActiveEditorGroup"
+	},
+	{
+		"key": "cmd+t",
+		"command": "workbench.action.terminal.toggleTerminal"
+	},
+	{
+		"key": "cmd+k cmd+b",
+		"command": "workbench.action.toggleSidebarVisibility"
+	},
+	{
+		"key": "cmd+k cmd+e",
+		"command": "workbench.view.explorer"
+	},
+	{
+		"key": "cmd+k cmd+g",
+		"command": "workbench.view.scm"
+	},
+	{
+		"key": "cmd+k cmd+d",
+		"command": "workbench.view.debug"
+	},
+	{
+		"key": "cmd+k cmd+x",
+		"command": "workbench.extensions.action.showEnabledExtensions"
+	},
+	{
+		"key": "cmd+k cmd+o",
+		"command": "workbench.action.files.openFolder"
+	},
+	{
+		"key": "cmd+k cmd+r",
+		"command": "workbench.action.openRecent"
+	},
+	{
+		"key": "cmd+k cmd+f",
+		"command": "workbench.action.findInFiles"
+	},
+	{
+		"key": "cmd+d",
+		"command": "duplicate.execute",
+		"when": "explorerViewletVisible && filesExplorerFocus && !explorerResourceIsRoot && !inputFocus"
+	},
+	{
+		"key": "cmd+n",
+		"command": "explorer.newFile",
+		"when": "explorerViewletVisible && filesExplorerFocus && !inputFocus"
+	},
+	{
+		"key": "shift+cmd+n",
+		"command": "explorer.newFolder",
+		"when": "explorerViewletVisible && filesExplorerFocus && !inputFocus"
+	},
+	{
+		"key": "shift+enter",
+		"command": "workbench.action.terminal.sendSequence",
+		"args": {
+			"text": "\\\r\n"
+		},
+		"when": "terminalFocus"
+	},
+	{
+		"key": "cmd+shift+o",
+		"command": "workbench.action.gotoSymbol",
+		"when": "editorTextFocus"
+	},
+	{
+		"key": "cmd+r",
+		"command": "workbench.action.gotoSymbol"
+	},
+	{
+		"key": "cmd+shift+r",
+		"command": "workbench.action.showAllSymbols"
+	},
+	{
+		"key": "cmd+k cmd+q",
+		"command": "workbench.action.navigateBack"
+	},
+	{
+		"key": "cmd+k cmd+w",
+		"command": "workbench.action.navigateForward"
+	},
+	{
+		"key": "cmd+k cmd+c",
+		"command": "workbench.action.toggleCenteredLayout"
+	},
+	{
+		"key": "cmd+k cmd+p",
+		"command": "workbench.profiles.actions.switchProfile"
+	}
+]
