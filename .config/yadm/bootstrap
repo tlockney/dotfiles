@@ -8,18 +8,16 @@ system_type=$(uname -s)
 case "$(uname -s)" in
     Darwin)
 	echo "MacOS detected"
-	   # install homebrew if it's missing
-	if ! command -v brew >/dev/null 2>&1; then
-	    echo "Installing homebrew"
-	    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-	fi
-	if [ -f $HOME/.macos ]; then
-	    sh $HOME/.macos
-	fi
-	if [ -f $HOME/.Brewfile ]; then
-	    echo "Updating homebrew bundle"
-	    brew bundle --global
-	fi
+
+	command -v brew >/dev/null 2>&1 \
+	    || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+	test -f $HOME/.macos \
+	    && sh $HOME/.macos
+
+	test -f $HOME/.Brewfile \
+	    && brew bundle --global
+
 	if [ -x $HOME/.config/Code/User ]; then
 	    CODE_DIR=$HOME/.config/Code/User
 	    pushd $HOME/Library/Application\ Support/Code/User
@@ -33,7 +31,9 @@ case "$(uname -s)" in
 	    fi
 	    popd
 	fi
+
     ;;
+
     Linux)
 	echo "Linux detected"
     ;;
