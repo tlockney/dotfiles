@@ -13,16 +13,22 @@ case "$(uname -s)" in
 	    echo "Installing homebrew"
 	    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 	fi
-	if [ -f "$HOME/.macos" ]; then
-	    sh "$HOME/.macos"
+	if [ -f $HOME/.macos ]; then
+	    sh $HOME/.macos
 	fi
-	if [ -f "$HOME/.Brewfile" ]; then
+	if [ -f $HOME/.Brewfile ]; then
 	    echo "Updating homebrew bundle"
 	    brew bundle --global
 	fi
-	if [ -x "$HOME/.config/Code/User" ]; then
-	    ln -sf ~/.config/Code/User/settings.json ~/Library/Application\ Support/Code/User/settings.json
-	    ln -sf ~/.config/Code/User/keybindings.json ~/Library/Application\ Support/Code/User/keybindings.json
+	if [ -x $HOME/.config/Code/User ]; then
+	    ln -sf $HOME/.config/Code/User/settings.json $HOME/Library/Application\ Support/Code/User/settings.json
+	    ln -sf $HOME/.config/Code/User/keybindings.json $HOME/Library/Application\ Support/Code/User/keybindings.json
+	    if [ -x $HOME/Library/Application\ Support/Code/User/profiles/7db57729 ]; then
+		ln -sf $HOME/.config/Code/User/settings.json \
+		   $HOME/Library/Application\ Support/Code/User/profiles/7db57729/settings.json
+		ln -sf $HOME/.config/Code/User/keybindings.json \
+		   $HOME/Library/Application\ Support/Code/User/profiles/7db57729/keybindings.json
+	    fi
 	fi
     ;;
     Linux)
