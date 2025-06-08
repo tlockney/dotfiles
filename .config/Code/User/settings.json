@@ -6,7 +6,7 @@
   "editor.fontFamily": "'FiraCode-Retina', 'Fira Code Medium', 'Ubuntu Mono', 'Input Mono', Menlo, Monaco, 'Courier New', monospace",
   "editor.fontLigatures": true,
   "editor.fontWeight": "500",
-  "editor.fontSize": 14,
+  "editor.fontSize": 16,
   "editor.lineHeight": 0,
   "editor.rulers": [
     80,
