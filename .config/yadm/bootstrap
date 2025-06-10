@@ -3,38 +3,34 @@
 echo "Updating the yadm repo origin URL"
 yadm remote set-url origin "git@github.com:tlockney/dotfiles.git"
 
-system_type=$(uname -s)
-
 case "$(uname -s)" in
-    Darwin)
-	echo "MacOS detected"
+Darwin)
+  echo "MacOS detected"
 
-	command -v brew >/dev/null 2>&1 \
-	    || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  command -v brew >/dev/null 2>&1 ||
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-	test -f $HOME/.macos \
-	    && sh $HOME/.macos
+  test -f $HOME/.macos && sh $HOME/.macos
 
-	test -f $HOME/.Brewfile \
-	    && brew bundle --global
+  test -f $HOME/.Brewfile && brew bundle --global
 
-	if [ -x $HOME/.config/Code/User ]; then
-	    CODE_DIR=$HOME/.config/Code/User
-	    pushd $HOME/Library/Application\ Support/Code/User
-	    ln -sf $CODE_DIR/settings.json settings.json
-	    ln -sf $CODE_DIR/keybindings.json keybindings.json
-	    if [ -x "$PROFILE_DIR" ]; then
-		pushd profiles/7db57729
-		ln -sf $CODE_DIR/settings.json settings.json
-		ln -sf $CODE_DIR/keybindings.json keybindings.json
-		popd
-	    fi
-	    popd
-	fi
+  if [ -x $HOME/.config/Code/User ]; then
+    CODE_DIR=$HOME/.config/Code/User
+    pushd $HOME/Library/Application\ Support/Code/User
+    ln -sf $CODE_DIR/settings.json settings.json
+    ln -sf $CODE_DIR/keybindings.json keybindings.json
+    if [ -x "$PROFILE_DIR" ]; then
+      pushd profiles/7db57729
+      ln -sf $CODE_DIR/settings.json settings.json
+      ln -sf $CODE_DIR/keybindings.json keybindings.json
+      popd
+    fi
+    popd
+  fi
 
-    ;;
+  ;;
 
-    Linux)
-	echo "Linux detected"
-    ;;
+Linux)
+  echo "Linux detected"
+  ;;
 esac
