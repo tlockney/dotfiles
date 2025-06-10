@@ -1,0 +1,3 @@
+--theme Catppuccin-macchiato
+--paging=never
+--pager "less -RIF"
