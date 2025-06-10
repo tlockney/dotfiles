@@ -377,16 +377,7 @@ else
   alias ll="ls -la"
 fi
 
-# Enhanced command alternatives with fallbacks
-if command -v bat >/dev/null 2>&1; then
-  export BAT_PAGING=never
-  # Check if the Catppuccin theme is available
-  if bat --list-themes 2>/dev/null | grep -q "Catppuccin-macchiato"; then
-    alias cat='bat --theme Catppuccin-macchiato --pager "less -RIF"'
-  else
-    alias cat='bat --pager "less -RIF"'
-  fi
-fi
+command -v bat >/dev/null 2>&1 && alias cat='bat'
 
 # SQLite with rlwrap if available
 alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
