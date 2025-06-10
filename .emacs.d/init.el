@@ -1,23 +1,35 @@
+;; Increase garbage collection threshold during startup
+(setq gc-cons-threshold (* 50 1000 1000))
+
+;; Reset it after startup
+(add-hook 'emacs-startup-hook
+	  (lambda ()
+	    (setq gc-cons-threshold (* 2 1000 1000))))
+
 (fset `yes-or-no-p `y-or-n-p)
 (transient-mark-mode t)
 (column-number-mode t)
 
 (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
 (setq major-mode 'text-mode)
-(setq inhibit-splash-screen t)
-(setq inhibit-startup-message t)
-(setq inhibit-startup-screen t)
-(setq inhibit-startup-echo-area-message t)
-(setq initial-scratch-message nil)
-(setq initial-major-mode 'org-mode)
 (setq confirm-nonexistent-file-or-buffer nil)
-(setq delete-old-versions t)
-(setq version-control t)
-(setq vc-make-backup-files t)
-(setq backup-directory-alist `((".*" . "~/.emacs.d/backups")))
 (setq vc-follow-symlinks t)
 (setq kill-buffer-query-functions (remq 'process-kill-buffer-query-function
 					kill-buffer-query-functions))
+
+(setq inhibit-startup-screen t
+      inhibit-startup-echo-area-message user-login-name
+      inhibit-default-init t
+      initial-major-mode 'fundamental-mode
+      initial-scratch-message nil)
+
+(setq backup-by-copying t
+      backup-directory-alist '(("." . "~/.emacs.d/backups/"))
+      delete-old-versions t
+      kept-new-versions 6
+      kept-old-versions 2
+      version-control t
+      auto-save-file-name-transforms '((".*" "~/.emacs.d/auto-save-list/" t)))
 
 (desktop-save-mode 1)
 (setq desktop-path '("~/.emacs.d")
@@ -38,10 +50,15 @@
 (tooltip-mode -1)
 
 ;; set font
-(defun font-exists-p (font) (if (null (x-list-fonts font)) nil t))
-(when (window-system)
-  (cond ((font-exists-p "FiraCode Nerd Font Mono") (set-frame-font "FiraCode Nerd Font Mono:spacing=100:size=16" nil t))
-    ((font-exists-p "Fira Code") (set-frame-font "Fira Code:spacing=100:size=16" nil t))))
+(defun font-exists-p (font)
+  (if (null (x-list-fonts font)) nil t))
+
+(when (display-graphic-p)
+  (cond ((font-exists-p "FiraCode Nerd Font Mono")
+	 (set-frame-font "FiraCode Nerd Font Mono:spacing=100:size=16" nil t))
+	((font-exists-p "Fira Code")
+	 (set-frame-font "Fira Code:spacing=100:size=16" nil t))
+	(t (message "Preferred fonts not found, using default"))))
 
 (load-theme 'wombat)
 
@@ -54,8 +71,24 @@
 (require 'mwheel nil 'noerror)
 (mouse-wheel-mode t)
 
-;; Maximize emacs on startup and removes title bar (borderless fullscreen)
-;(set-frame-parameter nil 'fullscreen 'fullboth)
+;; Mouse support in terminal (useful for tmux)
+(unless (display-graphic-p)
+  (xterm-mouse-mode 1)
+  (global-set-key [mouse-4] 'scroll-down-line)
+  (global-set-key [mouse-5] 'scroll-up-line))
+
+;; Better terminal experience
+(unless (display-graphic-p)
+  ;; Faster terminal updates
+  (setq echo-keystrokes 0.02)
+  ;; Better colors in terminal
+  (setq frame-background-mode 'dark)
+  ;; Reduce visual noise
+  (setq visible-bell nil)
+  (setq ring-bell-function 'ignore)
+  ;; Better scrolling in terminal
+  (setq scroll-conservatively 10000)
+  (setq scroll-preserve-screen-position t))
 
 ;; Highlight Current Line
 (add-hook 'after-init-hook 'global-hl-line-mode)
@@ -95,6 +128,9 @@
 
 (require 'use-package)
 (setq use-package-always-ensure t)
+
+(use-package compat
+  :ensure t)
 
 (use-package vertico
   :init
@@ -137,14 +173,6 @@
 
 (use-package typescript-ts-mode)
 
-(use-package company
-  :bind (:map company-active-map
-	      ("C-n" . company-select-next)
-	      ("C-p" . company-select-previous))
-  :config
-  (setq company-idle-delay 0.3)
-  (global-company-mode t))
-
 ;; Display possible completions at all places
 (use-package ido-completing-read+
   :ensure t
@@ -183,12 +211,49 @@
 
 (use-package corfu
   :custom
-  (curfu-cycle t)
-  (corfu-auto t)
-  (corfu-auto-prefix 2)
-  (corfu-auto-delay 0.0)
+  (corfu-cycle t)                    ;; Enable cycling for `corfu-next/previous`
+  (corfu-auto t)                     ;; Enable auto completion
+  (corfu-auto-prefix 1)              ;; Trigger after 1 character (faster for quick edits)
+  (corfu-auto-delay 0.1)             ;; Very fast trigger for quick work
+  (corfu-separator ?\s)              ;; Orderless field separator
+  (corfu-quit-at-boundary 'separator) ;; Quit at word boundaries (good for quick edits)
+  (corfu-quit-no-match t)            ;; Quit if no match (less intrusive)
+  (corfu-preview-current nil)        ;; Disable preview (cleaner in terminal)
+  (corfu-preselect 'prompt)          ;; Preselect the prompt
+  (corfu-on-exact-match 'insert)     ;; Auto-insert exact matches (faster workflow)
+  (corfu-scroll-margin 3)            ;; Smaller scroll margin
+  (corfu-max-width 80)               ;; Limit width (better for terminal/SSH)
+  (corfu-min-width 20)               ;; Minimum width
+  (corfu-count 10)                   ;; Show fewer candidates (less overwhelming)
+  :bind
+  (:map corfu-map
+	("TAB" . corfu-next)
+	([tab] . corfu-next)
+	("S-TAB" . corfu-previous)
+	([backtab] . corfu-previous)
+	("C-n" . corfu-next)
+	("C-p" . corfu-previous)
+	("RET" . corfu-insert)
+	("C-g" . corfu-quit))         ;; Easy exit
   :init
   (global-corfu-mode))
+
+;; corfu-terminal for SSH/terminal use
+(use-package corfu-terminal
+  :if (not (display-graphic-p))
+  :config
+  (corfu-terminal-mode +1))
+
+(use-package cape
+  :init
+  ;; Add useful completion functions to completion-at-point-functions
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev)  ;; Dynamic abbreviations
+  (add-to-list 'completion-at-point-functions #'cape-file)     ;; File paths
+  (add-to-list 'completion-at-point-functions #'cape-elisp-block) ;; Elisp in org blocks
+  :config
+  ;; Make dabbrev case-sensitive for better matches in quick edits
+  (setq dabbrev-case-fold-search nil))
+
 
 ;; Recent buffers in a new Emacs session
 (use-package recentf
@@ -197,4 +262,28 @@
 	recentf-max-saved-items 1000
 	recentf-save-file (concat user-emacs-directory ".recentf"))
   (recentf-mode t)
+  :bind ("C-x C-r" . recentf-open-files)
   :diminish nil)
+
+(use-package which-key
+  :config
+  (which-key-mode)
+  (setq which-key-idle-delay 0.8)            ;; Slightly longer delay for less distraction
+  (setq which-key-max-display-columns 4)     ;; Better for terminal windows
+  (setq which-key-max-description-length 25) ;; Shorter descriptions
+  (setq which-key-replacement-alist
+      '(("C-l" . "LSP"))))                   ;; Show "LSP" instead of the full prefix
+
+(use-package consult
+  :bind (("M-s l" . consult-line)           ; Alternative to C-s (keep default for now)
+	 ("C-x b" . consult-buffer)         ; Enhanced buffer switching
+	 ("M-y" . consult-yank-pop)         ; Better kill ring
+	 ("M-g g" . consult-goto-line)      ; Quick line jumping
+	 ("C-c h" . consult-history)        ; Command history
+	 ("C-c f" . consult-find)           ; Find files
+	 ("C-c r" . consult-recent-file)))  ; Recent files
+
+(use-package orderless
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides '((file (styles basic partial-completion)))))
