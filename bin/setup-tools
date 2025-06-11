@@ -163,6 +163,9 @@ run_step "cargo install eza" "Installing eza (modern ls replacement)"
 run_step "cargo install bat" "Installing bat (modern cat replacement)"
 run_step "bat cache --build" "Building bat syntax highlighting cache"
 
+# Better shell prompts
+run_step "curl -sS https://starship.rs/install.sh | sh -s -- -b $HOME/bin" "Installing Starship prompt"
+
 # Optional tools (uncomment as needed)
 # run_step "cargo install mdbook mdbook-epub" "Installing mdbook and mdbook-epub"
 
