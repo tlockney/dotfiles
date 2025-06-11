@@ -123,6 +123,20 @@ fi
 # Add brew completions if available
 [[ -d "$BREW_PREFIX/share/zsh-completions" ]] && FPATH="$BREW_PREFIX/share/zsh-completions:$FPATH"
 
+# Zsh autosuggestions
+ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
+[[ -e "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT" ]] && source "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT"
+[[ -e /usr/share/$ZSH_AUTO_SCRIPT ]] && source /usr/share/$ZSH_AUTO_SCRIPT
+
+# Zsh syntax highlighting
+[[ -d "$BREW_PREFIX/share/zsh-syntax-highlighting" ]] && {
+  source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  # Disable underline
+  (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
+  ZSH_HIGHLIGHT_STYLES[path]=none
+  ZSH_HIGHLIGHT_STYLES[path_prefix]=none
+}
+
 # Set up XDG runtime directory if not already set
 if [[ -z "$XDG_RUNTIME_DIR" ]]; then
   [[ "$CURRENT_OS" == "Linux" ]] && XDG_RUNTIME_DIR=/run/user/$(id -u)
@@ -187,11 +201,6 @@ command -v op >/dev/null 2>&1 && { eval "$(op completion zsh)"; compdef _op op; 
   eval "$(atuin init zsh)"
 }
 
-# Zsh autosuggestions
-ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
-[[ -e "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT" ]] && source "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT"
-[[ -e /usr/share/$ZSH_AUTO_SCRIPT ]] && source /usr/share/$ZSH_AUTO_SCRIPT
-
 # Set up PNPM if installed
 (command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]) && {
   # Set PNPM_HOME based on platform
@@ -201,15 +210,6 @@ ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
   # Create directory if it doesn't exist and add to PATH if not already there
   mkdir -p "$PNPM_HOME" 2>/dev/null || true
   [[ ":$PATH:" != *":$PNPM_HOME:"* ]] && export PATH="$PNPM_HOME:$PATH"
-}
-
-# Zsh syntax highlighting
-[[ -d "$BREW_PREFIX/share/zsh-syntax-highlighting" ]] && {
-  source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-  # Disable underline
-  (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
-  ZSH_HIGHLIGHT_STYLES[path]=none
-  ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 }
 
 # Add Homebrew-specific paths on macOS
