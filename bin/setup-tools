@@ -2,13 +2,6 @@
 
 set -euC -o pipefail
 
-# Load zshrc for environment setup
-if [[ -f ~/.zshrc ]]; then
-    source ~/.zshrc
-else
-    echo "Warning: ~/.zshrc not found, proceeding without it"
-fi
-
 # arch=$(uname -m)
 os=$(uname -s)
 
@@ -53,27 +46,17 @@ echo "Setting up tools on $os"
 echo "========================================"
 
 # Install or update Homebrew
-if [[ $os = "Darwin" || $os = "Linux" ]]; then
+if [[ $os = "Darwin" ]]; then
 	if ! type brew &>/dev/null; then
 		echo "Installing Homebrew..."
 		/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 		# Add Homebrew to PATH based on OS and architecture
-		if [[ $os = "Darwin" ]]; then
-			if [[ $(uname -m) == "arm64" ]]; then
-				eval "$(/opt/homebrew/bin/brew shellenv)"
-			else
-				eval "$(/usr/local/bin/brew shellenv)"
-			fi
-		elif [[ $os = "Linux" ]]; then
-			eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-		fi
+    eval "$(/opt/homebrew/bin/brew shellenv)"
 	else
 		echo "Updating Homebrew..."
 		brew update
 	fi
-else
-	echo "Homebrew not supported on this OS, skipping..."
 fi
 
 # Install Rustup to bootstrap Rust
@@ -94,26 +77,14 @@ if ! type mise &>/dev/null; then
 	curl -fsSL https://mise.run | sh
 
 	# Source mise activation
-	if [[ -f "$HOME/.local/bin/mise" ]]; then
-		eval "$("$HOME/.local/bin/mise" activate zsh)"
-	else
-		# Try to find mise in common locations
-		for mise_path in ~/.local/share/mise/bin/mise ~/.mise/bin/mise; do
-			if [[ -x "$mise_path" ]]; then
-				eval "$("$mise_path" activate zsh)"
-				break
-			fi
-		done
-	fi
+	[[ -f "$HOME/.local/bin/mise" ]] && eval "$("$HOME/.local/bin/mise" activate zsh)"
 else
 	echo "mise already installed, updating..."
 	mise self-update
 fi
 
 # Add mise path to current session
-if [[ -d "$HOME/.local/share/mise/bin" ]]; then
-	path=("$HOME/.local/share/mise/bin" $path)
-fi
+[[ -d "$HOME/.local/share/mise/bin" ]] && path=("$HOME/.local/share/mise/bin" $path)
 
 # Function to log steps and handle errors
 function run_step() {
@@ -175,14 +146,7 @@ elif [[ $os = "Linux" ]]; then
 	# Check if we're using apt-based distro
 	if type apt-get &>/dev/null; then
 		run_step "sudo apt update && sudo apt install -y fzf fd-find ripgrep" "Installing Linux tools with apt"
-	# Check if we're using dnf-based distro
-	elif type dnf &>/dev/null; then
-		run_step "sudo dnf install -y fzf fd-find ripgrep" "Installing Linux tools with dnf"
-	else
-		echo "⚠️  Warning: Unsupported package manager. Please install fzf, fd-find, and ripgrep manually."
 	fi
-else
-	echo "⚠️  Warning: Unsupported OS for tool installation: $os"
 fi
 
 # Install Atuin for shell history
@@ -242,7 +206,7 @@ if [[ $DEV -eq 1 ]]; then
 
 	# Install Deno Jupyter kernel if Deno is available
 	if type deno &>/dev/null; then
-		run_step "deno jupyter --unstable --install" "Installing Deno Jupyter kernel"
+		run_step "deno jupyter --install --force" "Installing Deno Jupyter kernel"
 	fi
 
 	# Install additional Rust dev tools
