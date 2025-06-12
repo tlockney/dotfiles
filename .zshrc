@@ -1,5 +1,6 @@
 # Initialize completion system once
-[[ -d ~/.zsh ]] && fpath=(~/.zsh $fpath)
+[[ ! -d ~/.zsh/completions ]] && mkdir -p ~/.zsh/completions
+fpath=(~/.zsh/completions $fpath)
 autoload -Uz compinit
 compinit -u
 
@@ -160,13 +161,10 @@ fi
 # set up cargo
 [[ -d "$HOME/.cargo" ]] && source "$HOME/.cargo/env"
 
-if type rustup &>/dev/null && ! test -d $HOME/.zfunc; then
-  mkdir $HOME/.zfunc &>/dev/null
-  rustup completions zsh > $HOME/.zfunc/_rustup
-  fpath+=$HOME/.zfunc
-fi
-
-command -v uv >/dev/null 2>&1 && eval $(uv generate-shell-completion zsh)
+type rustup &>/dev/null && rustup completions zsh > $HOME/.zsh/completions/_rustup
+type deno &>/dev/null && deno completions zsh > $HOME/.zsh/completions/_deno
+type uv &>/dev/null && uv generate-shell-completion zsh > $HOME/.zsh/completions/_uv
+type mise &>/dev/null && mise completions zsh > $HOME/.zsh/completions/_mise
 
 # Set up Java environment
 export JAVA_OPTIONS="-Djava.awt.headless=true"
