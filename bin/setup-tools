@@ -55,7 +55,7 @@ if [[ $os = "Darwin" ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
 	else
 		echo "Updating Homebrew..."
-		brew update
+		brew update && brew upgrade
 	fi
 fi
 
@@ -66,10 +66,8 @@ if ! type rustup &>/dev/null; then
 	source "$HOME/.cargo/env"
 else
 	echo "Rust already installed, updating..."
+  rustup toolchain install stable --profile minimal
 fi
-
-echo "Updating Rust to latest stable toolchain..."
-rustup toolchain install stable --profile minimal
 
 # Install mise (formerly rtx)
 if ! type mise &>/dev/null; then
@@ -79,7 +77,6 @@ if ! type mise &>/dev/null; then
 	# Source mise activation
 	[[ -f "$HOME/.local/bin/mise" ]] && eval "$("$HOME/.local/bin/mise" activate zsh)"
 else
-	echo "mise already installed, updating..."
 	mise self-update
 fi
 
@@ -106,7 +103,6 @@ echo "Installing runtimes..."
 if ! type deno &>/dev/null; then
 	run_step "mise use -g deno@$DENO_VERSION" "Installing Deno version $DENO_VERSION"
 else
-	echo "Deno already installed, updating if needed..."
 	run_step "mise use -g deno@$DENO_VERSION" "Updating Deno to version $DENO_VERSION"
 fi
 
@@ -114,7 +110,6 @@ fi
 if ! type node &>/dev/null; then
 	run_step "mise use -g node@$NODE_VERSION" "Installing Node version $NODE_VERSION"
 else
-	echo "Node already installed, updating if needed..."
 	run_step "mise use -g node@$NODE_VERSION" "Updating Node to version $NODE_VERSION"
 fi
 
@@ -132,7 +127,7 @@ run_step "cargo install bat" "Installing bat (modern cat replacement)"
 run_step "bat cache --build" "Building bat syntax highlighting cache"
 
 # Better shell prompts
-run_step "curl -sS https://starship.rs/install.sh | sh -s -- -b $HOME/bin" "Installing Starship prompt"
+run_step "curl -sS https://starship.rs/install.sh | sh -s -- -y -b $HOME/.local/bin" "Installing Starship prompt"
 
 # Optional tools (uncomment as needed)
 # run_step "cargo install mdbook mdbook-epub" "Installing mdbook and mdbook-epub"
@@ -149,9 +144,14 @@ elif [[ $os = "Linux" ]]; then
 	fi
 fi
 
-# Install Atuin for shell history
-echo "Installing Atuin for shell history..."
-run_step "curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh" "Installing Atuin"
+# Install/Update Atuin for shell history
+if type atuin &>/dev/null; then
+  echo "Atuin already installed, updating..."
+  run_step "atuin-update" "Updating Atuin"
+else
+  run_step "curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh" "Installing Atuin"
+fi
+
 
 # Install tmux plugin manager
 if [[ ! -d ~/.tmux/plugins/tpm ]]; then
