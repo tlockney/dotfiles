@@ -128,9 +128,6 @@ function run_step() {
     return 0
 }
 
-# This is just to deal with any existing pipx installations that may need to be reset
-#pipx reinstall-all
-
 # Install runtimes with mise
 echo "Installing runtimes..."
 
