@@ -5,7 +5,7 @@ python.uv_venv_auto = true
 
 [tools]
 deno = "latest"
-python = "3.13"
-node = "22"
+python = "latest"
+node = "latest"
 bun = "latest"
 go = "1.23"
