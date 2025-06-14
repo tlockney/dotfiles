@@ -86,6 +86,8 @@ fi
 
 # ===== Environment Variables =====
 
+[[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM="xterm-256color"
+
 # System information - detect OS and architecture
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -m)
