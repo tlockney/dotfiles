@@ -86,9 +86,15 @@ fi
 
 # ===== Environment Variables =====
 
+[[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM="xterm-256color"
+
 # System information - detect OS and architecture
 export CURRENT_OS=$(uname -s)
 export CURRENT_ARCH=$(uname -m)
+
+# 1Password SSH Agent configuration
+[[ "$CURRENT_OS" == "Darwin" ]] && export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock
+[[ "$CURRENT_OS" == "Linux" ]] && export SSH_AUTH_SOCK="~/.1password/agent.socket"
 
 # Editor configuration
 if command -v emacsclient >/dev/null 2>&1; then
