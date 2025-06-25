@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+CONFIG="$HOME/.ssh/config"
+AGENT_LINE='  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'
+
+if grep -q "^$AGENT_LINE" "$CONFIG"; then
+    sed -i '' "s|^$AGENT_LINE|#$AGENT_LINE|" "$CONFIG"
+    echo "1Password SSH agent disabled"
+else
+    sed -i '' "s|^#$AGENT_LINE|$AGENT_LINE|" "$CONFIG"
+    echo "1Password SSH agent enabled"
+fi
