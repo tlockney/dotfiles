@@ -21,8 +21,8 @@ chsh -s /usr/bin/zsh
 
 ```sh
 mkdir -p ~/bin
-curl -fLo ~/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/bin/yadm
-~/bin/yadm clone https://github.com/tlockney/dotfiles.git
+curl -fLo ~/.local/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/.local/bin/yadm
+~/.local/bin/yadm clone https://github.com/tlockney/dotfiles.git
 ```
 
 ## Tips
