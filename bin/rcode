@@ -80,6 +80,7 @@ selected=$(echo "$projects" | sed "s|$REMOTE_DIR/||" | fzf \
     --height=60% \
     --layout=reverse \
     --border \
+    --cycle \
     --prompt="Select project: " \
     --header="↑↓ navigate • Enter to open • Esc to cancel")
 
