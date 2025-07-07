@@ -1,0 +1,29 @@
+#!/bin/sh
+
+echo "Running environment sanity checks..."
+
+# Lint .zshrc for syntax errors
+if [ -f "$HOME/.zshrc" ]; then
+  echo "Linting .zshrc..."
+  zsh -n "$HOME/.zshrc"
+  if [ $? -eq 0 ]; then
+    echo ".zshrc syntax is OK."
+  else
+    echo ".zshrc syntax error!"
+  fi
+else
+  echo "Skipping .zshrc lint, file not found."
+fi
+
+echo "\nChecking for essential commands..."
+commands_to_check="eza bat fd rg atuin mise"
+for cmd in $commands_to_check; do
+  if command -v $cmd >/dev/null 2>&1; then
+    echo "- $cmd: found"
+  else
+    echo "- $cmd: NOT FOUND"
+  fi
+done
+
+echo "\nEnvironment check complete."
+

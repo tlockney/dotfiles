@@ -32,5 +32,22 @@ Darwin)
 
 Linux)
   echo "Linux detected"
+  echo "Installing packages with apt..."
+  sudo apt-get update
+  sudo apt-get install -y zsh tmux git
+
+  if [ "$(basename "$SHELL")" != "zsh" ]; then
+    echo "Setting zsh as the default shell"
+    chsh -s $(which zsh)
+  else
+    echo "zsh is already the default shell"
+  fi
   ;;
 esac
+
+if [ -x "$HOME/bin/sync-secrets" ]; then
+  echo "\nRunning secret synchronization..."
+  "$HOME/bin/sync-secrets"
+else
+  echo "\nWarning: sync-secrets script not found or not executable."
+fi
