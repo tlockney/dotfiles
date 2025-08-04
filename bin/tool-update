@@ -16,17 +16,17 @@ uv_update_tools() {
     local success=true
     local output
     local reinstall_needed=()
-    
+
     if UV_TOOLS=$(uv tool list 2>/dev/null | grep -v '^-' | awk '{ print $1}'); then
 	for tool in $UV_TOOLS; do
 	    echo "  - Updating $tool"
 	    # Capture both stdout and stderr
 	    output=$(uv tool upgrade "$tool" 2>&1)
 	    local exit_code=$?
-	    
+
 	    # Display the output
 	    echo "$output"
-	    
+
 	    # Check for reinstall warning
 	    if echo "$output" | grep -q "run \`uv tool install .* --reinstall\` to reinstall"; then
 		reinstall_needed+=("$tool")
@@ -35,7 +35,7 @@ uv_update_tools() {
 		success=false
 	    fi
 	done
-	
+
 	# Handle tools that need reinstalling
 	if [ ${#reinstall_needed[@]} -gt 0 ]; then
 	    echo ""
@@ -60,14 +60,14 @@ if type brew &>/dev/null; then
     echo "=========================================="
     echo "Updating Homebrew and all installed packages"
     echo "=========================================="
-    
+
     # Run each step separately for better error handling
     if ! brew update; then
-        echo "WARNING: Failed to update Homebrew"
+	echo "WARNING: Failed to update Homebrew"
     elif ! brew upgrade; then
-        echo "WARNING: Failed to upgrade Homebrew packages"
+	echo "WARNING: Failed to upgrade Homebrew packages"
     elif ! brew cleanup; then
-        echo "WARNING: Failed to clean up Homebrew"
+	echo "WARNING: Failed to clean up Homebrew"
     fi
 fi
 
@@ -81,12 +81,12 @@ if type mise &>/dev/null; then
     echo "=========================================="
     echo "Updating mise and installed tools"
     echo "=========================================="
-    
+
     # Run each step separately for better error handling
-    if ! mise self-update; then
-        echo "WARNING: Failed to update mise"
+    if ! mise self-update -y; then
+	echo "WARNING: Failed to update mise"
     elif ! mise upgrade -y; then
-        echo "WARNING: Failed to upgrade mise tools"
+	echo "WARNING: Failed to upgrade mise tools"
     fi
 fi
 
