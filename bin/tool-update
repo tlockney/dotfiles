@@ -2,15 +2,9 @@
 
 set -euC -o pipefail
 
-# Function to handle updates with error checking
-update_with_check() {
-    echo "=========================================="
-    echo "Updating $1"
-    echo "=========================================="
-    if ! $2; then
-	echo "WARNING: Failed to update $1"
-    fi
-}
+# Source common utilities
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPT_DIR}/lib/common.sh"
 
 uv_update_tools() {
     local success=true
@@ -55,12 +49,10 @@ uv_update_tools() {
     $success
 }
 
-if type brew &>/dev/null; then
+if has_command brew; then
     # Run Homebrew commands separately to avoid command parsing issues
-    echo "=========================================="
-    echo "Updating Homebrew and all installed packages"
-    echo "=========================================="
-
+    print_section "Updating Homebrew and all installed packages"
+    
     # Run each step separately for better error handling
     if ! brew update; then
 	echo "WARNING: Failed to update Homebrew"
@@ -72,16 +64,15 @@ if type brew &>/dev/null; then
 fi
 
 # check for apt-get instead of apt, since MacOS has a binary called apt
-if type apt-get &>/dev/null; then
-    update_with_check "apt packages" "sudo bash -c 'apt update && apt -y dist-upgrade'"
+if has_command apt-get; then
+    print_section "Updating apt packages"
+    run_step "sudo bash -c 'apt update && apt -y dist-upgrade'" "Updating system packages"
 fi
 
-if type mise &>/dev/null; then
+if has_command mise; then
     # Run mise commands separately to avoid command parsing issues
-    echo "=========================================="
-    echo "Updating mise and installed tools"
-    echo "=========================================="
-
+    print_section "Updating mise and installed tools"
+    
     # Run each step separately for better error handling
     if ! mise self-update -y; then
 	echo "WARNING: Failed to update mise"
@@ -90,15 +81,18 @@ if type mise &>/dev/null; then
     fi
 fi
 
-if type rustup &>/dev/null; then
-    update_with_check "rust toolchain" "rustup update"
+if has_command rustup; then
+    print_section "Updating rust toolchain"
+    run_step "rustup update" "Updating Rust"
 fi
 
-if type cargo-install-update &>/dev/null; then
-    update_with_check "cargo tools" "cargo install-update -a"
+if has_command cargo-install-update; then
+    print_section "Updating cargo tools"
+    run_step "cargo install-update -a" "Updating installed Cargo packages"
 fi
 
 # Update UV tools if any are installed
-if type uv &>/dev/null; then
-    update_with_check "UV tools" "uv_update_tools"
+if has_command uv; then
+    print_section "Updating UV tools"
+    run_step "uv_update_tools" "Updating UV-installed tools"
 fi

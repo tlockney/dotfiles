@@ -1,9 +1,10 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 set -euC -o pipefail
 
-# arch=$(uname -m)
-os=$(uname -s)
+# Source common utilities
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPT_DIR}/lib/common.sh"
 
 # Process command line arguments
 DEV=0
@@ -41,13 +42,11 @@ PYTHON_VERSION="${PYTHON_VERSION:-latest}"
 NODE_VERSION="${NODE_VERSION:-latest}"
 
 # Print banner
-echo "========================================"
-echo "Setting up tools on $os"
-echo "========================================"
+print_section "Setting up tools on $CURRENT_OS"
 
 # Install or update Homebrew
-if [[ $os = "Darwin" ]]; then
-	if ! type brew &>/dev/null; then
+if [[ $CURRENT_OS = "Darwin" ]]; then
+	if ! has_command brew; then
 		echo "Installing Homebrew..."
 		/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
@@ -60,7 +59,7 @@ if [[ $os = "Darwin" ]]; then
 fi
 
 # Install Rustup to bootstrap Rust
-if ! type rustup &>/dev/null; then
+if ! has_command rustup &>/dev/null; then
 	echo "Installing Rust..."
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y -q
 	source "$HOME/.cargo/env"
@@ -70,7 +69,7 @@ else
 fi
 
 # Install mise (formerly rtx)
-if ! type mise &>/dev/null; then
+if ! has_command mise &>/dev/null; then
 	echo "Installing mise..."
 	curl -fsSL https://mise.run | sh
 
@@ -81,33 +80,22 @@ else
 fi
 
 # Add mise path to current session
-[[ -d "$HOME/.local/share/mise/bin" ]] && path=("$HOME/.local/share/mise/bin" $path)
+[[ -d "$HOME/.local/share/mise/bin" ]] && export PATH="$HOME/.local/share/mise/bin:$PATH"
 
-# Function to log steps and handle errors
-function run_step() {
-    local cmd="$1"
-    local desc="$2"
-
-    echo "→ $desc"
-    if ! eval "$cmd"; then
-        echo "⚠️  Warning: Failed to $desc"
-        return 1
-    fi
-    return 0
-}
+# run_step function is now provided by common.sh
 
 # Install runtimes with mise
 echo "Installing runtimes..."
 
 # Install Deno if not present
-if ! type deno &>/dev/null; then
+if ! has_command deno &>/dev/null; then
 	run_step "mise use -g deno@$DENO_VERSION" "Installing Deno version $DENO_VERSION"
 else
 	run_step "mise use -g deno@$DENO_VERSION" "Updating Deno to version $DENO_VERSION"
 fi
 
 # Install Node if not present
-if ! type node &>/dev/null; then
+if ! has_command node &>/dev/null; then
 	run_step "mise use -g node@$NODE_VERSION" "Installing Node version $NODE_VERSION"
 else
 	run_step "mise use -g node@$NODE_VERSION" "Updating Node to version $NODE_VERSION"
@@ -135,17 +123,17 @@ run_step "curl -sS https://starship.rs/install.sh | sh -s -- -y -b $HOME/.local/
 # Install OS-specific tools
 echo "Installing OS-specific tools..."
 
-if [[ $os = "Darwin" ]]; then
+if [[ $CURRENT_OS = "Darwin" ]]; then
 	run_step "brew install fzf fd ripgrep" "Installing macOS tools with Homebrew"
-elif [[ $os = "Linux" ]]; then
+elif [[ $CURRENT_OS = "Linux" ]]; then
 	# Check if we're using apt-based distro
-	if type apt-get &>/dev/null; then
+	if has_command apt-get &>/dev/null; then
 		run_step "sudo apt update && sudo apt install -y fzf fd-find ripgrep" "Installing Linux tools with apt"
 	fi
 fi
 
 # Install/Update Atuin for shell history
-if type atuin &>/dev/null; then
+if has_command atuin &>/dev/null; then
   echo "Atuin already installed, updating..."
   run_step "atuin-update" "Updating Atuin"
 else
@@ -165,21 +153,19 @@ fi
 
 # Dev tools section
 if [[ $DEV -eq 1 ]]; then
-	echo "========================================"
-	echo "Installing development tools..."
-	echo "========================================"
+	print_section "Installing development tools..."
 
 	# Install Python with mise
 	run_step "mise use -g python@$PYTHON_VERSION" "Installing Python version $PYTHON_VERSION"
 
 	# Install uv package manager
-	if ! type uv &>/dev/null; then
+	if ! has_command uv &>/dev/null; then
 		run_step "curl -LsSf https://astral.sh/uv/install.sh | sh" "Installing uv package manager"
 
 		# Try to find uv in common locations and add to path
 		for uv_path in ~/.cargo/bin/uv ~/.local/bin/uv; do
 			if [[ -x "$uv_path" ]]; then
-				path=("$(dirname "$uv_path")" $path)
+				export PATH="$(dirname "$uv_path"):$PATH"
 				break
 			fi
 		done
@@ -205,7 +191,7 @@ if [[ $DEV -eq 1 ]]; then
 	run_step "uv tool install jupyter-core --with jupyterlab --with requests --with pandas --with numpy --with matplotlib --with nbconvert --with nbclassic" "Installing Jupyter and scientific packages"
 
 	# Install Deno Jupyter kernel if Deno is available
-	if type deno &>/dev/null; then
+	if has_command deno &>/dev/null; then
 		run_step "deno jupyter --install --force" "Installing Deno Jupyter kernel"
 	fi
 
@@ -217,10 +203,10 @@ if [[ $DEV -eq 1 ]]; then
 	run_step "cargo install onefetch" "Installing onefetch"
 
 	# Install additional OS-specific dev tools
-	if [[ $os = "Darwin" ]]; then
+	if [[ $CURRENT_OS = "Darwin" ]]; then
 		run_step "brew install gh jq yq bat-extras" "Installing additional macOS development tools"
-	elif [[ $os = "Linux" ]]; then
-		if type apt-get &>/dev/null; then
+	elif [[ $CURRENT_OS = "Linux" ]]; then
+		if has_command apt-get &>/dev/null; then
 			run_step "sudo apt install -y jq gh bat-extras" "Installing additional Linux development tools"
 		fi
 	fi
@@ -228,6 +214,4 @@ else
 	echo "Skipping development tools (use --dev to install)"
 fi
 
-echo "========================================"
-echo "Setup complete! 🎉"
-echo "========================================"
+print_section "Setup complete! 🎉"
