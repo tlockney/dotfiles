@@ -110,16 +110,4 @@ session_name="$selected"
 success "Opening tmux session '$session_name' at $project_path..."
 
 # Connect to remote and handle tmux session
-ssh -v -t "$REMOTE_HOST" "cd ${project_path} && ~/bin/tc"
-# ssh -v -t "$REMOTE_HOST" "
-#     cd '$project_path' || exit 1
-
-#     # Check if tmux session exists
-#     if tmux has-session -t '$session_name' 2>/dev/null; then
-#         # Attach to existing session
-#         tmux attach-session -t '$session_name'
-#     else
-#         # Create new session
-#         tmux new-session -s '$session_name'
-#     fi
-# "
+ssh -t "$REMOTE_HOST" "cd ${project_path} && ~/bin/tc"
