@@ -1,0 +1,125 @@
+#!/bin/bash
+
+# Remote Tmux Session Selector
+#
+# Quickly select and open/attach to tmux sessions for remote projects via SSH.
+#
+# Usage: ./remote-tmux-select.sh [OPTIONS] [PROJECT_NAME|REMOTE_HOST]
+#
+# Options:
+#   -d DIR    Remote base directory
+#   -p NAME   Project name (skip selection)
+#   -h        Show help
+#
+# Examples:
+#   ./remote-tmux-select.sh              # Interactive selection
+#   ./remote-tmux-select.sh myproject    # Direct to project
+#   ./remote-tmux-select.sh -p myproject # Direct to project (explicit)
+
+set -euo pipefail
+
+# Defaults
+REMOTE_HOST="workmbp"
+REMOTE_DIR="/Users/thomas.lockney/src/metron"
+
+# Colors
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m'
+
+# Variables (removed - using hardcoded defaults)
+PROJECT_NAME=""
+
+# Simple logging
+info() { echo -e "${BLUE}$*${NC}"; }
+success() { echo -e "${GREEN}$*${NC}"; }
+error() { echo -e "${RED}Error: $*${NC}" >&2; exit 1; }
+
+# Usage
+usage() {
+    cat << EOF
+Usage: $0 [OPTIONS] [PROJECT_NAME]
+
+Opens or attaches to a tmux session for a selected remote project.
+
+Options:
+    -d DIR    Remote directory (default: /Users/thomas.lockney/src/metron)
+    -p NAME   Project name (skip selection menu)
+    -h        Show this help
+
+Examples:
+    $0                      # Interactive project selection
+    $0 myproject            # Direct to 'myproject'
+    $0 -p myproject         # Direct to 'myproject' (explicit)
+    $0 -d /opt/projects     # Different directory
+
+EOF
+    exit 0
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -d) REMOTE_DIR="$2"; shift 2 ;;
+        -p) PROJECT_NAME="$2"; shift 2 ;;
+        -h) usage ;;
+        -*) error "Unknown option: $1" ;;
+        *) PROJECT_NAME="$1"; shift ;;
+    esac
+done
+
+# Test SSH connection
+info "Connecting to $REMOTE_HOST..."
+ssh -o BatchMode=yes -o ConnectTimeout=5 "$REMOTE_HOST" "test -d '$REMOTE_DIR'" || \
+    error "Cannot connect to $REMOTE_HOST or directory $REMOTE_DIR doesn't exist"
+
+# If project name provided, use it directly
+if [[ -n "$PROJECT_NAME" ]]; then
+    # Verify project exists
+    project_path="$REMOTE_DIR/$PROJECT_NAME"
+    ssh -o BatchMode=yes "$REMOTE_HOST" "test -d '$project_path'" || \
+        error "Project '$PROJECT_NAME' not found at $project_path"
+
+    selected="$PROJECT_NAME"
+    info "Using project: $selected"
+else
+    # Get projects for interactive selection
+    info "Finding projects in $REMOTE_DIR..."
+    projects=$(ssh "$REMOTE_HOST" "find '$REMOTE_DIR' -maxdepth 1 -mindepth 1 -type d -not -name '.*' | sort")
+
+    [[ -z "$projects" ]] && error "No projects found in $REMOTE_DIR"
+
+    # Select with fzf
+    clear
+    selected=$(echo "$projects" | sed "s|$REMOTE_DIR/||" | fzf \
+        --height=60% \
+        --layout=reverse \
+        --border \
+        --cycle \
+        --prompt="Select project: " \
+        --header="↑↓ navigate • Enter to open • Esc to cancel")
+
+    [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
+fi
+
+# Project path and session name
+project_path="$REMOTE_DIR/$selected"
+session_name="$selected"
+
+success "Opening tmux session '$session_name' at $project_path..."
+
+# Connect to remote and handle tmux session
+ssh -v -t "$REMOTE_HOST" "cd ${project_path} && ~/bin/tc"
+# ssh -v -t "$REMOTE_HOST" "
+#     cd '$project_path' || exit 1
+
+#     # Check if tmux session exists
+#     if tmux has-session -t '$session_name' 2>/dev/null; then
+#         # Attach to existing session
+#         tmux attach-session -t '$session_name'
+#     else
+#         # Create new session
+#         tmux new-session -s '$session_name'
+#     fi
+# "
