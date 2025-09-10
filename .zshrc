@@ -171,6 +171,7 @@ type rustup &>/dev/null && rustup completions zsh > $HOME/.zsh/completions/_rust
 type deno &>/dev/null && deno completions zsh > $HOME/.zsh/completions/_deno
 type uv &>/dev/null && uv generate-shell-completion zsh > $HOME/.zsh/completions/_uv
 type mise &>/dev/null && mise completions zsh > $HOME/.zsh/completions/_mise
+type docker &>/dev/null && docker completions zsh > $HOME/.zsh/completions/_docker
 
 # Set up Java environment
 export JAVA_OPTIONS="-Djava.awt.headless=true"
