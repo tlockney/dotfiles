@@ -20,7 +20,7 @@ chsh -s /usr/bin/zsh
 ## Installation
 
 ```sh
-mkdir -p ~/bin
+mkdir -p ~/.local/bin
 curl -fLo ~/.local/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/.local/bin/yadm
 ~/.local/bin/yadm clone https://github.com/tlockney/dotfiles.git
 ```
