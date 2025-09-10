@@ -46,7 +46,7 @@ config.font = wezterm.font_with_fallback {
 }
 config.font_size = 16
 config.window_close_confirmation = "NeverPrompt"
-config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
+config.window_decorations = "INTEGRATED_BUTTONS|RESIZE|MACOS_FORCE_ENABLE_SHADOW"
 config.window_padding = {
   left = '0.8cell',
   right = '0.8cell',
