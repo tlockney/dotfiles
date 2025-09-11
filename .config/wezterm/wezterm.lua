@@ -41,7 +41,7 @@ config.hide_tab_bar_if_only_one_tab = false
 config.use_fancy_tab_bar = true
 config.native_macos_fullscreen_mode = true
 config.font = wezterm.font_with_fallback {
-  "JetBrainsMono Nerd Font",
+  "JetBrainsMono Nerd Font Mono",
   "FiraCode Nerd Font Mono"
 }
 config.font_size = 16
@@ -74,11 +74,12 @@ config.keys = {
   { key = '{',          mods = 'SHIFT|ALT', action = action.MoveTabRelative(-1) },
   { key = '}',          mods = 'SHIFT|ALT', action = action.MoveTabRelative(1)  },
   { key = 'p',          mods = 'CMD|SHIFT', action = action.ActivateCommandPalette },
-  { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
-    cwd = wezterm.home_dir,
-    args = { 'emacs', '-nw', wezterm.config_file },
-  }},
-    -- Vertical pipe (|) -> horizontal split
+  { key = ',',          mods = 'SUPER',
+    action = action.SpawnCommandInNewTab {
+	cwd = wezterm.home_dir,
+	args = { 'emacs', '-nw', wezterm.config_file },
+    },
+  },
   {
     key = '\\',
     mods = 'CMD|SHIFT',
@@ -86,7 +87,6 @@ config.keys = {
       domain = 'CurrentPaneDomain'
     },
   },
-  -- Underscore (_) -> vertical split
   {
     key = '-',
     mods = 'CMD|SHIFT',
