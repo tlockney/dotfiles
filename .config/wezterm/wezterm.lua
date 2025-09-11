@@ -74,6 +74,7 @@ config.keys = {
   { key = '{',          mods = 'SHIFT|ALT', action = action.MoveTabRelative(-1) },
   { key = '}',          mods = 'SHIFT|ALT', action = action.MoveTabRelative(1)  },
   { key = 'p',          mods = 'CMD|SHIFT', action = action.ActivateCommandPalette },
+  { key = 'Enter',      mods = 'ALT',       action = action.DisableDefaultAssignment },
   { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
     cwd = wezterm.home_dir,
     args = { 'emacs', '-nw', wezterm.config_file },
