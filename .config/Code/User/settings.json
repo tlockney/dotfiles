@@ -3,7 +3,7 @@
   // ==========================================
   // EDITOR APPEARANCE & FONTS
   // ==========================================
-  "editor.fontFamily": "'FiraCode-Retina', 'Fira Code Medium', 'Ubuntu Mono', 'Input Mono', Menlo, Monaco, 'Courier New', monospace",
+  "editor.fontFamily": "'JetBrainsMono Nerd Font Mono', 'FiraCode Nerd Font Propo', 'Fira Code Medium', 'Ubuntu Mono', 'Input Mono', Menlo, Monaco, 'Courier New', monospace",
   "editor.fontLigatures": true,
   "editor.fontWeight": "500",
   "editor.fontSize": 16,
@@ -56,7 +56,6 @@
   "workbench.iconTheme": "vscode-icons",
   "workbench.sideBar.location": "right",
   "workbench.startupEditor": "none",
-  "workbench.activityBar.location": "hidden",
   "workbench.editor.showTabs": "single",
   "workbench.editor.wrapTabs": true,
   "workbench.editor.enablePreview": false,
@@ -309,7 +308,7 @@
   "[typescript]": {
     "editor.tabSize": 2,
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[typescriptreact]": {
     "editor.formatOnSave": true,
@@ -352,5 +351,54 @@
   },
   "jupyter.askForKernelRestart": false,
   "docker.extension.enableComposeLanguageServer": false,
-  "github.copilot.nextEditSuggestions.enabled": true
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "chat.instructionsFilesLocations": {
+    ".github/instructions": true,
+    "/var/folders/lc/140766x17j380bfcq6drq2kc0000gp/T/postman-http-request-post-response.instructions.md": true,
+    "/var/folders/lc/140766x17j380bfcq6drq2kc0000gp/T/postman-http-request-pre-request.instructions.md": true,
+    "/var/folders/d1/l2s7bq393_z9ttj25fh7b4rw0000gn/T/postman-http-request-post-response.instructions.md": true,
+    "/var/folders/d1/l2s7bq393_z9ttj25fh7b4rw0000gn/T/postman-http-request-pre-request.instructions.md": true,
+    "/var/folders/lc/140766x17j380bfcq6drq2kc0000gp/T/postman-collections-post-response.instructions.md": true,
+    "/var/folders/lc/140766x17j380bfcq6drq2kc0000gp/T/postman-collections-pre-request.instructions.md": true,
+    "/var/folders/lc/140766x17j380bfcq6drq2kc0000gp/T/postman-folder-post-response.instructions.md": true,
+    "/var/folders/lc/140766x17j380bfcq6drq2kc0000gp/T/postman-folder-pre-request.instructions.md": true,
+    "/var/folders/d1/l2s7bq393_z9ttj25fh7b4rw0000gn/T/postman-collections-post-response.instructions.md": true,
+    "/var/folders/d1/l2s7bq393_z9ttj25fh7b4rw0000gn/T/postman-collections-pre-request.instructions.md": true,
+    "/var/folders/d1/l2s7bq393_z9ttj25fh7b4rw0000gn/T/postman-folder-post-response.instructions.md": true,
+    "/var/folders/d1/l2s7bq393_z9ttj25fh7b4rw0000gn/T/postman-folder-pre-request.instructions.md": true
+  },
+  "geminicodeassist.project": "thelockneylab",
+  "chat.commandCenter.enabled": false,
+  "workbench.layoutControl.enabled": false,
+  "workbench.activityBar.location": "hidden",
+  "mssql.connectionGroups": [
+    {
+      "name": "ROOT",
+      "id": "2BE83172-3380-4C6E-B670-08EAF2A7F23D"
+    }
+  ],
+  "mssql.connections": [
+    {
+      "authenticationType": "AzureMFA",
+      "connectTimeout": 30,
+      "applicationName": "vscode-mssql",
+      "applicationIntent": "ReadWrite",
+      "profileName": "WaterScope Prod",
+      "server": "u5fb63wht8.database.windows.net",
+      "accountId": "80b08c05-7eb5-4368-aeb7-70ca843678ac.22d31f95-b1d3-4269-8f03-070f20ea2da5",
+      "tenantId": "22d31f95-b1d3-4269-8f03-070f20ea2da5",
+      "user": "Thomas Lockney - Thomas.Lockney@metron-us.com",
+      "email": "Thomas.Lockney@metron-us.com",
+      "azureAccountToken": "",
+      "expiresOn": 1754674493,
+      "groupId": "2BE83172-3380-4C6E-B670-08EAF2A7F23D",
+      "id": "68A32191-2CF7-4323-AE51-E64484C9FF64",
+      "database": "",
+      "password": "",
+      "commandTimeout": 30,
+      "encrypt": "Mandatory"
+    }
+  ],
+  "docker.extension.dockerEngineAvailabilityPrompt": false,
+  "mssql.autoDisableNonTSqlLanguageService": false
 }
