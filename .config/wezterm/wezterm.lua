@@ -54,16 +54,22 @@ config.window_padding = {
   bottom = '0.8cell',
 }
 config.window_frame = {
-  border_left_color = 'grey',
-  border_right_color = 'grey',
-  border_top_color = 'grey',
-  border_bottom_color = 'grey',
+  border_left_color = 'black',
+  border_right_color = 'black',
+  border_top_color = 'black',
+  border_bottom_color = 'black',
+  border_left_width = '0.1cell',
+  border_right_width = '0.1cell',
+  border_bottom_height = '0.1cell',
+  border_top_height = '0.1cell',
   font = wezterm.font { family = 'Avenir', weight = 'Bold' },
   font_size = 16,
 }
 config.window_background_opacity = 0.90
 config.macos_window_background_blur = 30
 config.scrollback_lines = 5000
+
+
 config.set_environment_variables = {
   PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
 }
@@ -75,6 +81,7 @@ config.keys = {
   { key = '}',          mods = 'SHIFT|ALT', action = action.MoveTabRelative(1)  },
   { key = 'p',          mods = 'CMD|SHIFT', action = action.ActivateCommandPalette },
   { key = 'Enter',      mods = 'ALT',       action = action.DisableDefaultAssignment },
+  { key = 'w',          mods = 'CMD',       action = action.CloseCurrentTab { confirm = false }},
   { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
     cwd = wezterm.home_dir,
     args = { 'emacs', '-nw', wezterm.config_file },
@@ -93,6 +100,15 @@ config.keys = {
       domain = 'CurrentPaneDomain'
     },
   },
+}
+
+config.launch_menu = {
+    {
+	args = { 'htop' }
+    },
+    {
+	args = { 'glances' }
+    }
 }
 
 return config
