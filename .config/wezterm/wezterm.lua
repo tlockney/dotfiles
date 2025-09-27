@@ -7,8 +7,31 @@ local function color_scheme_for_appearance(appearance)
 end
 
 local wezterm = require("wezterm")
-local config = wezterm.config_builder()
 local action = wezterm.action
+
+wezterm.on('update-status', function(window)
+  local SOLID_LEFT_ARROW = utf8.char(0xe0b2)
+
+  -- Grab the current window's configuration, and from it the
+  -- palette (this is the combination of your chosen colour scheme
+  -- including any overrides).
+  local color_scheme = window:effective_config().resolved_palette
+  local bg = color_scheme.background
+  local fg = color_scheme.foreground
+
+  window:set_right_status(wezterm.format({
+    -- First, we draw the arrow...
+    { Background = { Color = 'none' } },
+    { Foreground = { Color = bg } },
+    { Text = SOLID_LEFT_ARROW },
+    -- Then we draw our text
+    { Background = { Color = bg } },
+    { Foreground = { Color = fg } },
+    { Text = ' ' .. wezterm.hostname() .. ' ' },
+  }))
+end)
+
+local config = wezterm.config_builder()
 
 config.automatically_reload_config = true
 config.hide_tab_bar_if_only_one_tab = false
@@ -40,16 +63,18 @@ config.window_frame = {
 config.window_background_opacity = 0.90
 config.macos_window_background_blur = 20
 config.scrollback_lines = 5000
+config.set_environment_variables = {
+  PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
+}
 
 config.keys = {
-  { key = 'd',          mods = 'CMD|SHIFT', action = action.SplitVertical { domain = 'CurrentPaneDomain' } },
-  { key = 'd',          mods = 'CMD',       action = action.SplitHorizontal { domain = 'CurrentPaneDomain' } },
-  { key = 'k',          mods = 'CMD',       action = action.ClearScrollback 'ScrollbackAndViewport' },
-  { key = 'w',          mods = 'CMD',       action = action.CloseCurrentPane { confirm = false } },
-  { key = 'w',          mods = 'CMD|SHIFT', action = action.CloseCurrentTab { confirm = false } },
-  { key = 'LeftArrow',  mods = 'CMD',       action = action.SendKey { key = 'Home' } },
-  { key = 'RightArrow', mods = 'CMD',       action = action.SendKey { key = 'End' } },
+  { key = 'LeftArrow',  mods = "OPT",       action = action.SendString('\x1bb') },
+  { key = 'RightArrow', mods = "OPT",       action = action.SendString('\x1bf') },
   { key = 'p',          mods = 'CMD|SHIFT', action = action.ActivateCommandPalette },
+  { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
+    cwd = wezterm.home_dir,
+    args = { 'emacs', '-nw', wezterm.config_file },
+  }},
 }
 
 return config
