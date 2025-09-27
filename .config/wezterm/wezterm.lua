@@ -72,11 +72,6 @@ config.set_environment_variables = {
   PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
 }
 
-
-config.set_environment_variables = {
-  PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
-}
-
 config.keys = {
   { key = 'LeftArrow',  mods = 'OPT',       action = action.SendString('\x1bb') },
   { key = 'RightArrow', mods = 'OPT',       action = action.SendString('\x1bf') },
