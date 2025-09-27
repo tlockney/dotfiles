@@ -87,19 +87,9 @@ fi
 # Install runtimes with mise
 echo "Installing runtimes..."
 
-# Install Deno if not present
-if ! has_command deno &>/dev/null; then
-	run_step "mise use -g deno@$DENO_VERSION" "Installing Deno version $DENO_VERSION"
-else
-	run_step "mise use -g deno@$DENO_VERSION" "Updating Deno to version $DENO_VERSION"
-fi
+run_step "mise use -g deno@$DENO_VERSION" "Installing Deno version $DENO_VERSION"
 
-# Install Node if not present
-if ! has_command node &>/dev/null; then
-	run_step "mise use -g node@$NODE_VERSION" "Installing Node version $NODE_VERSION"
-else
-	run_step "mise use -g node@$NODE_VERSION" "Updating Node to version $NODE_VERSION"
-fi
+run_step "mise use -g node@$NODE_VERSION" "Installing Node version $NODE_VERSION"
 
 echo "Installing Rust tools..."
 
