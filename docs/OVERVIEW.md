@@ -6,15 +6,19 @@ This repository contains personal dotfiles managed with [YADM](https://yadm.io/)
 
 ### Core Configuration Files
 
-#### Shell Environment (`.zshrc`)
+#### Shell Environment (`.zshrc` + `.config/zsh/`)
 
-The centerpiece of the configuration, providing:
+The centerpiece of the configuration uses a modular structure with separate files:
 
-- **Smart PATH Management**: Automatic deduplication and intelligent path ordering
-- **Advanced History**: Extensive history with search, sharing, and deduplication
-- **Tool Integration**: Seamless integration with modern CLI tools
-- **Platform Detection**: Automatic OS and architecture detection with conditional loading
-- **Performance Optimizations**: Lazy loading and conditional initialization
+- **`init.zsh`**: Basic setup, completion system, keybindings
+- **`path.zsh`**: Smart PATH management with automatic deduplication
+- **`history.zsh`**: Advanced history with search, sharing, and deduplication
+- **`completions.zsh`**: Completion styles and configuration
+- **`tools.zsh`**: Tool initialization (mise, atuin, fzf, etc.) and environment setup
+- **`prompt.zsh`**: Starship prompt configuration (loaded after tools for proper integration)
+- **`aliases.zsh`**: Shell aliases and shortcuts
+
+Main `.zshrc` loads these modules in order for optimal initialization.
 
 #### Terminal & Git
 
@@ -31,8 +35,10 @@ The centerpiece of the configuration, providing:
 
 #### System Maintenance
 
-- **`tool-update`**: One-command update for all installed tools and package managers
-- **`setup-tools`**: Initial development environment setup with optional dev tools
+- **`tool-manager`**: Unified tool management for installation and updates
+  - Default mode updates all installed tools and package managers
+  - `--setup` mode performs initial development environment setup
+  - `--dev` flag installs optional development tools
 
 #### Development Utilities
 
@@ -102,20 +108,31 @@ yadm push
 
 ```bash
 # Update all installed tools
-~/bin/tool-update
+~/bin/tool-manager
 
 # Setup new machine
-~/bin/setup-tools
+~/bin/tool-manager --setup
+
+# Setup with development tools
+~/bin/tool-manager --setup --dev
 ```
 
 ### Directory Structure
 
 ```
 ~/
-├── .zshrc                    # Main shell configuration
+├── .zshrc                    # Main shell configuration (loads modules)
 ├── .tmux.conf               # Tmux configuration
 ├── .gitconfig               # Git configuration
 ├── .config/                 # Application configurations
+│   ├── zsh/                 # Modular zsh configuration
+│   │   ├── init.zsh         # Basic setup and keybindings
+│   │   ├── path.zsh         # PATH management
+│   │   ├── history.zsh      # History configuration
+│   │   ├── completions.zsh  # Completion styles
+│   │   ├── tools.zsh        # Tool initialization
+│   │   ├── prompt.zsh       # Starship prompt
+│   │   └── aliases.zsh      # Shell aliases
 │   ├── bat/                 # Bat (better cat) config
 │   ├── atuin/              # Shell history config
 │   ├── nvim/               # Neovim configuration
