@@ -9,6 +9,14 @@
 # Run `mise ls-remote <tool>` to see available versions
 # Run `mise upgrade` to update to latest versions matching these constraints
 
+# Environment variables
+# PATH is prepended with user directories to ensure they take precedence over mise-managed tools
+[env]
+_.path = [
+  "~/.local/bin",
+  "~/bin",
+]
+
 [tools]
 # Node.js - locked to v22.x for stability (notorious for breaking changes between majors)
 node = "22"

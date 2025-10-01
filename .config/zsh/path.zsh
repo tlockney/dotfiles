@@ -12,13 +12,10 @@ function prepend_to_path {
   fi
 }
 
-# Standard directories
-prepend_to_path /usr/local/bin
-prepend_to_path /usr/local/sbin
-prepend_to_path $HOME/bin
-prepend_to_path $HOME/.local/bin
+# Note: User directories ($HOME/bin and $HOME/.local/bin) are added in tools.zsh
+# AFTER mise activates to ensure they appear at the front of PATH.
+# This is necessary because mise's hook-env replaces PATH entirely and would
+# otherwise move user directories to the end.
 
-# Use macOS path_helper if available
-if [[ -f "/usr/libexec/path_helper" ]]; then
-  eval "$(/usr/libexec/path_helper)"
-fi
+# Note: path_helper is already called by brew shellenv in env.zsh
+# Calling it again here would move user paths to the end of PATH
