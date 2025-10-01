@@ -1,0 +1,28 @@
+# Runtime version constraints for mise
+# These define the desired versions for language runtimes and tools
+#
+# Version format:
+#   "22"     - Latest version in the 22.x series (major version lock)
+#   "3.12"   - Latest version in the 3.12.x series (major.minor lock)
+#   "latest" - Always use the latest stable version
+#
+# Run `mise ls-remote <tool>` to see available versions
+# Run `mise upgrade` to update to latest versions matching these constraints
+
+[tools]
+# Node.js - locked to v22.x for stability (notorious for breaking changes between majors)
+node = "22"
+
+# Deno - locked to v2.x
+deno = "2"
+
+# Python - locked to 3.12.x series
+python = "3.12"
+
+# Go - always use latest stable
+go = "latest"
+
+# Additional tools managed by mise
+# Uncomment and add versions as needed:
+# rust = "latest"
+# bun = "latest"
