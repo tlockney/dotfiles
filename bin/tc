@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 # Get the base name of the current directory
 DIR_NAME=$(basename "$(pwd)")
 
