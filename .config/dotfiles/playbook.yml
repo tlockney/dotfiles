@@ -1,0 +1,342 @@
+---
+# Development environment setup and maintenance playbook
+# This playbook ensures all development tools are installed and up-to-date
+#
+# Usage:
+#   Initial setup:     uvx --from ansible-core ansible-playbook playbook.yml --tags setup
+#   Update tools:      uvx --from ansible-core ansible-playbook playbook.yml
+#   Check mode:        uvx --from ansible-core ansible-playbook playbook.yml --check
+#   Dev tools:         uvx --from ansible-core ansible-playbook playbook.yml --extra-vars "dev_mode=true"
+#   Specific category: uvx --from ansible-core ansible-playbook playbook.yml --tags homebrew
+
+- name: Manage development environment
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars:
+    dev_mode: false
+    force: false
+
+  tasks:
+    # ========================================
+    # HOMEBREW (macOS only)
+    # ========================================
+    - name: Install Homebrew
+      tags: [setup, homebrew]
+      when: ansible_os_family == "Darwin"
+      block:
+        - name: Check if Homebrew is installed
+          stat:
+            path: /opt/homebrew/bin/brew
+          register: homebrew_check
+
+        - name: Install Homebrew
+          shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          when: not homebrew_check.stat.exists
+
+    - name: Update Homebrew and packages
+      tags: [homebrew]
+      when: ansible_os_family == "Darwin"
+      block:
+        - name: Update Homebrew itself
+          shell: brew update
+          register: brew_update
+          changed_when: "'Already up-to-date' not in brew_update.stdout"
+
+        - name: Install/upgrade essential Homebrew packages
+          shell: brew install {{ item }} || brew upgrade {{ item }} || true
+          loop:
+            - fzf
+            - fd
+            - ripgrep
+            - mise
+            - jq
+            - bat
+          register: brew_install
+          changed_when: "'Upgrading' in brew_install.stdout or 'Installing' in brew_install.stdout"
+
+        - name: Install/upgrade dev Homebrew packages
+          shell: brew install {{ item }} || brew upgrade {{ item }} || true
+          loop:
+            - gh
+            - yq
+            - bat-extras
+          register: brew_dev_install
+          changed_when: "'Upgrading' in brew_dev_install.stdout or 'Installing' in brew_dev_install.stdout"
+          when: dev_mode | bool
+
+        - name: Clean up Homebrew
+          shell: brew cleanup
+          register: brew_cleanup
+          changed_when: false
+
+    # ========================================
+    # APT (Linux only)
+    # ========================================
+    - name: Update APT packages
+      tags: [apt]
+      when: ansible_pkg_mgr == "apt"
+      block:
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          become: yes
+
+        - name: Upgrade all apt packages
+          apt:
+            upgrade: dist
+          become: yes
+          register: apt_upgrade
+
+        - name: Install essential apt packages
+          apt:
+            name:
+              - fzf
+              - fd-find
+              - ripgrep
+            state: latest
+          become: yes
+
+        - name: Install dev apt packages
+          apt:
+            name:
+              - jq
+              - gh
+            state: latest
+          become: yes
+          when: dev_mode | bool
+
+    # ========================================
+    # MISE
+    # ========================================
+    - name: Install and update mise
+      tags: [mise, setup]
+      block:
+        - name: Check if mise is installed
+          stat:
+            path: "{{ ansible_env.HOME }}/.local/bin/mise"
+          register: mise_check
+
+        - name: Install mise
+          shell: curl -fsSL https://mise.run | sh
+          args:
+            creates: "{{ ansible_env.HOME }}/.local/bin/mise"
+          when: not mise_check.stat.exists
+
+        - name: Update mise itself
+          shell: "{{ ansible_env.HOME }}/.local/bin/mise self-update"
+          register: mise_update
+          changed_when: "'Updated' in mise_update.stdout or 'updated' in mise_update.stdout"
+          failed_when: false
+
+    - name: Install and upgrade mise tools from .mise.toml
+      tags: [mise, runtimes]
+      shell: |
+        export PATH="{{ ansible_env.HOME }}/.local/bin:$PATH"
+        mise install && mise upgrade
+      args:
+        chdir: "{{ ansible_env.HOME }}"
+      register: mise_tools
+      changed_when: "'installed' in mise_tools.stdout or 'Upgraded' in mise_tools.stdout"
+
+    # ========================================
+    # RUST
+    # ========================================
+    - name: Install Rust toolchain
+      tags: [setup, rust]
+      block:
+        - name: Check if rustup is installed
+          stat:
+            path: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+          register: rustup_check
+
+        - name: Install Rust via rustup
+          shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y -q
+          args:
+            creates: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+          when: not rustup_check.stat.exists
+
+    - name: Update Rust toolchain
+      tags: [rust]
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/rustup update"
+      register: rustup_update
+      changed_when: "'updated' in rustup_update.stdout or 'installing' in rustup_update.stdout"
+
+    - name: Install cargo-update
+      tags: [setup, rust]
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install cargo-update"
+      args:
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/cargo-install-update"
+
+    - name: Update cargo packages
+      tags: [rust]
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install-update -a"
+      register: cargo_updates
+      changed_when: "'Updating' in cargo_updates.stdout"
+      failed_when: false
+
+    - name: Install essential Rust tools
+      tags: [setup, rust]
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item }}"
+      args:
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item }}"
+      loop:
+        - eza
+        - bat
+
+    - name: Build bat cache
+      tags: [setup, rust]
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/bat cache --build"
+      changed_when: false
+
+    - name: Install Rust dev tools
+      tags: [setup, rust, dev]
+      when: dev_mode | bool
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item.name }} {{ item.flags | default('') }}"
+      args:
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item.bin }}"
+      loop:
+        - { name: "evcxr_repl", bin: "evcxr", flags: "" }
+        - { name: "evcxr_jupyter", bin: "evcxr_jupyter", flags: "--locked" }
+        - { name: "onefetch", bin: "onefetch", flags: "" }
+
+    - name: Setup Rust Jupyter kernel
+      tags: [setup, rust, dev]
+      when: dev_mode | bool
+      shell: "{{ ansible_env.HOME }}/.cargo/bin/evcxr_jupyter --install"
+      changed_when: false
+      failed_when: false
+
+    # ========================================
+    # UV and Python packages
+    # ========================================
+    - name: Install uv
+      tags: [setup, uv]
+      block:
+        - name: Check if uv is installed
+          stat:
+            path: "{{ ansible_env.HOME }}/.local/bin/uv"
+          register: uv_check
+
+        - name: Install uv
+          shell: curl -LsSf https://astral.sh/uv/install.sh | sh
+          args:
+            creates: "{{ ansible_env.HOME }}/.local/bin/uv"
+          when: not uv_check.stat.exists
+
+    - name: Update uv tools
+      tags: [uv]
+      shell: |
+        for tool in $({{ ansible_env.HOME }}/.local/bin/uv tool list 2>/dev/null | grep -v '^-' | awk '{ print $1}'); do
+          echo "Updating $tool"
+          {{ ansible_env.HOME }}/.local/bin/uv tool upgrade "$tool" || \
+          {{ ansible_env.HOME }}/.local/bin/uv tool install "$tool" --reinstall
+        done
+      register: uv_updates
+      changed_when: "'Installed' in uv_updates.stdout or 'Updated' in uv_updates.stdout"
+      failed_when: false
+
+    - name: Install Python tools via uv
+      tags: [setup, uv, dev]
+      when: dev_mode | bool
+      shell: "{{ ansible_env.HOME }}/.local/bin/uv tool install {{ item }}"
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/share/uv/tools/{{ item }}"
+      loop:
+        - yt-dlp
+        - pygments
+        - httpie
+        - juv
+
+    - name: Install Jupyter with scientific packages
+      tags: [setup, uv, dev]
+      when: dev_mode | bool
+      shell: >
+        {{ ansible_env.HOME }}/.local/bin/uv tool install jupyter-core
+        --with jupyterlab
+        --with requests
+        --with pandas
+        --with numpy
+        --with matplotlib
+        --with nbconvert
+        --with nbclassic
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/share/uv/tools/jupyter-core"
+
+    - name: Install Deno Jupyter kernel
+      tags: [setup, dev]
+      when: dev_mode | bool
+      shell: "{{ ansible_env.HOME }}/.local/share/mise/installs/deno/latest/bin/deno jupyter --install --force"
+      changed_when: false
+      failed_when: false
+
+    # ========================================
+    # OTHER TOOLS
+    # ========================================
+    - name: Install Starship prompt
+      tags: [setup, tools]
+      block:
+        - name: Check if Starship is installed
+          stat:
+            path: "{{ ansible_env.HOME }}/.local/bin/starship"
+          register: starship_check
+
+        - name: Install Starship
+          shell: curl -sS https://starship.rs/install.sh | sh -s -- -y -b {{ ansible_env.HOME }}/.local/bin
+          args:
+            creates: "{{ ansible_env.HOME }}/.local/bin/starship"
+          when: not starship_check.stat.exists
+
+    - name: Install/update Atuin
+      tags: [setup, tools]
+      block:
+        - name: Check if Atuin is installed
+          command: which atuin
+          register: atuin_check
+          changed_when: false
+          failed_when: false
+
+        - name: Install Atuin
+          shell: curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+          when: atuin_check.rc != 0
+
+        - name: Update Atuin
+          shell: atuin-update
+          when: atuin_check.rc == 0
+          register: atuin_update
+          changed_when: "'Updated' in atuin_update.stdout or 'updated' in atuin_update.stdout"
+          failed_when: false
+
+    - name: Setup tmux plugin manager
+      tags: [setup, tools]
+      block:
+        - name: Check if tpm is installed
+          stat:
+            path: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+          register: tpm_check
+
+        - name: Create tmux plugins directory
+          file:
+            path: "{{ ansible_env.HOME }}/.tmux/plugins"
+            state: directory
+            mode: '0755'
+          when: not tpm_check.stat.exists
+
+        - name: Clone tmux plugin manager
+          git:
+            repo: https://github.com/tmux-plugins/tpm
+            dest: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+            update: yes
+
+    # ========================================
+    # SHELL COMPLETIONS
+    # ========================================
+    - name: Update shell completions
+      tags: [completions]
+      shell: "{{ ansible_env.HOME }}/.config/zsh/update-completions.sh"
+      args:
+        executable: /bin/zsh
+      changed_when: false
+      failed_when: false

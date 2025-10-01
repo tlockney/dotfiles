@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Tool update script - maintains all development tools at their latest versions
+# This is a wrapper around the Ansible playbook for convenient daily/weekly updates
+#
+# Usage:
+#   tool-update                   # Update all tools
+#   tool-update --check           # Show what would be updated (dry-run)
+#   tool-update --diff            # Show changes that would be made
+#   tool-update --tags homebrew   # Update only homebrew packages
+#   tool-update --tags mise       # Update only mise and its tools
+#   tool-update --dev             # Include dev tools
+#   tool-update -v                # Verbose output
+
+# Find the playbook - it's in .config/dotfiles/ relative to the bin directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+PLAYBOOK="$REPO_ROOT/.config/dotfiles/playbook.yml"
+
+# Ensure uv is available
+if ! command -v uv &>/dev/null; then
+    echo "Error: uv is not installed"
+    echo "Run 'bootstrap' first to set up your system"
+    exit 1
+fi
+
+# Check if playbook exists
+if [[ ! -f "$PLAYBOOK" ]]; then
+    echo "Error: Playbook not found at $PLAYBOOK"
+    echo "Please ensure your dotfiles are properly set up"
+    exit 1
+fi
+
+# Parse arguments to handle --dev flag specially
+EXTRA_VARS=""
+REMAINING_ARGS=()
+
+for arg in "$@"; do
+    if [[ "$arg" == "--dev" ]]; then
+        EXTRA_VARS="--extra-vars dev_mode=true"
+    else
+        REMAINING_ARGS+=("$arg")
+    fi
+done
+
+# Run the Ansible playbook
+# shellcheck disable=SC2086
+uvx --from ansible-core ansible-playbook \
+    "$PLAYBOOK" \
+    $EXTRA_VARS \
+    "${REMAINING_ARGS[@]}"

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Bootstrap script for fresh system setup
+# This script installs uv and runs the Ansible playbook to set up all development tools
+#
+# Usage:
+#   ./bootstrap              # Setup with default tools
+#   ./bootstrap --dev        # Setup with dev tools included
+
+# Determine script directory and playbook location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+PLAYBOOK="$REPO_ROOT/.config/dotfiles/playbook.yml"
+
+# Check if uv is installed
+if ! command -v uv &>/dev/null; then
+    echo "Installing uv package manager..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Add uv to PATH for this session
+    export PATH="$HOME/.local/bin:$PATH"
+
+    echo "✓ uv installed successfully"
+else
+    echo "✓ uv is already installed"
+fi
+
+# Verify uv is now available
+if ! command -v uv &>/dev/null; then
+    echo "Error: uv installation failed or not in PATH"
+    echo "Please add $HOME/.local/bin to your PATH and try again"
+    exit 1
+fi
+
+# Check if playbook exists
+if [[ ! -f "$PLAYBOOK" ]]; then
+    echo "Error: Playbook not found at $PLAYBOOK"
+    echo "Please ensure your dotfiles are properly checked out"
+    exit 1
+fi
+
+echo ""
+echo "========================================"
+echo "Running bootstrap setup..."
+echo "========================================"
+echo ""
+
+# Parse arguments to determine if dev mode is requested
+EXTRA_VARS=""
+for arg in "$@"; do
+    if [[ "$arg" == "--dev" ]]; then
+        EXTRA_VARS="--extra-vars dev_mode=true"
+        break
+    fi
+done
+
+# Run the Ansible playbook with setup tags
+# shellcheck disable=SC2086
+uvx --from ansible-core ansible-playbook \
+    "$PLAYBOOK" \
+    --tags setup \
+    $EXTRA_VARS \
+    "$@"
+
+echo ""
+echo "========================================"
+echo "Bootstrap complete! 🎉"
+echo "========================================"
+echo ""
+echo "Next steps:"
+echo "  - Restart your shell or run: source ~/.zshrc"
+echo "  - Run 'tool-update' to update tools in the future"
+echo "  - Run 'tool-update --check' to see what would be updated"
