@@ -1,0 +1,413 @@
+#!/usr/bin/env bash
+
+set -euC -o pipefail
+
+# Source common utilities
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPT_DIR}/lib/common.sh"
+
+# Tool versions - can be overridden with environment variables
+DENO_VERSION="${DENO_VERSION:-latest}"
+PYTHON_VERSION="${PYTHON_VERSION:-latest}"
+NODE_VERSION="${NODE_VERSION:-latest}"
+
+# Process command line arguments
+SETUP_MODE=0
+DEV_MODE=0
+FORCE_INSTALL=0
+HELP=0
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --setup)
+            SETUP_MODE=1
+            shift
+            ;;
+        --dev)
+            DEV_MODE=1
+            shift
+            ;;
+        --force-install)
+            FORCE_INSTALL=1
+            SETUP_MODE=1
+            shift
+            ;;
+        --help|-h)
+            HELP=1
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            HELP=1
+            shift
+            ;;
+    esac
+done
+
+# Show help if requested
+if [[ $HELP -eq 1 ]]; then
+    echo "Usage: tool-manager [options]"
+    echo ""
+    echo "Tool installation and update manager"
+    echo ""
+    echo "Options:"
+    echo "  --setup          Install missing tools and update existing ones"
+    echo "  --dev            Include development tools (Python, Jupyter, etc.)"
+    echo "  --force-install  Force reinstall all tools"
+    echo "  --help           Show this help message"
+    echo ""
+    echo "Default behavior: Update existing tools only"
+    exit 0
+fi
+
+# ========================================
+# UV TOOLS UPDATE FUNCTION
+# ========================================
+uv_update_tools() {
+    local success=true
+    local output
+    local reinstall_needed=()
+    
+    if UV_TOOLS=$(uv tool list 2>/dev/null | grep -v '^-' | awk '{ print $1}'); then
+        for tool in $UV_TOOLS; do
+            echo "  - Updating $tool"
+            # Capture both stdout and stderr
+            output=$(uv tool upgrade "$tool" 2>&1)
+            local exit_code=$?
+            
+            # Display the output
+            echo "$output"
+            
+            # Check for reinstall warning
+            if echo "$output" | grep -q "run \`uv tool install .* --reinstall\` to reinstall"; then
+                reinstall_needed+=("$tool")
+            elif [ $exit_code -ne 0 ]; then
+                echo "    WARNING: Failed to update $tool"
+                success=false
+            fi
+        done
+        
+        # Handle tools that need reinstalling
+        if [ ${#reinstall_needed[@]} -gt 0 ]; then
+            echo ""
+            echo "  Reinstalling tools with interpreter issues..."
+            for tool in "${reinstall_needed[@]}"; do
+                echo "  - Reinstalling $tool"
+                if ! uv tool install "$tool" --reinstall; then
+                    echo "    WARNING: Failed to reinstall $tool"
+                    success=false
+                fi
+            done
+        fi
+    else
+        echo "  No UV tools found or error listing tools"
+        return 1
+    fi
+    $success
+}
+
+# ========================================
+# HOMEBREW MANAGEMENT
+# ========================================
+manage_homebrew() {
+    if [[ $CURRENT_OS != "Darwin" ]]; then
+        return 0
+    fi
+    
+    if ! has_command brew; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            print_section "Installing Homebrew"
+            run_step "/bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"" "Installing Homebrew"
+            # Add Homebrew to PATH
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        else
+            echo "Homebrew not installed (use --setup to install)"
+        fi
+    else
+        print_section "Updating Homebrew and packages"
+        run_step "brew update" "Updating Homebrew"
+        run_step "brew upgrade" "Upgrading packages"
+        run_step "brew cleanup" "Cleaning up"
+    fi
+}
+
+# ========================================
+# RUST MANAGEMENT
+# ========================================
+manage_rust() {
+    if ! has_command rustup; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            print_section "Installing Rust"
+            run_step "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y -q" "Installing Rust"
+            source "$HOME/.cargo/env"
+        else
+            echo "Rust not installed (use --setup to install)"
+            return 0
+        fi
+    else
+        print_section "Updating Rust toolchain"
+        run_step "rustup update" "Updating Rust"
+    fi
+    
+    # Update cargo tools if cargo-update is installed
+    if has_command cargo-install-update; then
+        print_section "Updating Cargo tools"
+        run_step "cargo install-update -a" "Updating installed Cargo packages"
+    elif [[ $SETUP_MODE -eq 1 ]]; then
+        run_step "cargo install cargo-update" "Installing cargo-update"
+    fi
+}
+
+# ========================================
+# MISE MANAGEMENT
+# ========================================
+manage_mise() {
+    if ! has_command mise; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            print_section "Installing mise"
+            run_step "curl -fsSL https://mise.run | sh" "Installing mise"
+            # Source mise activation
+            [[ -f "$HOME/.local/bin/mise" ]] && eval "$("$HOME/.local/bin/mise" activate bash)"
+        else
+            echo "mise not installed (use --setup to install)"
+            return 0
+        fi
+    else
+        print_section "Updating mise and tools"
+        run_step "mise self-update" "Updating mise"
+        run_step "mise upgrade -y" "Upgrading mise tools"
+    fi
+    
+    # Add mise path to current session if needed
+    [[ -d "$HOME/.local/share/mise/bin" ]] && export PATH="$HOME/.local/share/mise/bin:$PATH"
+}
+
+# ========================================
+# RUNTIME MANAGEMENT
+# ========================================
+manage_runtimes() {
+    if ! has_command mise; then
+        return 0
+    fi
+    
+    print_section "Managing runtime versions"
+    
+    # Deno
+    if ! has_command deno || [[ $FORCE_INSTALL -eq 1 ]]; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            run_step "mise use -g deno@$DENO_VERSION" "Installing Deno version $DENO_VERSION"
+        fi
+    else
+        run_step "mise use -g deno@$DENO_VERSION" "Updating Deno to version $DENO_VERSION"
+    fi
+    
+    # Node
+    if ! has_command node || [[ $FORCE_INSTALL -eq 1 ]]; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            run_step "mise use -g node@$NODE_VERSION" "Installing Node version $NODE_VERSION"
+        fi
+    else
+        run_step "mise use -g node@$NODE_VERSION" "Updating Node to version $NODE_VERSION"
+    fi
+    
+    # Python (only in dev mode)
+    if [[ $DEV_MODE -eq 1 ]]; then
+        if ! has_command python || [[ $FORCE_INSTALL -eq 1 ]]; then
+            if [[ $SETUP_MODE -eq 1 ]]; then
+                run_step "mise use -g python@$PYTHON_VERSION" "Installing Python version $PYTHON_VERSION"
+            fi
+        else
+            run_step "mise use -g python@$PYTHON_VERSION" "Updating Python to version $PYTHON_VERSION"
+        fi
+    fi
+}
+
+# ========================================
+# RUST TOOLS MANAGEMENT
+# ========================================
+manage_rust_tools() {
+    if ! has_command cargo; then
+        return 0
+    fi
+    
+    if [[ $SETUP_MODE -eq 1 ]]; then
+        print_section "Installing Rust tools"
+        
+        # Essential tools
+        run_step "cargo install eza" "Installing eza (modern ls replacement)"
+        run_step "cargo install bat" "Installing bat (modern cat replacement)"
+        run_step "bat cache --build" "Building bat syntax highlighting cache"
+        
+        # Dev tools
+        if [[ $DEV_MODE -eq 1 ]]; then
+            run_step "cargo install evcxr_repl" "Installing evcxr_repl"
+            run_step "cargo install --locked evcxr_jupyter" "Installing evcxr_jupyter"
+            run_step "evcxr_jupyter --install" "Setting up Rust Jupyter kernel"
+            run_step "cargo install onefetch" "Installing onefetch"
+        fi
+    fi
+}
+
+# ========================================
+# SYSTEM TOOLS MANAGEMENT
+# ========================================
+manage_system_tools() {
+    if [[ $SETUP_MODE -eq 0 ]]; then
+        return 0
+    fi
+    
+    print_section "Installing system tools"
+    
+    if [[ $CURRENT_OS = "Darwin" ]]; then
+        run_step "brew install fzf fd ripgrep" "Installing macOS tools with Homebrew"
+        if [[ $DEV_MODE -eq 1 ]]; then
+            run_step "brew install gh jq yq bat-extras" "Installing additional macOS development tools"
+        fi
+    elif [[ $CURRENT_OS = "Linux" ]]; then
+        if has_command apt-get; then
+            run_step "sudo apt update && sudo apt install -y fzf fd-find ripgrep" "Installing Linux tools with apt"
+            if [[ $DEV_MODE -eq 1 ]]; then
+                run_step "sudo apt install -y jq gh bat-extras" "Installing additional Linux development tools"
+            fi
+        fi
+    fi
+}
+
+# ========================================
+# APT PACKAGE MANAGEMENT
+# ========================================
+manage_apt() {
+    if ! has_command apt-get; then
+        return 0
+    fi
+    
+    print_section "Updating system packages"
+    run_step "sudo bash -c 'apt update && apt -y dist-upgrade'" "Updating system packages"
+}
+
+# ========================================
+# OTHER TOOLS MANAGEMENT
+# ========================================
+manage_other_tools() {
+    # Starship
+    if ! has_command starship || [[ $FORCE_INSTALL -eq 1 ]]; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            print_section "Installing Starship prompt"
+            run_step "curl -sS https://starship.rs/install.sh | sh -s -- -y -b \$HOME/.local/bin" "Installing Starship"
+        fi
+    fi
+    
+    # Atuin
+    if has_command atuin; then
+        print_section "Updating Atuin"
+        run_step "atuin-update" "Updating Atuin"
+    elif [[ $SETUP_MODE -eq 1 ]]; then
+        print_section "Installing Atuin"
+        run_step "curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh" "Installing Atuin"
+    fi
+    
+    # tmux plugin manager
+    if [[ $SETUP_MODE -eq 1 ]]; then
+        if [[ ! -d ~/.tmux/plugins/tpm ]]; then
+            print_section "Setting up tmux plugin manager"
+            run_step "mkdir -p ~/.tmux/plugins" "Creating tmux plugins directory"
+            run_step "git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm" "Cloning tmux plugin manager"
+        else
+            print_section "Updating tmux plugin manager"
+            run_step "cd ~/.tmux/plugins/tpm && git pull" "Updating tmux plugin manager"
+        fi
+    fi
+}
+
+# ========================================
+# UV PACKAGE MANAGEMENT
+# ========================================
+manage_uv_packages() {
+    if [[ $DEV_MODE -eq 0 ]]; then
+        return 0
+    fi
+    
+    # Install uv if needed
+    if ! has_command uv; then
+        if [[ $SETUP_MODE -eq 1 ]]; then
+            print_section "Installing uv package manager"
+            run_step "curl -LsSf https://astral.sh/uv/install.sh | sh" "Installing uv"
+            
+            # Try to find uv in common locations and add to path
+            for uv_path in ~/.cargo/bin/uv ~/.local/bin/uv; do
+                if [[ -x "$uv_path" ]]; then
+                    export PATH="$(dirname "$uv_path"):$PATH"
+                    break
+                fi
+            done
+        else
+            return 0
+        fi
+    else
+        # Update existing UV tools
+        print_section "Updating UV tools"
+        run_step "uv_update_tools" "Updating UV-installed tools"
+    fi
+    
+    # Install Python packages if in setup mode
+    if [[ $SETUP_MODE -eq 1 ]]; then
+        print_section "Installing Python packages"
+        
+        PYTHON_PACKAGES=(
+            "yt-dlp"
+            "pygments"
+            "httpie"
+            "juv"
+        )
+        
+        for pkg in "${PYTHON_PACKAGES[@]}"; do
+            run_step "uv tool install $pkg" "Installing $pkg"
+        done
+        
+        # Install Jupyter and scientific packages
+        run_step "uv tool install jupyter-core --with jupyterlab --with requests --with pandas --with numpy --with matplotlib --with nbconvert --with nbclassic" "Installing Jupyter and scientific packages"
+        
+        # Install Deno Jupyter kernel if Deno is available
+        if has_command deno; then
+            run_step "deno jupyter --install --force" "Installing Deno Jupyter kernel"
+        fi
+    fi
+}
+
+# ========================================
+# MAIN EXECUTION
+# ========================================
+main() {
+    # Print banner
+    if [[ $SETUP_MODE -eq 1 ]]; then
+        print_section "Tool Manager - Setup Mode"
+    else
+        print_section "Tool Manager - Update Mode"
+    fi
+    
+    # Core tools
+    manage_homebrew
+    manage_apt
+    manage_rust
+    manage_mise
+    manage_runtimes
+    
+    # Additional tools
+    manage_rust_tools
+    manage_system_tools
+    manage_other_tools
+    
+    # Development tools
+    manage_uv_packages
+
+    # Shell completions
+    if [[ -x "$HOME/.config/zsh/update-completions.sh" ]]; then
+        print_section "Updating shell completions"
+        run_step "$HOME/.config/zsh/update-completions.sh" "Regenerating shell completions"
+    fi
+
+    print_section "Tool management complete! 🎉"
+}
+
+# Run main function
+main
