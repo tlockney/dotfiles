@@ -8,8 +8,8 @@ export CURRENT_ARCH=$(uname -m)
 [[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM="xterm-256color"
 
 # 1Password SSH Agent configuration
-[[ "$CURRENT_OS" == "Darwin" ]] && export SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock
-[[ "$CURRENT_OS" == "Linux" ]] && export SSH_AUTH_SOCK="~/.1password/agent.socket"
+[[ "$CURRENT_OS" == "Darwin" ]] && export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+[[ "$CURRENT_OS" == "Linux" ]] && export SSH_AUTH_SOCK="$HOME/.1password/agent.socket"
 
 # Editor configuration
 if command -v emacsclient >/dev/null 2>&1; then
@@ -39,7 +39,7 @@ fi
 # Set up homebrew paths and prefix if available
 [[ "$CURRENT_OS" == "Darwin" ]] && {
   eval "$(/opt/homebrew/bin/brew shellenv)"
-  BREW_PREFIX="$(/opt/homebrew/bin/brew --prefix)"
+  BREW_PREFIX="$(brew --prefix)"
 }
 
 # Zsh autosuggestions
@@ -60,7 +60,7 @@ ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
 if [[ -z "$XDG_RUNTIME_DIR" ]]; then
   [[ "$CURRENT_OS" == "Linux" ]] && XDG_RUNTIME_DIR=/run/user/$(id -u)
   [[ "$CURRENT_OS" == "Darwin" ]] && {
-    XDG_RUNTIME_DIR="${TMPDIR%/}user/$(id -u)"
+    XDG_RUNTIME_DIR="${TMPDIR%/}/user/$(id -u)"
     mkdir -p "$XDG_RUNTIME_DIR" 2>/dev/null || true
   }
 
@@ -93,7 +93,7 @@ export JAVA_OPTIONS="-Djava.awt.headless=true"
 }
 
 # Add Java to PATH if JAVA_HOME was found
-[[ -n "$JAVA_HOME" && -d "$JAVA_HOME/bin" ]] && prepend_to_path "$JAVA_HOME/bin"
+[[ -n "$JAVA_HOME" ]] && prepend_to_path "$JAVA_HOME/bin"
 
 # Set up Go if installed
 [[ -d "$HOME/go" ]] && { export GOPATH="$HOME/go"; prepend_to_path "$GOPATH/bin"; }
@@ -110,7 +110,7 @@ fi
 
 # Atuin shell history
 [[ -d "$HOME/.atuin/bin" ]] && {
-  prepend_to_path $HOME/.atuin/bin
+  prepend_to_path "$HOME/.atuin/bin"
   eval "$(atuin init zsh)"
 }
 
@@ -120,9 +120,9 @@ fi
   [[ "$CURRENT_OS" = "Darwin" ]] && export PNPM_HOME="$HOME/Library/pnpm"
   [[ "$CURRENT_OS" = "Linux" ]] && export PNPM_HOME="$HOME/.local/share/pnpm"
 
-  # Create directory if it doesn't exist and add to PATH if not already there
+  # Create directory if it doesn't exist and add to PATH
   mkdir -p "$PNPM_HOME" 2>/dev/null || true
-  [[ ":$PATH:" != *":$PNPM_HOME:"* ]] && export PATH="$PNPM_HOME:$PATH"
+  prepend_to_path "$PNPM_HOME"
 }
 
 # Add Homebrew-specific paths on macOS
@@ -141,4 +141,4 @@ fi
 [[ -e "$HOME/.shellfishrc" ]] && source "$HOME/.shellfishrc"
 
 # Claude CLI alias
-[[ -x $HOME/.claude/local/claude ]] && alias claude=$HOME/.claude/local/claude
+[[ -x "$HOME/.claude/local/claude" ]] && alias claude="$HOME/.claude/local/claude"
