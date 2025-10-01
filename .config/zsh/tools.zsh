@@ -1,8 +1,5 @@
 # Tool initialization and environment setup
-
-# System information - detect OS and architecture
-export CURRENT_OS=$(uname -s)
-export CURRENT_ARCH=$(uname -m)
+# Note: CURRENT_OS, CURRENT_ARCH, and BREW_PREFIX are set in env.zsh
 
 # Terminal configuration
 [[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM="xterm-256color"
@@ -36,13 +33,7 @@ elif [[ -x $HOME/.local/bin/mise ]]; then
   eval "$($HOME/.local/bin/mise activate zsh)"
 fi
 
-# Set up homebrew paths and prefix if available
-[[ "$CURRENT_OS" == "Darwin" ]] && {
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-  BREW_PREFIX="$(brew --prefix)"
-}
-
-# Zsh autosuggestions
+# Zsh autosuggestions (BREW_PREFIX set in env.zsh)
 ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
 [[ -e "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT" ]] && source "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT"
 [[ -e /usr/share/$ZSH_AUTO_SCRIPT ]] && source /usr/share/$ZSH_AUTO_SCRIPT

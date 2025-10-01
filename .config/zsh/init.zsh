@@ -1,10 +1,16 @@
 # Basic zsh initialization and completion system
 
-# Initialize completion system once
+# Initialize completion system once (cached for performance)
 [[ ! -d ~/.zsh/completions ]] && mkdir -p ~/.zsh/completions
 fpath=(~/.zsh/completions $fpath)
 autoload -Uz compinit
-compinit -u
+
+# Cache compinit for 24 hours to improve startup time
+if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
+  compinit -u
+else
+  compinit -C -u  # Skip security check if dump is recent
+fi
 
 # Completions are managed by ~/.config/zsh/update-completions.sh
 # Run that script after installing or updating tools to regenerate completions

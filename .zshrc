@@ -7,6 +7,7 @@ source_if_exists() {
 }
 
 # Load configuration modules in order
+source_if_exists "$HOME/.config/zsh/env.zsh"
 source_if_exists "$HOME/.config/zsh/init.zsh"
 source_if_exists "$HOME/.config/zsh/path.zsh"
 source_if_exists "$HOME/.config/zsh/history.zsh"
