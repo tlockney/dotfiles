@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Source common utilities
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPT_DIR}/lib/common.sh"
+
+# Check if shellcheck is installed
+if ! has_command shellcheck; then
+    echo "Error: shellcheck is not installed"
+    echo "Run setup-tools to install it, or install manually:"
+    echo "  macOS: brew install shellcheck"
+    echo "  Linux: sudo apt install shellcheck"
+    exit 1
+fi
+
+print_section "Linting shell scripts with shellcheck"
+
+# Find all shell scripts
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Lint all bash/sh scripts in bin/
+echo "Checking scripts in bin/..."
+find "${REPO_ROOT}/bin" -type f -perm +111 ! -name "*.md" ! -path "*/lib/*" | while IFS= read -r script; do
+    # Check if it's a shell script
+    if head -n 1 "$script" | grep -qE '^#!/.*(bash|sh)'; then
+        echo "  Linting $(basename "$script")..."
+        shellcheck "$script" || true
+    fi
+done
+
+# Lint shell library files
+echo "Checking library files..."
+if [[ -d "${REPO_ROOT}/bin/lib" ]]; then
+    find "${REPO_ROOT}/bin/lib" -type f -name "*.sh" | while IFS= read -r script; do
+        echo "  Linting $(basename "$script")..."
+        shellcheck "$script" || true
+    done
+fi
+
+# Lint profile and rc files
+echo "Checking profile and rc files..."
+for file in .profile .bashrc .bash_profile .zprofile; do
+    if [[ -f "${REPO_ROOT}/${file}" ]]; then
+        echo "  Linting ${file}..."
+        shellcheck -s bash "${REPO_ROOT}/${file}" || true
+    fi
+done
+
+# Lint zsh files
+if [[ -d "${REPO_ROOT}/.config/zsh" ]]; then
+    echo "Checking zsh config files..."
+    find "${REPO_ROOT}/.config/zsh" -type f -name "*.zsh" -o -name "*.sh" | while IFS= read -r script; do
+        echo "  Linting $(basename "$script")..."
+        shellcheck -s bash "$script" || true
+    done
+fi
+
+# Lint shared shell config
+if [[ -d "${REPO_ROOT}/.config/shell" ]]; then
+    echo "Checking shared shell config files..."
+    find "${REPO_ROOT}/.config/shell" -type f -name "*.sh" 2>/dev/null | while IFS= read -r script; do
+        echo "  Linting $(basename "$script")..."
+        shellcheck "$script" || true
+    done
+fi
+
+print_section "Linting complete"

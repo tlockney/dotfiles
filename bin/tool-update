@@ -96,3 +96,9 @@ if has_command uv; then
     print_section "Updating UV tools"
     run_step "uv_update_tools" "Updating UV-installed tools"
 fi
+
+# Update shell completions after tool updates
+if [[ -x "$HOME/.config/zsh/update-completions.sh" ]]; then
+    print_section "Updating shell completions"
+    run_step "$HOME/.config/zsh/update-completions.sh" "Regenerating shell completions"
+fi
