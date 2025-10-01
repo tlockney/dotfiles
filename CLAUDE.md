@@ -9,10 +9,25 @@ YADM is a dotfiles manager that uses git under the hood but provides additional 
 </context>
 
 <commands>
+<critical>
+**IMPORTANT: yadm vs git**
+- `yadm` commands ONLY work when running from the home directory (~/)
+- When working in a git checkout (like /Users/tlockney/src/personal/yadm-dotfiles), you MUST use standard `git` commands instead
+- Check the current working directory - if it's NOT the home directory, use `git`, not `yadm`
+</critical>
+
 <primary>
+When in home directory (~):
 - `yadm status` - Check status of tracked dotfiles
 - `yadm add <file>` - Track new dotfiles
 - `yadm commit -m "message"` - Commit changes
+
+When in git checkout (/path/to/yadm-dotfiles):
+- `git status` - Check status
+- `git add <file>` - Stage files
+- `git commit -m "message"` - Commit changes
+
+Other commands:
 - `~/bin/tool-update` - Update all installed tools
 </primary>
 
@@ -63,7 +78,7 @@ No standard build/lint/test commands exist - this is a configuration repository,
 <guidelines>
 <when condition="adding new dotfiles">
 1. Test the configuration on a clean system first
-2. Use `yadm add` to track the file
+2. Use `yadm add` (from ~/) or `git add` (from git checkout) to track the file
 3. Include relevant documentation in comments
 4. Consider cross-platform compatibility
 </when>
