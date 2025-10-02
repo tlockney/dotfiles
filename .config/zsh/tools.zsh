@@ -29,11 +29,11 @@ export LC_ALL LANG LANGUAGE
 # Initialize mise tool version manager if installed
 # Note: User directories ($HOME/bin and $HOME/.local/bin) are configured in .mise.toml
 # to be prepended to PATH automatically
-if command -v mise >/dev/null 2>&1; then
-  eval "$(mise activate zsh)"
-elif [[ -x $HOME/.local/bin/mise ]]; then
-  eval "$($HOME/.local/bin/mise activate zsh)"
-fi
+# if command -v mise >/dev/null 2>&1; then
+#   eval "$(mise activate zsh)"
+# elif [[ -x $HOME/.local/bin/mise ]]; then
+#   eval "$($HOME/.local/bin/mise activate zsh)"
+# fi
 
 # Zsh autosuggestions (BREW_PREFIX set in env.zsh)
 ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
