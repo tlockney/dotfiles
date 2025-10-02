@@ -6,16 +6,28 @@
 #   "3.12"   - Latest version in the 3.12.x series (major.minor lock)
 #   "latest" - Always use the latest stable version
 #
-# Run `mise ls-remote <tool>` to see available versions
-# Run `mise upgrade` to update to latest versions matching these constraints
+# Initial setup on new machine:
+#   mise install           # Install all tools defined below
+#   mise upgrade           # Update to latest versions matching constraints
+#
+# Useful commands:
+#   mise ls                # List installed tools
+#   mise ls-remote <tool>  # See available versions for a tool
+#   mise use <tool>@<ver>  # Change version (updates this file)
 
 # Environment variables
-# PATH is prepended with user directories to ensure they take precedence over mise-managed tools
+# User bin directories are added to PATH after mise tools are loaded
+# This is done via a source directive that mise evaluates after setting up tool paths
 [env]
-_.path = [
-  "~/.local/bin",
-  "~/bin",
-]
+_.source = '''
+# Prepend user directories to PATH (after mise tools)
+if [[ -d "$HOME/.local/bin" ]] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+if [[ -d "$HOME/bin" ]] && [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+  export PATH="$HOME/bin:$PATH"
+fi
+'''
 
 [tools]
 # Node.js - locked to v22.x for stability (notorious for breaking changes between majors)
