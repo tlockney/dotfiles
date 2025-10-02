@@ -1,11 +1,43 @@
+# Runtime version constraints for mise
+# These define the desired versions for language runtimes and tools
+#
+# Version format:
+#   "22"     - Latest version in the 22.x series (major version lock)
+#   "3.12"   - Latest version in the 3.12.x series (major.minor lock)
+#   "latest" - Always use the latest stable version
+#
+# Initial setup on new machine:
+#   mise install           # Install all tools defined below
+#   mise upgrade           # Update to latest versions matching constraints
+#
+# Useful commands:
+#   mise ls                # List installed tools
+#   mise ls-remote <tool>  # See available versions for a tool
+#   mise use <tool>@<ver>  # Change version (updates this file)
+
 [settings]
 experimental = true
+# Allow mise to read .nvmrc files for Node.js version
 idiomatic_version_file_enable_tools = ["node"]
+# Automatically create Python virtual environments when entering project directories
 python.uv_venv_auto = true
 
+# Environment variables
+# User bin directories are added to PATH after mise tools are loaded
+# This is done via a source directive that mise evaluates after setting up tool paths
+[env]
+_.source = '''
+# Prepend user directories to PATH (after mise tools)
+if [[ -d "$HOME/.local/bin" ]] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+if [[ -d "$HOME/bin" ]] && [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+  export PATH="$HOME/bin:$PATH"
+fi
+'''
+
 [tools]
-deno = "latest"
-python = "latest"
-node = "latest"
-bun = "latest"
-go = "1.23"
+
+# Additional tools managed by mise
+# Uncomment and add versions as needed:
+# rust = "latest"
