@@ -46,7 +46,13 @@ done
 
 # Run the Ansible playbook
 # shellcheck disable=SC2086
-uvx --from ansible-core ansible-playbook \
-    "$PLAYBOOK" \
-    $EXTRA_VARS \
-    "${REMAINING_ARGS[@]}"
+if [ ${#REMAINING_ARGS[@]} -eq 0 ]; then
+    uvx --from ansible-core ansible-playbook \
+        "$PLAYBOOK" \
+        $EXTRA_VARS
+else
+    uvx --from ansible-core ansible-playbook \
+        "$PLAYBOOK" \
+        $EXTRA_VARS \
+        "${REMAINING_ARGS[@]}"
+fi
