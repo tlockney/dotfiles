@@ -135,3 +135,6 @@ fi
 
 # Claude CLI alias
 [[ -x "$HOME/.claude/local/claude" ]] && alias claude="$HOME/.claude/local/claude"
+
+prepend_to_path "$HOME/bin"
+prepend_to_path "$HOME/.local/bin"
