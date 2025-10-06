@@ -1,5 +1,6 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 CONFIG="$HOME/.ssh/config"
 AGENT_LINE='  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'

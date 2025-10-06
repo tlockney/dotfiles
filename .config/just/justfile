@@ -1,0 +1,5 @@
+# Global command-line utilities
+
+# Default recipe - show available commands
+default:
+    @just -f {{justfile()}} --list

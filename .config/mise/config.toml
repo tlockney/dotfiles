@@ -1,12 +1,41 @@
+# Runtime version constraints for mise
+# These define the desired versions for language runtimes and tools
+#
+# Version format:
+#   "22"     - Latest version in the 22.x series (major version lock)
+#   "3.12"   - Latest version in the 3.12.x series (major.minor lock)
+#   "latest" - Always use the latest stable version
+#
+# Initial setup on new machine:
+#   mise install           # Install all tools defined below
+#   mise upgrade           # Update to latest versions matching constraints
+#
+# Useful commands:
+#   mise ls                # List installed tools
+#   mise ls-remote <tool>  # See available versions for a tool
+#   mise use <tool>@<ver>  # Change version (updates this file)
+
 [settings]
 experimental = true
+# Allow mise to read .nvmrc files for Node.js version
 idiomatic_version_file_enable_tools = ["node"]
+# Automatically create Python virtual environments when entering project directories
 python.uv_venv_auto = true
 
 [tools]
-deno = "latest"
-python = "latest"
-node = "latest"
+# Node.js - locked to v22.x for stability (notorious for breaking changes between majors)
+node = "22"
+
+# Deno - locked to v2.x
+deno = "2"
+
+# Python - locked to 3.12.x series
+python = "3.13.7"
+
+# Go - always use latest stable
+go = "latest"
+
+# Bun - always use latest stable
 bun = "latest"
-go = "1.23"
 swift = "latest"
+
