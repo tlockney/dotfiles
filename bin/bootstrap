@@ -56,10 +56,12 @@ for arg in "$@"; do
 done
 
 # Run the Ansible playbook with setup tags
+# Add --ask-become-pass to prompt for sudo password when needed (Linux apt tasks)
 # shellcheck disable=SC2086
 uvx --from ansible-core ansible-playbook \
     "$PLAYBOOK" \
     --tags setup \
+    --ask-become-pass \
     $EXTRA_VARS \
     "$@"
 
