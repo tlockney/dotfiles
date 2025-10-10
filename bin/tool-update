@@ -45,14 +45,17 @@ for arg in "$@"; do
 done
 
 # Run the Ansible playbook
+# Add --ask-become-pass to prompt for sudo password when needed (Linux apt tasks)
 # shellcheck disable=SC2086
 if [ ${#REMAINING_ARGS[@]} -eq 0 ]; then
     uvx --from ansible-core ansible-playbook \
         "$PLAYBOOK" \
+        --ask-become-pass \
         $EXTRA_VARS
 else
     uvx --from ansible-core ansible-playbook \
         "$PLAYBOOK" \
+        --ask-become-pass \
         $EXTRA_VARS \
         "${REMAINING_ARGS[@]}"
 fi
