@@ -2,8 +2,10 @@
 # Common utilities for bin scripts
 
 # OS detection
-export CURRENT_OS=$(uname -s)
-export CURRENT_ARCH=$(uname -m)
+CURRENT_OS=$(uname -s)
+CURRENT_ARCH=$(uname -m)
+export CURRENT_OS
+export CURRENT_ARCH
 
 # Print consistent section headers
 print_section() {
@@ -25,7 +27,7 @@ run_step() {
     return 0
 }
 
-# Check if a command exists
+# Check if a command exists (POSIX-compliant)
 has_command() {
-    type "$1" &>/dev/null
+    command -v "$1" >/dev/null 2>&1
 }
