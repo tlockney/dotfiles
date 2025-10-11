@@ -4,29 +4,46 @@
 
 # See https://macos-defaults.com for additional defaults options
 
+# Exit on error
+set -e
+
+# Trap to clean up background processes on exit
+cleanup() {
+    # Kill the sudo keep-alive process if it exists
+    if [[ -n "${SUDO_KEEPALIVE_PID:-}" ]]; then
+        kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # ========================================
 # SYSTEM INITIALIZATION
 # ========================================
 # Close any open System Preferences panes, to prevent them from overriding
 # settings we're about to change. Do this for both Ventura and earlier variants
-osascript -e 'tell application "System Settings" to quit'
-osascript -e 'tell application "System Preferences" to quit'
+osascript -e 'tell application "System Settings" to quit' 2>/dev/null || true
+osascript -e 'tell application "System Preferences" to quit' 2>/dev/null || true
 
 # Ask for the administrator password upfront
 echo "Enter your password to enable updating system settings"
 sudo -v
 
 # Keep-alive: update existing `sudo` time stamp until `.macos` has finished
-while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+# Limited to 30 minutes (30 iterations) for safety
+{
+    for _ in {1..30}; do
+        sudo -n true
+        sleep 60
+        kill -0 "$$" 2>/dev/null || exit
+    done
+} 2>/dev/null &
+SUDO_KEEPALIVE_PID=$!
 
 # ========================================
 # SYSTEM-LEVEL SETTINGS
 # ========================================
 # Disable the sound effects on boot
 sudo nvram SystemAudioVolume=" "
-
-# Disable transparency in the menu bar and elsewhere on Yosemite
-# defaults write com.apple.universalaccess reduceTransparency -bool true
 
 # ========================================
 # APPEARANCE AND UI SETTINGS
@@ -92,11 +109,6 @@ defaults write NSGlobalDomain InitialKeyRepeat -int 12
 
 # Disable press-and-hold for keys in favor of key repeat
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
-
-# sudo systemsetup -settimezone "America/Los_Angeles" > /dev/null
-
-# Save screenshots to the desktop
-# defaults write com.apple.screencapture location -string "${HOME}/Desktop"
 
 # ========================================
 # SCREENSHOT SETTINGS
@@ -186,7 +198,7 @@ defaults write com.apple.dock expose-animation-duration -float 0.1
 defaults write org.hammerspoon.Hammerspoon MJConfigFile "~/.config/hammerspoon/init.lua"
 
 # Configure custom iTerm settings location
-defaults write com.googlecode.iterm2 PrefsCustomFolder "$HOME/config/iterm2"
+defaults write com.googlecode.iterm2 PrefsCustomFolder "$HOME/.config/iterm2"
 defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder 1
 
 # Enable Developer menu in Safari and Web Inspector
@@ -200,5 +212,16 @@ defaults write com.apple.ActivityMonitor ShowCategory -int 0
 # CUSTOM DIRECTORY SETUP
 # ========================================
 # Put Screenshots somewhere sane
-mkdir -p ~/Documents/Screenshots
-defaults write com.apple.screencapture "location" -string "~/Documents/Screenshots" && killall SystemUIServer
+mkdir -p "$HOME/Documents/Screenshots"
+defaults write com.apple.screencapture "location" -string "$HOME/Documents/Screenshots" && killall SystemUIServer
+
+echo ""
+echo "macOS settings updated successfully!"
+echo ""
+echo "NOTE: Some changes require restarting the following applications:"
+echo "  - Finder"
+echo "  - Dock"
+echo "  - Safari"
+echo "  - Activity Monitor"
+echo ""
+echo "Some settings may require logging out and back in to take full effect."
