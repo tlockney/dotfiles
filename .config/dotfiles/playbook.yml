@@ -275,6 +275,20 @@
     # ========================================
     # OTHER TOOLS
     # ========================================
+    - name: Install Claude Code
+      tags: [setup, tools]
+      block:
+        - name: Check if Claude Code is installed
+          stat:
+            path: "{{ ansible_env.HOME }}/.local/bin/claude"
+          register: claude_check
+
+        - name: Install Claude Code
+          shell: curl -fsSL https://claude.ai/install.sh | bash
+          args:
+            creates: "{{ ansible_env.HOME }}/.local/bin/claude"
+          when: not claude_check.stat.exists
+
     - name: Install Starship prompt
       tags: [setup, tools]
       block:
