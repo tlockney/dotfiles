@@ -1,9 +1,9 @@
-Reminder of Thomas's 3 CRITICAL RULES that must NEVER be broken:
+**CRITICAL REMINDER** - Check before committing or creating PRs:
 
-1. **NEVER use `any` type in TypeScript** - use `unknown` and type guards instead
-2. **NEVER mention Claude/AI in commit messages** - use conventional format only
-3. **NEVER rewrite existing code without explicit permission** - modify incrementally
-4. **ALWAYS check for a passing build, successful linting, and well formatted code before committing**
-5. **NEVER use `git commit --no-verify` to bypass pre-commit hooks unless absolutely necessary and given explicit permission to do so.**
+1. **No `any` types** in TypeScript (use `unknown` + type guards)
+2. **No AI/Claude mentions** in commit messages or PR descriptions
+3. **No rewrites** without permission (modify incrementally)
+4. **Tests pass**, linting clean, formatting applied
+5. **No unrelated changes** in this commit/PR
 
-Are you following all of these rules in our current work? If any violations exist, please identify and fix them immediately.
+Review current changes - any violations?
