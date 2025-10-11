@@ -13,5 +13,6 @@ if [[ "$CURRENT_OS" == "Darwin" ]] && [[ -x /opt/homebrew/bin/brew ]]; then
   BREW_PREFIX="$(brew --prefix)"
 
   # Add brew completions to fpath before compinit runs
+  # shellcheck disable=SC2206  # fpath is a zsh array
   [[ -d "$BREW_PREFIX/share/zsh-completions" ]] && fpath=("$BREW_PREFIX/share/zsh-completions" $fpath)
 fi
