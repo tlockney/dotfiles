@@ -6,6 +6,7 @@ fpath=(~/.zsh/completions $fpath)
 autoload -Uz compinit
 
 # Cache compinit for 24 hours to improve startup time
+# shellcheck disable=SC1009,SC1073,SC1036,SC1072  # zsh-specific glob qualifiers syntax
 if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
   compinit -u
 else

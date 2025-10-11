@@ -7,6 +7,7 @@ typeset -U path
 function prepend_to_path {
   # Only add path if it exists and is not already in the path
   if [[ -d "$1" ]] && [[ ":$PATH:" != *":$1:"* ]]; then
+    # shellcheck disable=SC2206  # path is a zsh array tied to PATH
     path=($1 $path)
     export PATH
   fi
