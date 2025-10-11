@@ -2,49 +2,34 @@
 
 This directory contains personal utility scripts that are part of my dotfiles setup. These scripts are added to my PATH through `~/bin` and provide various development and system administration utilities.
 
-## Core Tool Management
+## System Setup and Maintenance
 
-### `tool-manager`
+### `bootstrap`
 
-**Purpose:** Unified tool installation and update management
-**Usage:** `tool-manager [options]`
-**Flags:**
-
-- `--setup`: Install missing tools and update existing ones
-- `--dev`: Include development tools (Python, Jupyter, etc.)
-- `--force-install`: Force reinstall all tools
-- `--help`: Show usage information
-
-**Description:** Combined tool management script that handles both installation and updates:
-- Default behavior: Update existing tools only
-- With `--setup`: Install missing tools and update existing ones
-- Manages: Homebrew, Rust, mise, Deno, Node, Python, UV tools, and more
-- Smart detection of what needs installing vs updating
-
-### `tool-update` (Legacy)
-
-**Purpose:** Updates all installed development tools and package managers
-**Usage:** `tool-update`
-**Description:** Original update script (kept for compatibility). Use `tool-manager` for new workflows.
-
-### `setup-tools` (Legacy)
-
-**Purpose:** Initial setup and installation of development tools
-**Usage:** `setup-tools [--dev] [--help]`
-**Description:** Original setup script (kept for compatibility). Use `tool-manager --setup` for new workflows.
-
-## File and System Utilities
-
-### `yank`
-
-**Purpose:** Copy file contents or stdin to system clipboard via OSC 52 escape sequences
-**Usage:** `yank [FILE...]`
+**Purpose:** Initial system setup script for fresh installations
+**Usage:** `bootstrap [--dev]`
 **Description:**
 
-- Copies to terminal clipboard and tmux buffer if in tmux session
-- Works over SSH connections
-- Limit: 74,994 bytes of input (base64 encoding overhead)
-- Useful for copying text in terminal-only environments
+- Installs uv package manager if not present
+- Runs Ansible playbook to set up all development tools
+- Use `--dev` flag to include development tools (Python, Jupyter, etc.)
+- This is the first script to run on a new system
+
+### `tool-update`
+
+**Purpose:** Update all development tools and package managers
+**Usage:** `tool-update [OPTIONS]`
+**Flags:**
+
+- `--check`: Show what would be updated (dry-run)
+- `--diff`: Show changes that would be made
+- `--tags <tag>`: Update only specific tools (e.g., `homebrew`, `mise`)
+- `--dev`: Include dev tools in updates
+- `-v`: Verbose output
+
+**Description:** Wrapper around Ansible playbook for convenient daily/weekly tool updates.
+
+## File and System Utilities
 
 ### `findmyip`
 
@@ -52,19 +37,34 @@ This directory contains personal utility scripts that are part of my dotfiles se
 **Usage:** `findmyip`
 **Description:** Quick utility to fetch and display your external IP address.
 
-### `remount.scpt`
+### `unlock-keychain`
 
-**Purpose:** AppleScript for remounting network drives
-**Usage:** Run from Finder or via `osascript`
-**Description:** macOS-specific script for reconnecting to network shares.
+**Purpose:** Unlock macOS login keychain
+**Usage:** `unlock-keychain`
+**Description:** Unlocks the login keychain, useful for automation scripts that need keychain access.
 
 ## Development Utilities
 
-### `tc`
+### `check-env`
 
-**Purpose:** Terminal color and capability testing
-**Usage:** `tc`
-**Description:** Tests terminal color support and displays color capabilities for debugging terminal configurations.
+**Purpose:** Validate environment setup and configuration
+**Usage:** `check-env`
+**Description:** Comprehensive environment checker that validates:
+
+- Required tools are installed
+- Configuration files are present
+- Environment variables are set correctly
+- System dependencies are available
+
+### `lint-shell`
+
+**Purpose:** Lint all shell scripts in the repository
+**Usage:** `lint-shell`
+**Description:**
+
+- Uses shellcheck to validate shell scripts
+- Finds and checks all shell scripts in the repository
+- Requires shellcheck to be installed
 
 ### `rcode`
 
@@ -72,11 +72,31 @@ This directory contains personal utility scripts that are part of my dotfiles se
 **Usage:** `rcode [path]`
 **Description:** Wrapper for launching VS Code with specific configurations or from remote sessions.
 
-### `start-jupyter-session`
+### `tc`
 
-**Purpose:** Launch Jupyter Lab/Notebook with optimal settings
-**Usage:** `start-jupyter-session`
-**Description:** Starts Jupyter with predefined configurations for data science work.
+**Purpose:** Terminal color and capability testing
+**Usage:** `tc`
+**Description:** Tests terminal color support and displays color capabilities for debugging terminal configurations.
+
+## tmux Utilities
+
+### `rtmux`
+
+**Purpose:** Remote tmux session selector
+**Usage:** `rtmux [OPTIONS] [PROJECT_NAME|REMOTE_HOST]`
+**Flags:**
+
+- `-d DIR`: Remote base directory
+- `-p NAME`: Project name (skip selection)
+- `-h`: Show help
+
+**Description:** Quickly select and open/attach to tmux sessions for remote projects via SSH.
+
+### `tmux-session-menu`
+
+**Purpose:** Interactive tmux session switcher
+**Usage:** `tmux-session-menu`
+**Description:** Displays a tmux menu of all active sessions for quick switching between sessions.
 
 ## Cloud and Security Tools
 
@@ -98,32 +118,12 @@ This directory contains personal utility scripts that are part of my dotfiles se
 **Usage:** `sync-secrets`
 **Description:** Safely syncs encrypted secrets and configuration files.
 
-## Calendar and Productivity
+## Library Files
 
-### `daily-cal-map`
+### `lib/common.sh`
 
-**Purpose:** Generate calendar activity visualization
-**Usage:** `daily-cal-map`
-**Description:** Creates visual calendar maps for productivity tracking.
-
-### `daily-cal-to-md`
-
-**Purpose:** Convert calendar data to Markdown format
-**Usage:** `daily-cal-to-md`
-**Description:** Exports calendar information as Markdown for documentation.
-
-## Environment and Validation
-
-### `check-env`
-
-**Purpose:** Validate environment setup and configuration
-**Usage:** `check-env`
-**Description:** Comprehensive environment checker that validates:
-
-- Required tools are installed
-- Configuration files are present
-- Environment variables are set correctly
-- System dependencies are available
+**Purpose:** Shared utilities and functions for shell scripts
+**Description:** Common library functions used across multiple scripts. Source this file in scripts that need shared functionality.
 
 ---
 
