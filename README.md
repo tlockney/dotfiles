@@ -1,5 +1,33 @@
 # My Dotfiles
 
+Personal dotfiles managed with [YADM](https://yadm.io/), providing a modern development environment that works across macOS and Linux.
+
+## Key Features
+
+### Modern CLI Tools
+
+Replaces traditional Unix tools with faster, more user-friendly alternatives:
+
+- **eza** - Enhanced `ls` with git integration and colors
+- **bat** - `cat` with syntax highlighting and git integration
+- **ripgrep** - Blazing fast search (better than grep)
+- **fd** - User-friendly file finder (better than find)
+- **atuin** - Advanced shell history with search and sync
+
+### Development Environment
+
+- **Multi-language support**: Python (uv), Node.js, Deno, Go, Rust
+- **Version management**: mise for consistent tool versions across projects
+- **Automated setup**: Ansible-based tool management with `bootstrap` and `tool-update`
+- **Cross-platform**: Works on macOS (Intel & Apple Silicon) and Linux
+
+### Shell Configuration
+
+- **Modular zsh setup**: Organized into logical modules for maintainability
+- **Performance optimized**: Lazy loading and efficient initialization
+- **Starship prompt**: Fast, customizable prompt with git integration
+- **Smart completions**: Pre-generated completions for faster shell startup
+
 ## Prerequisites
 
 ### MacOS
