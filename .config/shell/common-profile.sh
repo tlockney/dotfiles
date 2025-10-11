@@ -1,9 +1,12 @@
+#!/bin/sh
 # Common profile settings shared between all shells
 # Sourced by both .profile and .zprofile
 
 # Detect OS and architecture for platform-specific settings
-export CURRENT_OS=$(uname -s)
-export CURRENT_ARCH=$(uname -m)
+CURRENT_OS=$(uname -s)
+CURRENT_ARCH=$(uname -m)
+export CURRENT_OS
+export CURRENT_ARCH
 
 # Set up XDG runtime directory if not already set
 if [ -z "$XDG_RUNTIME_DIR" ]; then
@@ -30,8 +33,11 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 # Set default editor with fallback chain
 export EDITOR="vi"
 if command -v emacsclient >/dev/null 2>&1; then
-  export EDITOR="emacsclient -a 'emacs'"
-  [ "$(command -v code)" ] && export ALTERNATE_EDITOR="code"
+  EDITOR="emacsclient -a emacs"
+  export EDITOR
+  if command -v code >/dev/null 2>&1; then
+    export ALTERNATE_EDITOR="code"
+  fi
 elif command -v code >/dev/null 2>&1; then
   export EDITOR="code"
 elif command -v vim >/dev/null 2>&1; then
