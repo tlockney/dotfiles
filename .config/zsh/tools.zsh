@@ -21,9 +21,9 @@ else
 fi
 
 # Locale settings - set default but don't override if already set
-: ${LC_ALL:=en_US.UTF-8}
-: ${LANG:=en_US.UTF-8}
-: ${LANGUAGE:=en_US.UTF-8}
+: "${LC_ALL:=en_US.UTF-8}"
+: "${LANG:=en_US.UTF-8}"
+: "${LANGUAGE:=en_US.UTF-8}"
 export LC_ALL LANG LANGUAGE
 
 # Initialize mise tool version manager if installed
@@ -32,7 +32,7 @@ export LC_ALL LANG LANGUAGE
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 elif [[ -x $HOME/.local/bin/mise ]]; then
-  eval "$($HOME/.local/bin/mise activate zsh)"
+  eval "$("$HOME"/.local/bin/mise activate zsh)"
 fi
 
 # Zsh autosuggestions (BREW_PREFIX set in env.zsh)
@@ -66,8 +66,13 @@ if [[ -z "$XDG_RUNTIME_DIR" ]]; then
 fi
 
 # Configure Emacs socket name based on platform
-[[ "$CURRENT_OS" = "Darwin" ]] && export EMACS_SOCKET_NAME="${TMPDIR:-/tmp}emacs$(id -u)/server"
-[[ "$CURRENT_OS" = "Linux" ]] && export EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR:-/tmp}/emacs/server"
+if [[ "$CURRENT_OS" = "Darwin" ]]; then
+  EMACS_SOCKET_NAME="${TMPDIR:-/tmp}emacs$(id -u)/server"
+  export EMACS_SOCKET_NAME
+elif [[ "$CURRENT_OS" = "Linux" ]]; then
+  EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR:-/tmp}/emacs/server"
+  export EMACS_SOCKET_NAME
+fi
 
 # Set up cargo
 [[ -d "$HOME/.cargo" ]] && source "$HOME/.cargo/env"
@@ -76,13 +81,19 @@ fi
 export JAVA_OPTIONS="-Djava.awt.headless=true"
 # Try to detect Java home across different platforms
 [[ "$CURRENT_OS" == "Darwin" && -x /usr/libexec/java_home ]] && {
-  export JAVA_HOME=$(/usr/libexec/java_home 2>/dev/null)
+  JAVA_HOME=$(/usr/libexec/java_home 2>/dev/null)
+  export JAVA_HOME
 }
 [[ "$CURRENT_OS" == "Linux" ]] && {
   # Try different common Linux Java locations in order of preference
-  [[ -d "/usr/lib/jvm/default-java" ]] && export JAVA_HOME=/usr/lib/jvm/default-java ||
-  [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]] && export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ||
-  [[ -L "/etc/alternatives/java_sdk" ]] && export JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
+  if [[ -d "/usr/lib/jvm/default-java" ]]; then
+    export JAVA_HOME=/usr/lib/jvm/default-java
+  elif [[ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]]; then
+    export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  elif [[ -L "/etc/alternatives/java_sdk" ]]; then
+    JAVA_HOME=$(readlink -f /etc/alternatives/java_sdk)
+    export JAVA_HOME
+  fi
 }
 
 # Add Java to PATH if JAVA_HOME was found
@@ -134,6 +145,7 @@ fi
 [[ -e "$HOME/.shellfishrc" ]] && source "$HOME/.shellfishrc"
 
 # Claude CLI alias
+# shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -x "$HOME/.claude/local/claude" ]] && alias claude="$HOME/.claude/local/claude"
 
 prepend_to_path "$HOME/bin"
