@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+YT_URL=$1
+
+yt-dlp -f 'ba' -x --audio-format mp3 -o "%(title)s.%(ext)s" "$YT_URL"

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+YT_URL=$1
+
+yt-dlp -f 'bv+ba' -o "%(title)s.%(ext)s" "$YT_URL"
