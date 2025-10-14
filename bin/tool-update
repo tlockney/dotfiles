@@ -11,6 +11,7 @@ set -euo pipefail
 #   tool-update --tags homebrew   # Update only homebrew packages
 #   tool-update --tags mise       # Update only mise and its tools
 #   tool-update --dev             # Include dev tools
+#   tool-update --no-sudo         # Skip sudo password prompt (for passwordless sudo)
 #   tool-update -v                # Verbose output
 
 # Find the playbook - it's in .config/dotfiles/ relative to the bin directory
@@ -32,13 +33,16 @@ if [[ ! -f "$PLAYBOOK" ]]; then
     exit 1
 fi
 
-# Parse arguments to handle --dev flag specially
+# Parse arguments to handle --dev and --no-sudo flags specially
 EXTRA_VARS=""
+ASK_BECOME_PASS="--ask-become-pass"
 REMAINING_ARGS=()
 
 for arg in "$@"; do
     if [[ "$arg" == "--dev" ]]; then
         EXTRA_VARS="--extra-vars dev_mode=true"
+    elif [[ "$arg" == "--no-sudo" ]]; then
+        ASK_BECOME_PASS=""
     else
         REMAINING_ARGS+=("$arg")
     fi
@@ -46,16 +50,17 @@ done
 
 # Run the Ansible playbook
 # Add --ask-become-pass to prompt for sudo password when needed (Linux apt tasks)
+# Use --no-sudo flag to skip password prompt if passwordless sudo is configured
 # shellcheck disable=SC2086
 if [ ${#REMAINING_ARGS[@]} -eq 0 ]; then
     uvx --from ansible-core ansible-playbook \
         "$PLAYBOOK" \
-        --ask-become-pass \
+        $ASK_BECOME_PASS \
         $EXTRA_VARS
 else
     uvx --from ansible-core ansible-playbook \
         "$PLAYBOOK" \
-        --ask-become-pass \
+        $ASK_BECOME_PASS \
         $EXTRA_VARS \
         "${REMAINING_ARGS[@]}"
 fi
