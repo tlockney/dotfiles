@@ -8,7 +8,11 @@ if [[ -d "$HOME/.local/share/mise/shims" ]]; then
 fi
 
 # Set up cargo environment
-. "$HOME/.cargo/env"
+if [[ -f "$HOME/.cargo/env" ]]; then
+  . "$HOME/.cargo/env"
+fi
 
 # Source local environment if it exists
-. "/usr/local/env"
+if [[ -f "/usr/local/env" ]]; then
+  . "/usr/local/env"
+fi
