@@ -11,7 +11,7 @@ docx="${basename}.docx"
 pdf="${basename}.pdf"
 
 # Convert markdown to Word
-pandoc "$input" -o "$docx"
+pandoc -f gfm+hard_line_breaks "$input" -o "$docx"
 
 # Convert Word to PDF
 uvx docx2pdf "$docx" "$pdf"
