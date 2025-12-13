@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>customSites</key>
+	<dict>
+		<key>B75A6B7C-1F8A-4213-ADA9-3B44ABFD4358</key>
+		<dict>
+			<key>enabled</key>
+			<true/>
+			<key>keyword</key>
+			<string>map</string>
+			<key>text</key>
+			<string>Google Maps</string>
+			<key>url</key>
+			<string>https://www.google.com/maps/search/{query}</string>
+		</dict>
+	</dict>
+</dict>
+</plist>
