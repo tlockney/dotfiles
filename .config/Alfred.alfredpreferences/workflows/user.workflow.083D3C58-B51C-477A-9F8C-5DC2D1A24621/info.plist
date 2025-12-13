@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>com.tlockney.vscode-remote-selector</string>
+	<key>category</key>
+	<string>Tools</string>
+	<key>connections</key>
+	<dict>
+		<key>7F1C3E8B-1234-5678-90AB-CDEF12345678</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>8F2D4F9C-2345-6789-01BC-DEF234567890</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Thomas Lockney</string>
+	<key>description</key>
+	<string>Open remote projects in VS Code via SSH</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>VS Code Remote Selector</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>./open_project.sh "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>8F2D4F9C-2345-6789-01BC-DEF234567890</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>rcode</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string>Loading projects...</string>
+				<key>script</key>
+				<string>./remote_project_selector.sh "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>Select a remote project to open in VS Code</string>
+				<key>title</key>
+				<string>VS Code Remote Project</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>7F1C3E8B-1234-5678-90AB-CDEF12345678</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>## VS Code Remote Selector
+
+This workflow allows you to quickly open remote projects in VS Code via SSH.
+
+### Usage:
+- Type `rcode` to list all projects
+- Type `rcode [filter]` to filter projects
+- Type `rcode @hostname` to use a different host
+
+### Configuration:
+You can set custom defaults using workflow variables:
+- `remote_host`: Default SSH host (default: workmbp)
+- `remote_dir`: Default remote directory (default: /Users/thomas.lockney/src/metron)</string>
+	<key>uidata</key>
+	<dict>
+		<key>7F1C3E8B-1234-5678-90AB-CDEF12345678</key>
+		<dict>
+			<key>xpos</key>
+			<real>100</real>
+			<key>ypos</key>
+			<real>100</real>
+		</dict>
+		<key>8F2D4F9C-2345-6789-01BC-DEF234567890</key>
+		<dict>
+			<key>xpos</key>
+			<real>300</real>
+			<key>ypos</key>
+			<real>100</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>workmbp</string>
+				<key>placeholder</key>
+				<string>workmbp</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Default SSH host for remote projects</string>
+			<key>label</key>
+			<string>Remote Host</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>remote_host</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>/Users/thomas.lockney/src/metron</string>
+				<key>placeholder</key>
+				<string>/Users/thomas.lockney/src/metron</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Default directory to search for projects on remote host</string>
+			<key>label</key>
+			<string>Remote Directory</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>remote_dir</string>
+		</dict>
+	</array>
+	<key>variablesdontexport</key>
+	<array/>
+	<key>version</key>
+	<string>1.0</string>
+	<key>webaddress</key>
+	<string></string>
+</dict>
+</plist>
