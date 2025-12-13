@@ -59,3 +59,7 @@ fi
 
 # SQLite with rlwrap if available
 alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
+
+if command -v uvx >/dev/null 2>&1; then
+  alias docx2pdf='uvx docx2pdf'
+fi

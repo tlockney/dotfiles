@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <input.md>"
+    exit 1
+fi
+
+input="$1"
+basename="${input%.md}"
+docx="${basename}.docx"
+pdf="${basename}.pdf"
+
+# Convert markdown to Word
+pandoc -f gfm+hard_line_breaks "$input" -o "$docx"
+
+# Convert Word to PDF
+uvx docx2pdf "$docx" "$pdf"
+
+echo "Created: $pdf"
