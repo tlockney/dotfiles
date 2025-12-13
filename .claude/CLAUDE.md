@@ -1,6 +1,6 @@
-**BEFORE STARTING ANY WORK: Read the CRITICAL RULES section below and refer back to this document throughout our session.**
-
 # Working with Thomas
+
+**BEFORE STARTING ANY WORK: Read the CRITICAL RULES section below and refer back to this document throughout our session.**
 
 ## Context
 
@@ -47,12 +47,14 @@ Prefer simple, clean, maintainable solutions over clever or complex ones. Readab
 ### TDD Process
 
 Practice TDD for all new code:
+
 1. Write a failing test
 2. Implement minimal code to make it pass
 3. Refactor while keeping tests green
 4. Repeat
 
 **Requirements**:
+
 - Aim for 90%+ code coverage on new code
 - Every application project needs unit tests, integration tests, AND end-to-end tests
 
@@ -78,7 +80,7 @@ Practice TDD for all new code:
 
 - Use built-in tools for all development needs
 - For shell operations, use the `dax` library
-- Prefer Deno standard library: https://jsr.io/@std
+- Prefer Deno standard library: <https://jsr.io/@std>
 
 ### Python
 
@@ -104,6 +106,7 @@ Practice TDD for all new code:
 ### Pre-Commit Checklist
 
 Before suggesting any commit, verify:
+
 - [ ] No `any` types in TypeScript code (if applicable)
 - [ ] Commit message follows conventional format (see Critical Rule #2)
 - [ ] All tests pass
@@ -160,13 +163,11 @@ Before suggesting any commit, verify:
 
 7. **Create PR**
    - **CRITICAL**: Before creating or updating a PR, ALWAYS check if it's already been merged:
-     ```bash
-     gh pr view <PR_NUMBER> --json state,mergedAt
-     ```
+       `gh pr view <PR_NUMBER> --json state,mergedAt`
    - If PR is already merged, DO NOT try to push more commits to that branch
    - If you need to add more changes after a PR is merged:
-     - **ALWAYS create a NEW issue and NEW branch/PR**
-     - **NEVER push directly to main/master** - all changes must go through PR workflow
+   - **ALWAYS create a NEW issue and NEW branch/PR**
+   - **NEVER push directly to main/master** - all changes must go through PR workflow
    - Reference issue ID in PR title and body
    - Link PR to issue (use MCP tools or issue tracker integration if available)
    - Ensure all CI checks pass
