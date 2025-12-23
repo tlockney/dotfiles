@@ -119,7 +119,7 @@ select_project() {
     local projects="$1"
     local dir="$2"
 
-    clear
+    clear >/dev/tty
     echo "$projects" | sed "s|$dir/||" | fzf \
         --height=60% \
         --layout=reverse \
