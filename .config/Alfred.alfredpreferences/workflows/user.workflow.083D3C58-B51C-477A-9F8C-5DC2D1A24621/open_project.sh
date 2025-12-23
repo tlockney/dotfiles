@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # Open the selected project in VS Code
+# Delegates to rproj for the actual opening
 
 set -euo pipefail
 
-# Parse the argument (format: "host|path")
-IFS='|' read -r REMOTE_HOST PROJECT_PATH <<< "$1"
-
-# Open in VS Code
-code --remote "ssh-remote+$REMOTE_HOST" "$PROJECT_PATH"
+# rproj open expects 'host|path' format
+~/bin/rproj open "$1"

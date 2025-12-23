@@ -1,0 +1,379 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# rproj - Unified Remote Project Tool
+#
+# Subcommands:
+#   list   List remote projects (optionally as JSON for Alfred)
+#   tmux   Open tmux session for a remote project
+#   code   Open VS Code for a remote project
+#   help   Show this help
+
+SCRIPT_NAME="$(basename "$0")"
+
+# Config file location
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/rproj/config"
+
+# Defaults (overridden by config file, then by command-line args)
+RPROJ_HOST="workmbp"
+RPROJ_DIR="/Users/thomas.lockney/src/metron"
+
+# Load config if it exists
+if [[ -f "$CONFIG_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONFIG_FILE"
+fi
+
+# Colors (disabled in JSON mode)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# State
+JSON_MODE=false
+QUERY=""
+
+# Logging (respects JSON mode)
+info() {
+    [[ "$JSON_MODE" == "true" ]] && return
+    echo -e "${BLUE}$*${NC}"
+}
+
+success() {
+    [[ "$JSON_MODE" == "true" ]] && return
+    echo -e "${GREEN}$*${NC}"
+}
+
+error() {
+    if [[ "$JSON_MODE" == "true" ]]; then
+        cat << EOF
+{"items": [{
+    "title": "Error",
+    "subtitle": "$*",
+    "valid": false,
+    "icon": {"path": "error.png"}
+}]}
+EOF
+        exit 0
+    else
+        echo -e "${RED}Error: $*${NC}" >&2
+        exit 1
+    fi
+}
+
+# Help message
+show_help() {
+    cat << EOF
+Usage: $SCRIPT_NAME <command> [options] [project]
+
+Commands:
+    list    List remote projects
+    tmux    Open tmux session for a project
+    code    Open VS Code for a project
+    help    Show this help
+
+Options:
+    -h, --host HOST   Remote host (default: $RPROJ_HOST)
+    -d DIR            Remote directory (default: $RPROJ_DIR)
+    -p NAME           Project name (skip interactive selection)
+    --json            Output as Alfred-compatible JSON (list command only)
+    -q QUERY          Filter projects by query (list command with --json)
+    --help            Show this help
+
+Examples:
+    $SCRIPT_NAME list                    # List all projects
+    $SCRIPT_NAME list --json             # JSON output for Alfred
+    $SCRIPT_NAME tmux                    # Interactive tmux selection
+    $SCRIPT_NAME tmux myproject          # Direct to 'myproject' tmux
+    $SCRIPT_NAME code -h otherhost       # VS Code on different host
+    $SCRIPT_NAME code -p myproject       # Direct to 'myproject' in VS Code
+
+Config file: $CONFIG_FILE
+EOF
+    exit 0
+}
+
+# Test SSH connection and verify directory exists
+test_connection() {
+    local host="$1"
+    local dir="$2"
+    local timeout="${3:-5}"
+
+    if ! ssh -o BatchMode=yes -o ConnectTimeout="$timeout" "$host" "test -d '$dir'" 2>/dev/null; then
+        error "Cannot connect to $host or directory $dir doesn't exist"
+    fi
+}
+
+# Discover projects on remote host
+discover_projects() {
+    local host="$1"
+    local dir="$2"
+
+    ssh "$host" "find '$dir' -maxdepth 1 -mindepth 1 -type d -not -name '.*' | sort" 2>/dev/null
+}
+
+# Interactive project selection with fzf
+select_project() {
+    local projects="$1"
+    local dir="$2"
+
+    clear
+    echo "$projects" | sed "s|$dir/||" | fzf \
+        --height=60% \
+        --layout=reverse \
+        --border \
+        --cycle \
+        --prompt="Select project: " \
+        --header="Select a project to open"
+}
+
+# Verify a specific project exists
+verify_project() {
+    local host="$1"
+    local project_path="$2"
+
+    if ! ssh -o BatchMode=yes "$host" "test -d '$project_path'" 2>/dev/null; then
+        error "Project not found at $project_path"
+    fi
+}
+
+# Output projects as Alfred JSON
+output_alfred_json() {
+    local projects="$1"
+    local host="$2"
+    local query="$3"
+
+    if [[ -z "$projects" ]]; then
+        cat << EOF
+{"items": [{
+    "title": "No Projects Found",
+    "subtitle": "No projects found in $RPROJ_DIR on $host",
+    "valid": false,
+    "icon": {"path": "error.png"}
+}]}
+EOF
+        return
+    fi
+
+    echo '{"items": ['
+
+    local first=true
+    while IFS= read -r project; do
+        local project_name
+        project_name=$(basename "$project")
+
+        # Filter by query if provided (case-insensitive)
+        if [[ -n "$query" ]] && [[ ! "${project_name,,}" =~ ${query,,} ]]; then
+            continue
+        fi
+
+        if [[ "$first" != "true" ]]; then
+            echo ","
+        fi
+        first=false
+
+        cat << EOF
+{
+    "uid": "$project_name",
+    "title": "$project_name",
+    "subtitle": "Open in VS Code: $project",
+    "arg": "$host|$project",
+    "autocomplete": "$project_name",
+    "icon": {"path": "vscode.png"}
+}
+EOF
+    done <<< "$projects"
+
+    echo ']}'
+}
+
+# Parse common options for a subcommand
+# Sets: RPROJ_HOST, RPROJ_DIR, PROJECT_NAME
+parse_options() {
+    PROJECT_NAME=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                show_help
+                ;;
+            -h|--host)
+                if [[ $# -lt 2 ]]; then
+                    error "Option $1 requires a host argument"
+                fi
+                RPROJ_HOST="$2"
+                shift 2
+                ;;
+            -d)
+                if [[ $# -lt 2 ]]; then
+                    error "Option -d requires a directory argument"
+                fi
+                RPROJ_DIR="$2"
+                shift 2
+                ;;
+            -p)
+                if [[ $# -lt 2 ]]; then
+                    error "Option -p requires a project name"
+                fi
+                PROJECT_NAME="$2"
+                shift 2
+                ;;
+            --json)
+                JSON_MODE=true
+                shift
+                ;;
+            -q)
+                if [[ $# -lt 2 ]]; then
+                    error "Option -q requires a query string"
+                fi
+                QUERY="$2"
+                shift 2
+                ;;
+            -*)
+                error "Unknown option: $1"
+                ;;
+            *)
+                # Positional argument is project name
+                PROJECT_NAME="$1"
+                shift
+                ;;
+        esac
+    done
+}
+
+# Command: list
+cmd_list() {
+    parse_options "$@"
+
+    # Use shorter timeout for JSON mode (Alfred)
+    local timeout=5
+    [[ "$JSON_MODE" == "true" ]] && timeout=2
+
+    test_connection "$RPROJ_HOST" "$RPROJ_DIR" "$timeout"
+
+    info "Finding projects in $RPROJ_DIR..."
+    local projects
+    projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
+
+    if [[ "$JSON_MODE" == "true" ]]; then
+        output_alfred_json "$projects" "$RPROJ_HOST" "$QUERY"
+    else
+        if [[ -z "$projects" ]]; then
+            error "No projects found in $RPROJ_DIR"
+        fi
+        echo "$projects" | sed "s|$RPROJ_DIR/||"
+    fi
+}
+
+# Command: tmux
+cmd_tmux() {
+    parse_options "$@"
+
+    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
+
+    local selected="$PROJECT_NAME"
+
+    if [[ -z "$selected" ]]; then
+        info "Finding projects in $RPROJ_DIR..."
+        local projects
+        projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
+
+        [[ -z "$projects" ]] && error "No projects found in $RPROJ_DIR"
+
+        selected=$(select_project "$projects" "$RPROJ_DIR")
+        [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
+    else
+        # Verify the specified project exists
+        local project_path="$RPROJ_DIR/$selected"
+        verify_project "$RPROJ_HOST" "$project_path"
+        info "Using project: $selected"
+    fi
+
+    local project_path="$RPROJ_DIR/$selected"
+    success "Opening tmux session '$selected' at $project_path..."
+
+    # Connect and run tc to create/attach tmux session
+    ssh -A -t "$RPROJ_HOST" "cd '$project_path' && ~/bin/tc"
+}
+
+# Command: code
+cmd_code() {
+    parse_options "$@"
+
+    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
+
+    local selected="$PROJECT_NAME"
+
+    if [[ -z "$selected" ]]; then
+        info "Finding projects in $RPROJ_DIR..."
+        local projects
+        projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
+
+        [[ -z "$projects" ]] && error "No projects found in $RPROJ_DIR"
+
+        selected=$(select_project "$projects" "$RPROJ_DIR")
+        [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
+    else
+        # Verify the specified project exists
+        local project_path="$RPROJ_DIR/$selected"
+        verify_project "$RPROJ_HOST" "$project_path"
+        info "Using project: $selected"
+    fi
+
+    local project_path="$RPROJ_DIR/$selected"
+    success "Opening $project_path in VS Code..."
+
+    code --remote "ssh-remote+$RPROJ_HOST" "$project_path"
+}
+
+# Command: open (for Alfred - opens with host|path format)
+cmd_open() {
+    if [[ $# -lt 1 ]]; then
+        error "Usage: $SCRIPT_NAME open 'host|path'"
+    fi
+
+    local arg="$1"
+    local host path
+    IFS='|' read -r host path <<< "$arg"
+
+    if [[ -z "$host" ]] || [[ -z "$path" ]]; then
+        error "Invalid argument format. Expected 'host|path'"
+    fi
+
+    code --remote "ssh-remote+$host" "$path"
+}
+
+# Main
+main() {
+    if [[ $# -lt 1 ]]; then
+        show_help
+    fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        list)
+            cmd_list "$@"
+            ;;
+        tmux)
+            cmd_tmux "$@"
+            ;;
+        code)
+            cmd_code "$@"
+            ;;
+        open)
+            cmd_open "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            error "Unknown command: $command. Use '$SCRIPT_NAME help' for usage."
+            ;;
+    esac
+}
+
+main "$@"
