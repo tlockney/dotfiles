@@ -1,0 +1,37 @@
+# Hammerflow configuration
+
+# Settings
+leader_key = "space"
+leader_key_mods = "shift"
+auto_reload = true
+toast_on_reload = true
+show_ui = true
+key_maps_per_line = 4
+
+# Quick app launches (single key from leader)
+t = ["WezTerm", "terminal"]
+o = "Obsidian"
+b = "Safari"
+f = "Finder"
+s = "Slack"
+
+# Apps submenu for less frequent apps
+[a]
+label = "[apps]"
+c = "Calendar"
+m = "Mail"
+n = "Notes"
+p = "System Preferences"
+z = "Zoom"
+
+# Hammerspoon tools
+[h]
+label = "[hammerspoon]"
+c = "hs:hs.toggleConsole()"
+r = "reload"
+e = "code:~/.config/hammerspoon"
+
+# Links (customize with your frequents)
+[l]
+label = "[links]"
+g = "https://github.com"

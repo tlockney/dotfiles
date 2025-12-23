@@ -26,6 +26,20 @@ end
 local hsConfigPath = os.getenv("HOME") .. "/.config/hammerspoon/"
 hs.pathwatcher.new(hsConfigPath, reloadConfig):start()
 
+hs.loadSpoon("Hammerflow")
+spoon.Hammerflow.loadFirstValidTomlFile({
+  "home.toml",
+  "work.toml",
+  "Spoons/Hammerflow.spoon/sample.toml"
+})
+-- optionally respect auto_reload setting in the toml config.
+if spoon.Hammerflow.auto_reload then
+  hs.loadSpoon("ReloadConfiguration")
+  -- set any paths for auto reload
+  -- spoon.ReloadConfiguration.watch_paths = {hs.configDir, "~/path/to/my/configs/"}
+  spoon.ReloadConfiguration:start()
+end
+
 local spaces = require("hs.spaces")
 
 function launchAppOnHotkey(modifiers, key, appName)
@@ -43,8 +57,7 @@ function launchAppOnHotkey(modifiers, key, appName)
 	end)
 end
 
-launchAppOnHotkey({ "alt" }, "`", "WezTerm")
-launchAppOnHotkey({ "alt", "shift" }, "o", "Obsidian")
+-- App hotkeys migrated to Hammerflow (home.toml)
 
 hs.hotkey.bind({ "cmd", "alt", "ctrl" }, "W", function()
 	hs.notify.new({ informativeText = "Hello World" }):send()
