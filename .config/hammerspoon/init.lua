@@ -37,7 +37,7 @@ spoon.Hammerflow.registerFormat({
   strokeColor = { alpha = 0.3, hex = "444444" },
   strokeWidth = 1,
   textColor = { alpha = 0.95, hex = "e0e0e0" },
-  textFont = "SF Mono",
+  textFont = "Menlo",
   textSize = 15,
   textStyle = {
     paragraphStyle = { lineSpacing = 4 },
