@@ -27,6 +27,23 @@ local hsConfigPath = os.getenv("HOME") .. "/.config/hammerspoon/"
 hs.pathwatcher.new(hsConfigPath, reloadConfig):start()
 
 hs.loadSpoon("Hammerflow")
+
+-- Minimal dark theme for Hammerflow popup
+spoon.Hammerflow.registerFormat({
+  atScreenEdge = 2,
+  fillColor = { alpha = 0.92, hex = "1a1a1a" },
+  padding = 16,
+  radius = 8,
+  strokeColor = { alpha = 0.3, hex = "444444" },
+  strokeWidth = 1,
+  textColor = { alpha = 0.95, hex = "e0e0e0" },
+  textFont = "Menlo",
+  textSize = 15,
+  textStyle = {
+    paragraphStyle = { lineSpacing = 4 },
+  },
+})
+
 spoon.Hammerflow.loadFirstValidTomlFile({
   "home.toml",
   "work.toml",
