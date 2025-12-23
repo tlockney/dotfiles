@@ -2,7 +2,7 @@
 
 # Settings
 leader_key = "space"
-leader_key_mods = "shift"
+leader_key_mods = "alt"
 auto_reload = true
 toast_on_reload = true
 show_ui = true
