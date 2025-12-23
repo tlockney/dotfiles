@@ -1,0 +1,8 @@
+# rproj configuration
+# This file is sourced by the rproj script
+
+# Default remote host (SSH hostname from ~/.ssh/config)
+RPROJ_HOST="workmbp"
+
+# Default remote directory containing projects
+RPROJ_DIR="/Users/thomas.lockney/src/metron"
