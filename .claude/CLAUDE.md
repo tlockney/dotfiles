@@ -40,6 +40,21 @@ Prefer simple, clean, maintainable solutions over clever or complex ones. Readab
 - NEVER remove code comments unless you can prove they are actively false
 - NEVER name things 'improved', 'new', 'enhanced', etc. Code naming should be evergreen
 
+### Markdown Formatting
+
+When creating or editing markdown files:
+
+- **Line breaks:** Consecutive lines render as a single line. Use one of:
+  - Blank line between paragraphs
+  - Unordered/ordered list for multi-item metadata
+  - `<br/>` tag when semantic list doesn't fit
+  - Two trailing spaces (less visible, avoid)
+- **Metadata blocks:** Use lists for key-value pairs at document top (e.g., Date, Status, Author)
+- **Code blocks:** Always specify language hint (` ```typescript `, ` ```bash `, ` ```json `, etc.)
+- **Diagrams:** Prefer Mermaid over ASCII art for flowcharts and architecture diagrams
+- **Tables:** Use for structured comparisons; avoid for simple key-value pairs (use lists instead)
+- **Headers:** Don't skip levels (h1 → h3); maintain consistent hierarchy
+
 ## Additional Context Files
 
 Read these files when the situation applies:
