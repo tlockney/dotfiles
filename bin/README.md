@@ -66,37 +66,54 @@ This directory contains personal utility scripts that are part of my dotfiles se
 - Finds and checks all shell scripts in the repository
 - Requires shellcheck to be installed
 
-### `rcode`
-
-**Purpose:** Open files or directories in VS Code from terminal
-**Usage:** `rcode [path]`
-**Description:** Wrapper for launching VS Code with specific configurations or from remote sessions.
-
 ### `tc`
 
-**Purpose:** Terminal color and capability testing
+**Purpose:** Create or attach to a tmux session named after the current directory
 **Usage:** `tc`
-**Description:** Tests terminal color support and displays color capabilities for debugging terminal configurations.
+**Description:** If a tmux session with the current directory's name exists, attaches to it. Otherwise, creates a new session with that name. Useful for project-based tmux workflows.
 
 ## tmux Utilities
-
-### `rtmux`
-
-**Purpose:** Remote tmux session selector
-**Usage:** `rtmux [OPTIONS] [PROJECT_NAME|REMOTE_HOST]`
-**Flags:**
-
-- `-d DIR`: Remote base directory
-- `-p NAME`: Project name (skip selection)
-- `-h`: Show help
-
-**Description:** Quickly select and open/attach to tmux sessions for remote projects via SSH.
 
 ### `tmux-session-menu`
 
 **Purpose:** Interactive tmux session switcher
 **Usage:** `tmux-session-menu`
 **Description:** Displays a tmux menu of all active sessions for quick switching between sessions.
+
+## Remote Development
+
+### `rproj`
+
+**Purpose:** Unified remote project tool for listing, opening in tmux, or opening in VS Code
+**Usage:** `rproj <command> [options] [project]`
+**Commands:**
+
+- `list`: List remote projects (supports `--json` for Alfred integration)
+- `tmux`: Open tmux session for a remote project
+- `code`: Open VS Code for a remote project
+- `open`: Open project from Alfred (uses `host|path` format)
+
+**Options:**
+
+- `-h, --host HOST`: Remote host (configurable via `~/.config/rproj/config`)
+- `-d DIR`: Remote base directory
+- `-p NAME`: Project name (skip interactive fzf selection)
+- `--json`: Output as Alfred-compatible JSON (list command)
+- `-q QUERY`: Filter projects by query (with --json)
+
+**Description:** Discovers projects on a remote host via SSH and provides interactive selection with fzf. Integrates with Alfred workflows for quick project access.
+
+### `rtmux`
+
+**Purpose:** Open tmux session for a remote project
+**Usage:** `rtmux [options] [project]`
+**Description:** Thin wrapper that delegates to `rproj tmux`. Maintained for backward compatibility.
+
+### `rcode`
+
+**Purpose:** Open VS Code for a remote project
+**Usage:** `rcode [options] [project]`
+**Description:** Thin wrapper that delegates to `rproj code`. Maintained for backward compatibility.
 
 ## Cloud and Security Tools
 
@@ -117,6 +134,26 @@ This directory contains personal utility scripts that are part of my dotfiles se
 **Purpose:** Synchronize secrets and credentials across systems
 **Usage:** `sync-secrets`
 **Description:** Safely syncs encrypted secrets and configuration files.
+
+## Media and Document Utilities
+
+### `grab-yt-audio`
+
+**Purpose:** Download audio from YouTube videos
+**Usage:** `grab-yt-audio <url>`
+**Description:** Downloads the best available audio from a YouTube URL and converts to MP3. Requires yt-dlp.
+
+### `grab-yt-video`
+
+**Purpose:** Download video from YouTube
+**Usage:** `grab-yt-video <url>`
+**Description:** Downloads the best available video and audio from a YouTube URL. Requires yt-dlp.
+
+### `md2pdf`
+
+**Purpose:** Convert Markdown files to PDF
+**Usage:** `md2pdf <input.md>`
+**Description:** Converts GitHub-flavored Markdown to PDF via an intermediate Word document. Requires pandoc and docx2pdf (installed via uvx).
 
 ## Library Files
 
