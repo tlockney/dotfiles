@@ -1,6 +1,15 @@
 name: Lint Shell Scripts
 
-on: [push, pull_request]
+on:
+  pull_request:
+    paths:
+      - 'bin/**'
+      - '.config/shell/**'
+      - '.config/zsh/**'
+      - '.profile'
+      - '.bashrc'
+      - '.bash_profile'
+      - '.zprofile'
 
 jobs:
   shellcheck:
@@ -10,3 +19,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: './bin'
+          additional_files: '.config/shell/common-profile.sh .config/zsh/update-completions.sh'
