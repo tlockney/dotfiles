@@ -50,10 +50,7 @@ task-manager list all        # All non-complete tasks
 # Complete a task
 task-manager complete <task-id>
 
-# Get database URL (clickable in terminal)
-task-manager url
-
-# Open database in browser
+# Open database in browser (prints URL if in SSH session)
 task-manager open
 ```
 

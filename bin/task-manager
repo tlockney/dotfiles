@@ -6,8 +6,7 @@
 #   task-manager add <title>       Add a new task (lands in Triage)
 #   task-manager list [filter]     List tasks (ready, focus, all)
 #   task-manager complete <id>     Mark a task as complete
-#   task-manager url               Output the database URL
-#   task-manager open              Open the database in browser
+#   task-manager open              Open database (or print URL if in SSH)
 #
 # Options:
 #   --json                         Output in Alfred-compatible JSON format
@@ -37,7 +36,7 @@ die() {
 }
 
 usage() {
-    sed -n '3,14p' "$0" | sed 's/^# \?//'
+    sed -n '3,13p' "$0" | sed 's/^# \?//'
     exit 0
 }
 
@@ -288,12 +287,14 @@ cmd_complete() {
     fi
 }
 
-cmd_url() {
-    echo "$NOTION_URL"
-}
-
 cmd_open() {
     local url="$NOTION_URL"
+
+    # In SSH session, just print the URL
+    if [[ -n "${SSH_CLIENT:-}" || -n "${SSH_TTY:-}" ]]; then
+        echo "$url"
+        return
+    fi
 
     case "$(uname -s)" in
         Darwin)
@@ -354,9 +355,6 @@ main() {
             ;;
         complete|done)
             cmd_complete "${1:-}"
-            ;;
-        url)
-            cmd_url
             ;;
         open)
             cmd_open
