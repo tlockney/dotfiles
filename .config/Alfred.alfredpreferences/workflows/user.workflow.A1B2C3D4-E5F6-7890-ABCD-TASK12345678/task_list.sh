@@ -3,6 +3,9 @@
 # Alfred script: List tasks
 #
 
+# Ensure common tool paths are available
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 QUERY="${1:-}"
 
 # Handle special "open" command

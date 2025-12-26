@@ -97,7 +97,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>script</key>
-				<string>./task_add.sh "{query}"</string>
+				<string>./task_add.sh "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -140,7 +140,7 @@
 				<key>runningsubtext</key>
 				<string>Loading tasks...</string>
 				<key>script</key>
-				<string>./task_list.sh "{query}"</string>
+				<string>./task_list.sh "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -169,7 +169,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>script</key>
-				<string>./task_complete.sh "{query}"</string>
+				<string>./task_complete.sh "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
