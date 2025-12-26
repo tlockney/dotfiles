@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>com.tlockney.task-manager</string>
+	<key>category</key>
+	<string>Productivity</string>
+	<key>connections</key>
+	<dict>
+		<key>11111111-1111-1111-1111-111111111111</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>22222222-2222-2222-2222-222222222222</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitowards</key>
+				<string></string>
+			</dict>
+		</array>
+		<key>33333333-3333-3333-3333-333333333333</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>44444444-4444-4444-4444-444444444444</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitowards</key>
+				<string></string>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>55555555-5555-5555-5555-555555555555</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string>Open in Notion</string>
+				<key>vitowards</key>
+				<string></string>
+			</dict>
+		</array>
+		<key>22222222-2222-2222-2222-222222222222</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>66666666-6666-6666-6666-666666666666</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitowards</key>
+				<string></string>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Thomas Lockney</string>
+	<key>description</key>
+	<string>Quick capture and manage tasks in Notion</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>Task Manager</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>task</string>
+				<key>subtext</key>
+				<string>Quick capture a new task</string>
+				<key>text</key>
+				<string>Add Task</string>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>11111111-1111-1111-1111-111111111111</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>./task_add.sh "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>22222222-2222-2222-2222-222222222222</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>tasks</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyalinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Loading tasks...</string>
+				<key>script</key>
+				<string>./task_list.sh "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>View and manage tasks</string>
+				<key>title</key>
+				<string>Tasks</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>33333333-3333-3333-3333-333333333333</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>./task_complete.sh "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>44444444-4444-4444-4444-444444444444</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string></string>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+				<key>utf8</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>55555555-5555-5555-5555-555555555555</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>✅ Task added: {query}</string>
+				<key>title</key>
+				<string>Task Manager</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>66666666-6666-6666-6666-666666666666</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>Task Manager - Quick capture and manage tasks in Notion
+
+Keywords:
+- task &lt;title&gt;  - Quick capture a new task
+- tasks         - View active tasks (Ready + In Focus)
+
+Actions:
+- Enter: Complete the selected task
+- Cmd+Enter: Open task in Notion
+
+Filters for 'tasks' command:
+- tasks          - Show active tasks (Ready + In Focus)
+- tasks all      - Show all non-complete tasks
+- tasks ready    - Show Ready tasks only
+- tasks focus    - Show In Focus tasks only
+- tasks triage   - Show Triage tasks only
+- tasks open     - Open Notion database</string>
+	<key>uidata</key>
+	<dict>
+		<key>11111111-1111-1111-1111-111111111111</key>
+		<dict>
+			<key>xpos</key>
+			<integer>100</integer>
+			<key>ypos</key>
+			<integer>50</integer>
+		</dict>
+		<key>22222222-2222-2222-2222-222222222222</key>
+		<dict>
+			<key>xpos</key>
+			<integer>300</integer>
+			<key>ypos</key>
+			<integer>50</integer>
+		</dict>
+		<key>33333333-3333-3333-3333-333333333333</key>
+		<dict>
+			<key>xpos</key>
+			<integer>100</integer>
+			<key>ypos</key>
+			<integer>200</integer>
+		</dict>
+		<key>44444444-4444-4444-4444-444444444444</key>
+		<dict>
+			<key>xpos</key>
+			<integer>300</integer>
+			<key>ypos</key>
+			<integer>180</integer>
+		</dict>
+		<key>55555555-5555-5555-5555-555555555555</key>
+		<dict>
+			<key>xpos</key>
+			<integer>300</integer>
+			<key>ypos</key>
+			<integer>260</integer>
+		</dict>
+		<key>66666666-6666-6666-6666-666666666666</key>
+		<dict>
+			<key>xpos</key>
+			<integer>500</integer>
+			<key>ypos</key>
+			<integer>50</integer>
+		</dict>
+	</dict>
+	<key>version</key>
+	<string>1.0</string>
+	<key>webaddress</key>
+	<string></string>
+</dict>
+</plist>
