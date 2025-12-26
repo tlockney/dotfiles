@@ -10,6 +10,7 @@
 #
 # Options:
 #   --json                         Output in Alfred-compatible JSON format
+#   --urls                         Include URLs in list output
 #   -h, --help                     Show this help message
 #
 
@@ -25,6 +26,7 @@ NOTION_API_VERSION="2022-06-28"
 
 # Flags
 JSON_OUTPUT=false
+SHOW_URLS=false
 
 #------------------------------------------------------------------------------
 # Helper functions
@@ -232,13 +234,19 @@ cmd_list() {
             }]
         }'
     else
-        # Human-readable output
-        echo "$response" | jq -r '.results[] |
-            (.properties.Status.status.name // "?") + " " +
-            (.properties.Title.title[0].text.content // "Untitled") +
-            (if .properties.Context.select.name then " [" + .properties.Context.select.name + "]" else "" end) +
-            (if .properties["Time Estimate"].select.name then " (" + .properties["Time Estimate"].select.name + ")" else "" end) +
-            "\n   " + .url'
+        # Human-readable output - grouped by status
+        local show_urls_flag="$SHOW_URLS"
+        echo "$response" | jq -r --arg show_urls "$show_urls_flag" '
+            .results | group_by(.properties.Status.status.name) | .[] |
+            (.[0].properties.Status.status.name // "?") as $status |
+            "\n── \($status) " + ("─" * (40 - ($status | length))) + "\n" +
+            ([.[] |
+                "  " + (.properties.Title.title[0].text.content // "Untitled") +
+                (if .properties.Context.select.name then " [\(.properties.Context.select.name)]" else "" end) +
+                (if .properties["Time Estimate"].select.name then " (\(.properties["Time Estimate"].select.name))" else "" end) +
+                (if $show_urls == "true" then "\n    " + .url else "" end)
+            ] | join("\n"))
+        '
     fi
 }
 
@@ -323,6 +331,10 @@ main() {
         case "$1" in
             --json)
                 JSON_OUTPUT=true
+                shift
+                ;;
+            --urls)
+                SHOW_URLS=true
                 shift
                 ;;
             -h|--help)
