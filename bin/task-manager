@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+#
+# task-manager - CLI for managing tasks in Notion
+#
+# Usage:
+#   task-manager add <title>       Add a new task (lands in Triage)
+#   task-manager list [filter]     List tasks (ready, focus, all)
+#   task-manager complete <id>     Mark a task as complete
+#   task-manager open              Open database (or print URL if in SSH)
+#
+# Options:
+#   --json                         Output in Alfred-compatible JSON format
+#   -h, --help                     Show this help message
+#
+
+set -euo pipefail
+
+# Configuration
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/task-manager"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+
+# Notion API
+NOTION_API_URL="https://api.notion.com/v1"
+NOTION_API_VERSION="2022-06-28"
+
+# Flags
+JSON_OUTPUT=false
+
+#------------------------------------------------------------------------------
+# Helper functions
+#------------------------------------------------------------------------------
+
+die() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+usage() {
+    sed -n '3,13p' "$0" | sed 's/^# \?//'
+    exit 0
+}
+
+load_config() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        die "Config file not found: $CONFIG_FILE"
+    fi
+
+    DATABASE_ID=$(jq -r '.database_id' "$CONFIG_FILE")
+    NOTION_URL=$(jq -r '.notion_url' "$CONFIG_FILE")
+    OP_TOKEN_ITEM=$(jq -r '.op_token_item' "$CONFIG_FILE")
+    DEFAULT_STATUS=$(jq -r '.defaults.status' "$CONFIG_FILE")
+
+    if [[ -z "$DATABASE_ID" || "$DATABASE_ID" == "null" ]]; then
+        die "database_id not set in config"
+    fi
+}
+
+get_notion_token() {
+    # Priority: environment variable, then 1Password
+    if [[ -n "${NOTION_TOKEN:-}" ]]; then
+        echo "$NOTION_TOKEN"
+        return
+    fi
+
+    if ! command -v op &>/dev/null; then
+        die "NOTION_TOKEN not set and 1Password CLI (op) not found"
+    fi
+
+    local token
+    token=$(op item get "$OP_TOKEN_ITEM" --fields label=credential 2>/dev/null) || \
+        die "Failed to get Notion token from 1Password item: $OP_TOKEN_ITEM"
+
+    echo "$token"
+}
+
+notion_api() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+
+    local token
+    token=$(get_notion_token)
+
+    local args=(
+        -s
+        -X "$method"
+        -H "Authorization: Bearer $token"
+        -H "Content-Type: application/json"
+        -H "Notion-Version: $NOTION_API_VERSION"
+    )
+
+    if [[ -n "$data" ]]; then
+        args+=(-d "$data")
+    fi
+
+    curl "${args[@]}" "${NOTION_API_URL}${endpoint}"
+}
+
+#------------------------------------------------------------------------------
+# Commands
+#------------------------------------------------------------------------------
+
+cmd_add() {
+    local title="$1"
+
+    if [[ -z "$title" ]]; then
+        die "Task title is required"
+    fi
+
+    local payload
+    payload=$(jq -n \
+        --arg db_id "$DATABASE_ID" \
+        --arg title "$title" \
+        --arg status "$DEFAULT_STATUS" \
+        '{
+            parent: { database_id: $db_id },
+            properties: {
+                Title: {
+                    title: [{ text: { content: $title } }]
+                },
+                Status: {
+                    status: { name: $status }
+                }
+            }
+        }')
+
+    local response
+    response=$(notion_api POST "/pages" "$payload")
+
+    # Check for errors
+    if echo "$response" | jq -e '.object == "error"' &>/dev/null; then
+        local msg
+        msg=$(echo "$response" | jq -r '.message')
+        die "Notion API error: $msg"
+    fi
+
+    local page_id page_url
+    page_id=$(echo "$response" | jq -r '.id')
+    page_url=$(echo "$response" | jq -r '.url')
+
+    if $JSON_OUTPUT; then
+        jq -n --arg id "$page_id" --arg url "$page_url" --arg title "$title" \
+            '{ success: true, id: $id, url: $url, title: $title }'
+    else
+        echo "Created: $title"
+        echo "URL: $page_url"
+    fi
+}
+
+cmd_list() {
+    local filter="${1:-active}"
+
+    local filter_payload
+    case "$filter" in
+        ready)
+            filter_payload='{"property": "Status", "status": {"equals": "🎯 Ready"}}'
+            ;;
+        focus)
+            filter_payload='{"property": "Status", "status": {"equals": "🔥 In Focus"}}'
+            ;;
+        triage)
+            filter_payload='{"property": "Status", "status": {"equals": "📥 Triage"}}'
+            ;;
+        active)
+            # Ready or In Focus
+            filter_payload='{
+                "or": [
+                    {"property": "Status", "status": {"equals": "🎯 Ready"}},
+                    {"property": "Status", "status": {"equals": "🔥 In Focus"}}
+                ]
+            }'
+            ;;
+        all)
+            filter_payload='{
+                "or": [
+                    {"property": "Status", "status": {"equals": "📥 Triage"}},
+                    {"property": "Status", "status": {"equals": "🎯 Ready"}},
+                    {"property": "Status", "status": {"equals": "⏳ Waiting"}},
+                    {"property": "Status", "status": {"equals": "🔥 In Focus"}}
+                ]
+            }'
+            ;;
+        *)
+            die "Unknown filter: $filter (valid: ready, focus, triage, active, all)"
+            ;;
+    esac
+
+    local payload
+    payload=$(jq -n \
+        --argjson filter "$filter_payload" \
+        '{
+            filter: $filter,
+            sorts: [
+                { property: "Status", direction: "ascending" },
+                { property: "Created", direction: "descending" }
+            ]
+        }')
+
+    local response
+    response=$(notion_api POST "/databases/$DATABASE_ID/query" "$payload")
+
+    # Check for errors
+    if echo "$response" | jq -e '.object == "error"' &>/dev/null; then
+        local msg
+        msg=$(echo "$response" | jq -r '.message')
+        die "Notion API error: $msg"
+    fi
+
+    if $JSON_OUTPUT; then
+        # Alfred-compatible JSON output
+        echo "$response" | jq '{
+            items: [.results[] | {
+                uid: .id,
+                title: (.properties.Title.title[0].text.content // "Untitled"),
+                subtitle: (
+                    (.properties.Status.status.name // "") +
+                    (if .properties.Context.select.name then " [" + .properties.Context.select.name + "]" else "" end) +
+                    (if .properties["Time Estimate"].select.name then " " + .properties["Time Estimate"].select.name else "" end) +
+                    (if .properties["Due Date"].date.start then " Due: " + .properties["Due Date"].date.start else "" end)
+                ),
+                arg: .id,
+                mods: {
+                    cmd: {
+                        subtitle: "Open in Notion",
+                        arg: .url
+                    }
+                },
+                text: {
+                    copy: .url,
+                    largetype: (.properties.Title.title[0].text.content // "Untitled")
+                }
+            }]
+        }'
+    else
+        # Human-readable output
+        echo "$response" | jq -r '.results[] |
+            (.properties.Status.status.name // "?") + " " +
+            (.properties.Title.title[0].text.content // "Untitled") +
+            (if .properties.Context.select.name then " [" + .properties.Context.select.name + "]" else "" end) +
+            (if .properties["Time Estimate"].select.name then " (" + .properties["Time Estimate"].select.name + ")" else "" end) +
+            "\n   " + .url'
+    fi
+}
+
+cmd_complete() {
+    local page_id="$1"
+
+    if [[ -z "$page_id" ]]; then
+        die "Task ID is required"
+    fi
+
+    local status_complete
+    status_complete=$(jq -r '.status_values.complete' "$CONFIG_FILE")
+
+    local payload
+    payload=$(jq -n \
+        --arg status "$status_complete" \
+        '{
+            properties: {
+                Status: {
+                    status: { name: $status }
+                },
+                Completed: {
+                    date: { start: (now | strftime("%Y-%m-%d")) }
+                }
+            }
+        }')
+
+    local response
+    response=$(notion_api PATCH "/pages/$page_id" "$payload")
+
+    # Check for errors
+    if echo "$response" | jq -e '.object == "error"' &>/dev/null; then
+        local msg
+        msg=$(echo "$response" | jq -r '.message')
+        die "Notion API error: $msg"
+    fi
+
+    local title
+    title=$(echo "$response" | jq -r '.properties.Title.title[0].text.content // "Untitled"')
+
+    if $JSON_OUTPUT; then
+        jq -n --arg id "$page_id" --arg title "$title" \
+            '{ success: true, id: $id, title: $title, status: "complete" }'
+    else
+        echo "Completed: $title"
+    fi
+}
+
+cmd_open() {
+    local url="$NOTION_URL"
+
+    # In SSH session, just print the URL
+    if [[ -n "${SSH_CLIENT:-}" || -n "${SSH_TTY:-}" ]]; then
+        echo "$url"
+        return
+    fi
+
+    case "$(uname -s)" in
+        Darwin)
+            open "$url"
+            ;;
+        Linux)
+            if command -v xdg-open &>/dev/null; then
+                xdg-open "$url"
+            else
+                echo "$url"
+            fi
+            ;;
+        *)
+            echo "$url"
+            ;;
+    esac
+}
+
+#------------------------------------------------------------------------------
+# Main
+#------------------------------------------------------------------------------
+
+main() {
+    # Parse global options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                JSON_OUTPUT=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                ;;
+            -*)
+                die "Unknown option: $1"
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    if [[ $# -eq 0 ]]; then
+        usage
+    fi
+
+    local command="$1"
+    shift
+
+    load_config
+
+    case "$command" in
+        add)
+            cmd_add "${*:-}"
+            ;;
+        list|ls)
+            cmd_list "${1:-active}"
+            ;;
+        complete|done)
+            cmd_complete "${1:-}"
+            ;;
+        open)
+            cmd_open
+            ;;
+        *)
+            die "Unknown command: $command"
+            ;;
+    esac
+}
+
+main "$@"

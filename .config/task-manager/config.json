@@ -1,0 +1,24 @@
+{
+  "database_id": "daaac64904a445f99bb1f54f315360c6",
+  "notion_url": "https://www.notion.so/dc4a2ae3aded4534bbde450f27248b2a",
+  "op_token_item": "Notion API Token",
+  "defaults": {
+    "status": "📥 Triage"
+  },
+  "status_values": {
+    "triage": "📥 Triage",
+    "ready": "🎯 Ready",
+    "waiting": "⏳ Waiting",
+    "focus": "🔥 In Focus",
+    "complete": "✅ Complete"
+  },
+  "context_values": ["Work", "Personal"],
+  "energy_values": [
+    "5 - Excited",
+    "4 - Interested",
+    "3 - Neutral",
+    "2 - Resistant",
+    "1 - Dreading"
+  ],
+  "time_estimate_values": ["5 min", "15 min", "30 min", "1 hour", "2+ hours"]
+}

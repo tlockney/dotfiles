@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#
+# task - Quick capture for task-manager
+#
+# Usage: task <title>
+#
+# Creates a new task in Notion with the given title.
+# The task lands in Triage status for later processing.
+#
+
+exec "$(dirname "$0")/task-manager" add "$@"
