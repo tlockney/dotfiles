@@ -69,7 +69,7 @@ get_notion_token() {
     fi
 
     local token
-    token=$(op item get "$OP_TOKEN_ITEM" --fields label=credential 2>/dev/null) || \
+    token=$(op item get "$OP_TOKEN_ITEM" --fields label=credential --cache 2>/dev/null) || \
         die "Failed to get Notion token from 1Password item: $OP_TOKEN_ITEM"
 
     echo "$token"
