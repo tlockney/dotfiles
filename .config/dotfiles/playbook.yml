@@ -7,7 +7,17 @@
 #   Update tools:      uvx --from ansible-core ansible-playbook playbook.yml
 #   Check mode:        uvx --from ansible-core ansible-playbook playbook.yml --check
 #   Dev tools:         uvx --from ansible-core ansible-playbook playbook.yml --extra-vars "dev_mode=true"
+#   Force server mode: uvx --from ansible-core ansible-playbook playbook.yml --extra-vars "is_desktop=false"
 #   Specific category: uvx --from ansible-core ansible-playbook playbook.yml --tags homebrew
+#
+# Variables:
+#   dev_mode:   Install additional development tools (default: false)
+#   is_desktop: Install desktop apps vs CLI-only tools (auto-detected, override with true/false)
+#
+# Desktop detection:
+#   - macOS: Always treated as desktop
+#   - Linux: Checks systemd default target (graphical.target = desktop)
+#   - Override with --extra-vars "is_desktop=true" or "is_desktop=false"
 
 - name: Manage development environment
   hosts: localhost
@@ -17,6 +27,26 @@
   vars:
     dev_mode: false
     force: false
+    # Desktop detection: macOS is always desktop, Linux checks systemd target
+    # Override with --extra-vars "is_desktop=true" or "is_desktop=false"
+    _linux_desktop: "{{ ansible_service_mgr == 'systemd' and (ansible_facts['default_target'] | default('multi-user.target')) == 'graphical.target' }}"
+    is_desktop: "{{ is_desktop | default(true if ansible_os_family == 'Darwin' else _linux_desktop) }}"
+
+  pre_tasks:
+    - name: Gather systemd default target (Linux only)
+      command: systemctl get-default
+      register: systemd_target
+      changed_when: false
+      failed_when: false
+      when: ansible_system == "Linux" and ansible_service_mgr == "systemd"
+
+    - name: Set desktop fact from systemd target
+      set_fact:
+        is_desktop: "{{ is_desktop | default(true if ansible_os_family == 'Darwin' else (systemd_target.stdout | default('multi-user.target')) == 'graphical.target') }}"
+
+    - name: Display system type
+      debug:
+        msg: "System type: {{ 'Desktop' if is_desktop else 'Server' }} ({{ ansible_os_family }})"
 
   tasks:
     # ========================================
@@ -44,27 +74,55 @@
           register: brew_update
           changed_when: "'Already up-to-date' not in brew_update.stdout"
 
-        - name: Install/upgrade essential Homebrew packages
+        # Essential CLI tools - installed on all macOS systems
+        - name: Install/upgrade essential Homebrew formulae
           shell: brew install {{ item }} || brew upgrade {{ item }} || true
           loop:
-            - fzf
-            - fd
-            - ripgrep
-            - mise
-            - jq
             - bat
+            - eza
+            - fd
+            - fzf
+            - jq
+            - mise
+            - ripgrep
+            - starship
+            - atuin
+            - zsh-autosuggestions
+            - zsh-syntax-highlighting
           register: brew_install
           changed_when: "'Upgrading' in brew_install.stdout or 'Installing' in brew_install.stdout"
 
-        - name: Install/upgrade dev Homebrew packages
+        # Dev tools - only in dev mode
+        - name: Install/upgrade dev Homebrew formulae
           shell: brew install {{ item }} || brew upgrade {{ item }} || true
           loop:
+            - bat-extras
             - gh
             - yq
-            - bat-extras
           register: brew_dev_install
           changed_when: "'Upgrading' in brew_dev_install.stdout or 'Installing' in brew_dev_install.stdout"
           when: dev_mode | bool
+
+        # 1Password CLI - requires special tap
+        - name: Tap 1Password CLI
+          shell: brew tap 1password/tap
+          changed_when: false
+          failed_when: false
+
+        - name: Install 1Password CLI
+          shell: brew install 1password-cli || brew upgrade 1password-cli || true
+          register: op_install
+          changed_when: "'Upgrading' in op_install.stdout or 'Installing' in op_install.stdout"
+
+        # Desktop-only casks
+        - name: Install desktop Homebrew casks
+          shell: brew install --cask {{ item }} || brew upgrade --cask {{ item }} || true
+          loop:
+            - visual-studio-code
+            - 1password
+          register: brew_cask_install
+          changed_when: "'Upgrading' in brew_cask_install.stdout or 'Installing' in brew_cask_install.stdout"
+          when: is_desktop | bool
 
         - name: Clean up Homebrew
           shell: brew cleanup
@@ -90,29 +148,83 @@
           become: yes
           register: apt_upgrade
 
+        # Essential CLI tools for all Linux systems
         - name: Install essential apt packages
           apt:
             name:
-              - fzf
               - fd-find
+              - fzf
+              - jq
               - ripgrep
+              - zsh-autosuggestions
+              - zsh-syntax-highlighting
             state: latest
           become: yes
 
+        # Dev tools - only in dev mode
         - name: Install dev apt packages
           apt:
             name:
-              - jq
               - gh
             state: latest
           become: yes
           when: dev_mode | bool
 
+        # Desktop-only packages
+        - name: Install desktop apt packages
+          apt:
+            name:
+              - code
+            state: latest
+          become: yes
+          when: is_desktop | bool
+          failed_when: false
+
+    # ========================================
+    # 1PASSWORD CLI (Linux)
+    # ========================================
+    - name: Install 1Password CLI on Linux
+      tags: [setup, tools]
+      when: ansible_pkg_mgr == "apt"
+      block:
+        - name: Check if 1Password CLI is installed
+          command: which op
+          register: op_check
+          changed_when: false
+          failed_when: false
+
+        - name: Add 1Password apt repository key
+          shell: |
+            curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+            gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
+          args:
+            creates: /usr/share/keyrings/1password-archive-keyring.gpg
+          become: yes
+          when: op_check.rc != 0
+
+        - name: Add 1Password apt repository
+          shell: |
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
+            tee /etc/apt/sources.list.d/1password.list
+          args:
+            creates: /etc/apt/sources.list.d/1password.list
+          become: yes
+          when: op_check.rc != 0
+
+        - name: Install 1Password CLI via apt
+          apt:
+            name: 1password-cli
+            state: latest
+            update_cache: yes
+          become: yes
+
     # ========================================
     # MISE
     # ========================================
-    - name: Install and update mise
+    # On macOS, mise is installed via Homebrew. On Linux, use the installer script.
+    - name: Install mise (Linux only)
       tags: [mise, setup]
+      when: ansible_os_family != "Darwin"
       block:
         - name: Check if mise is installed
           stat:
@@ -177,8 +289,10 @@
       changed_when: "'Updating' in cargo_updates.stdout"
       failed_when: false
 
-    - name: Install essential Rust tools
+    # On Linux, install eza and bat via cargo (on macOS these come from Homebrew)
+    - name: Install essential Rust tools (Linux only)
       tags: [setup, rust]
+      when: ansible_os_family != "Darwin"
       shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item }}"
       args:
         creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item }}"
@@ -188,8 +302,9 @@
 
     - name: Build bat cache
       tags: [setup, rust]
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/bat cache --build"
+      shell: bat cache --build
       changed_when: false
+      failed_when: false
 
     - name: Install Rust dev tools
       tags: [setup, rust, dev]
@@ -289,8 +404,10 @@
             creates: "{{ ansible_env.HOME }}/.local/bin/claude"
           when: not claude_check.stat.exists
 
-    - name: Install Starship prompt
+    # On macOS, starship is installed via Homebrew. On Linux, use the installer script.
+    - name: Install Starship prompt (Linux only)
       tags: [setup, tools]
+      when: ansible_os_family != "Darwin"
       block:
         - name: Check if Starship is installed
           stat:
@@ -303,8 +420,10 @@
             creates: "{{ ansible_env.HOME }}/.local/bin/starship"
           when: not starship_check.stat.exists
 
-    - name: Install/update Atuin
+    # On macOS, atuin is installed via Homebrew. On Linux, use the installer script.
+    - name: Install/update Atuin (Linux only)
       tags: [setup, tools]
+      when: ansible_os_family != "Darwin"
       block:
         - name: Check if Atuin is installed
           command: which atuin
@@ -322,6 +441,42 @@
           register: atuin_update
           changed_when: "'Updated' in atuin_update.stdout or 'updated' in atuin_update.stdout"
           failed_when: false
+
+    # pnpm - installed via corepack (comes with Node.js via mise)
+    - name: Enable pnpm via corepack
+      tags: [setup, tools]
+      block:
+        - name: Check if corepack is available
+          command: which corepack
+          register: corepack_check
+          changed_when: false
+          failed_when: false
+
+        - name: Enable pnpm via corepack
+          shell: corepack enable pnpm
+          when: corepack_check.rc == 0
+          changed_when: false
+          failed_when: false
+
+    # VS Code CLI for server environments (desktop gets full VS Code via package manager)
+    - name: Install VS Code CLI (server only)
+      tags: [setup, tools]
+      when: not is_desktop | bool
+      block:
+        - name: Check if code CLI is installed
+          command: which code
+          register: code_cli_check
+          changed_when: false
+          failed_when: false
+
+        - name: Download and install VS Code CLI
+          shell: |
+            curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64' -o /tmp/vscode_cli.tar.gz
+            tar -xf /tmp/vscode_cli.tar.gz -C {{ ansible_env.HOME }}/.local/bin
+            rm /tmp/vscode_cli.tar.gz
+          args:
+            creates: "{{ ansible_env.HOME }}/.local/bin/code"
+          when: code_cli_check.rc != 0
 
     - name: Setup tmux plugin manager
       tags: [setup, tools]
