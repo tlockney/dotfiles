@@ -41,8 +41,12 @@ ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
 [[ -e /usr/share/$ZSH_AUTO_SCRIPT ]] && source /usr/share/$ZSH_AUTO_SCRIPT
 
 # Zsh syntax highlighting
-[[ -d "$BREW_PREFIX/share/zsh-syntax-highlighting" ]] && {
-  source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+ZSH_HL_SCRIPT="zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+ZSH_HL_PATH=""
+[[ -e "$BREW_PREFIX/share/$ZSH_HL_SCRIPT" ]] && ZSH_HL_PATH="$BREW_PREFIX/share/$ZSH_HL_SCRIPT"
+[[ -z "$ZSH_HL_PATH" && -e "/usr/share/$ZSH_HL_SCRIPT" ]] && ZSH_HL_PATH="/usr/share/$ZSH_HL_SCRIPT"
+[[ -n "$ZSH_HL_PATH" ]] && {
+  source "$ZSH_HL_PATH"
   # Disable underline
   (( ${+ZSH_HIGHLIGHT_STYLES} )) || typeset -A ZSH_HIGHLIGHT_STYLES
   ZSH_HIGHLIGHT_STYLES[path]=none
