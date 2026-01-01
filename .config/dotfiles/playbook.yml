@@ -107,12 +107,7 @@
           changed_when: "'Upgrading' in brew_dev_install.stdout or 'Installing' in brew_dev_install.stdout"
           when: dev_mode | bool
 
-        # 1Password CLI - requires special tap
-        - name: Tap 1Password CLI
-          shell: "{{ brew_bin }} tap 1password/tap"
-          changed_when: false
-          failed_when: false
-
+        # 1Password CLI
         - name: Install 1Password CLI
           shell: "{{ brew_bin }} install 1password-cli || {{ brew_bin }} upgrade 1password-cli || true"
           register: op_install

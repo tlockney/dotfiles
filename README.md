@@ -33,18 +33,11 @@ Replaces traditional Unix tools with faster, more user-friendly alternatives:
 ### macOS
 
 ```sh
-# Install Xcode command line tools
-xcode-select --install
-
-# Install Homebrew
+# Install Homebrew (will prompt for Xcode CLI tools if needed)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Install prerequisites
-/opt/homebrew/bin/brew install tmux
-
-# Install 1Password CLI (required for secret sync during bootstrap)
-/opt/homebrew/bin/brew tap 1password/tap
-/opt/homebrew/bin/brew install 1password-cli
+/opt/homebrew/bin/brew install tmux 1password-cli
 ```
 
 ### Linux
