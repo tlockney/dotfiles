@@ -104,7 +104,17 @@ tool-update --tags mise
 
 # Include dev tools in update
 tool-update --dev
+
+# Force server mode (CLI-only tools, no desktop apps)
+tool-update --extra-vars "is_desktop=false"
 ```
+
+**Desktop vs Server Detection:**
+- macOS is always treated as a desktop system
+- Linux auto-detects based on systemd target (`graphical.target` = desktop)
+- Desktop systems get full GUI apps (VS Code, 1Password app)
+- Server systems get CLI-only tools (VS Code CLI, 1Password CLI)
+- Override with `--extra-vars "is_desktop=true"` or `"is_desktop=false"`
 
 To add new tools, edit `.config/dotfiles/playbook.yml`. To change runtime versions (node, python, etc.), edit `.mise.toml`.
 
