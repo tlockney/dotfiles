@@ -27,16 +27,14 @@
   vars:
     dev_mode: false
     force: false
-    # Desktop detection: macOS is always desktop, Linux checks systemd target
-    # Override with --extra-vars "is_desktop=true" or "is_desktop=false"
-    _linux_desktop: "{{ ansible_service_mgr == 'systemd' and (ansible_facts['default_target'] | default('multi-user.target')) == 'graphical.target' }}"
-    is_desktop: "{{ is_desktop | default(true if ansible_os_family == 'Darwin' else _linux_desktop) }}"
     # Standard paths for tools (to avoid PATH dependency during bootstrap)
     brew_bin: /opt/homebrew/bin/brew
     local_bin: "{{ ansible_env.HOME }}/.local/bin"
     cargo_bin: "{{ ansible_env.HOME }}/.cargo/bin"
 
   pre_tasks:
+    # Desktop detection: macOS is always desktop, Linux checks systemd target
+    # Override with --extra-vars "is_desktop=true" or "is_desktop=false"
     - name: Gather systemd default target (Linux only)
       command: systemctl get-default
       register: systemd_target
@@ -44,9 +42,15 @@
       failed_when: false
       when: ansible_system == "Linux" and ansible_service_mgr == "systemd"
 
-    - name: Set desktop fact from systemd target
+    - name: Set desktop fact (macOS is always desktop)
       set_fact:
-        is_desktop: "{{ is_desktop | default(true if ansible_os_family == 'Darwin' else (systemd_target.stdout | default('multi-user.target')) == 'graphical.target') }}"
+        is_desktop: true
+      when: is_desktop is not defined and ansible_os_family == "Darwin"
+
+    - name: Set desktop fact (Linux checks systemd target)
+      set_fact:
+        is_desktop: "{{ (systemd_target.stdout | default('multi-user.target')) == 'graphical.target' }}"
+      when: is_desktop is not defined and ansible_os_family != "Darwin"
 
     - name: Display system type
       debug:
