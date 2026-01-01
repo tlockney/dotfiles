@@ -30,20 +30,45 @@ Replaces traditional Unix tools with faster, more user-friendly alternatives:
 
 ## Prerequisites
 
-### MacOS
+### macOS
 
 ```sh
+# Install Xcode command line tools
 xcode-select --install
+
+# Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install tmux
+
+# Install prerequisites
+/opt/homebrew/bin/brew install tmux
+
+# Install 1Password CLI (required for secret sync during bootstrap)
+/opt/homebrew/bin/brew tap 1password/tap
+/opt/homebrew/bin/brew install 1password-cli
 ```
 
 ### Linux
 
 ```sh
-sudo apt install zsh tmux git
+# Install base packages
+sudo apt install zsh tmux git curl gpg
+
+# Set zsh as default shell
 chsh -s /usr/bin/zsh
+
+# Install 1Password CLI (required for secret sync during bootstrap)
+curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+  sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
+  sudo tee /etc/apt/sources.list.d/1password.list
+sudo apt update && sudo apt install 1password-cli
 ```
+
+### Why 1Password CLI?
+
+The bootstrap process syncs secrets from 1Password to configure tools like git credentials. You must:
+1. Install 1Password CLI before running `yadm clone`
+2. Sign in: `op signin` (or `eval $(op signin)`)
 
 ## Installation
 
@@ -51,6 +76,13 @@ chsh -s /usr/bin/zsh
 mkdir -p ~/.local/bin
 curl -fLo ~/.local/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/.local/bin/yadm
 ~/.local/bin/yadm clone https://github.com/tlockney/dotfiles.git
+```
+
+After yadm clone completes, run the full bootstrap:
+
+```sh
+~/bin/bootstrap        # Standard setup
+~/bin/bootstrap --dev  # Include dev tools
 ```
 
 ## Tips

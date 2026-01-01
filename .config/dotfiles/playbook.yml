@@ -31,6 +31,10 @@
     # Override with --extra-vars "is_desktop=true" or "is_desktop=false"
     _linux_desktop: "{{ ansible_service_mgr == 'systemd' and (ansible_facts['default_target'] | default('multi-user.target')) == 'graphical.target' }}"
     is_desktop: "{{ is_desktop | default(true if ansible_os_family == 'Darwin' else _linux_desktop) }}"
+    # Standard paths for tools (to avoid PATH dependency during bootstrap)
+    brew_bin: /opt/homebrew/bin/brew
+    local_bin: "{{ ansible_env.HOME }}/.local/bin"
+    cargo_bin: "{{ ansible_env.HOME }}/.cargo/bin"
 
   pre_tasks:
     - name: Gather systemd default target (Linux only)
@@ -70,13 +74,13 @@
       when: ansible_os_family == "Darwin"
       block:
         - name: Update Homebrew itself
-          shell: brew update
+          shell: "{{ brew_bin }} update"
           register: brew_update
           changed_when: "'Already up-to-date' not in brew_update.stdout"
 
         # Essential CLI tools - installed on all macOS systems
         - name: Install/upgrade essential Homebrew formulae
-          shell: brew install {{ item }} || brew upgrade {{ item }} || true
+          shell: "{{ brew_bin }} install {{ item }} || {{ brew_bin }} upgrade {{ item }} || true"
           loop:
             - bat
             - eza
@@ -94,7 +98,7 @@
 
         # Dev tools - only in dev mode
         - name: Install/upgrade dev Homebrew formulae
-          shell: brew install {{ item }} || brew upgrade {{ item }} || true
+          shell: "{{ brew_bin }} install {{ item }} || {{ brew_bin }} upgrade {{ item }} || true"
           loop:
             - bat-extras
             - gh
@@ -105,18 +109,18 @@
 
         # 1Password CLI - requires special tap
         - name: Tap 1Password CLI
-          shell: brew tap 1password/tap
+          shell: "{{ brew_bin }} tap 1password/tap"
           changed_when: false
           failed_when: false
 
         - name: Install 1Password CLI
-          shell: brew install 1password-cli || brew upgrade 1password-cli || true
+          shell: "{{ brew_bin }} install 1password-cli || {{ brew_bin }} upgrade 1password-cli || true"
           register: op_install
           changed_when: "'Upgrading' in op_install.stdout or 'Installing' in op_install.stdout"
 
         # Desktop-only casks
         - name: Install desktop Homebrew casks
-          shell: brew install --cask {{ item }} || brew upgrade --cask {{ item }} || true
+          shell: "{{ brew_bin }} install --cask {{ item }} || {{ brew_bin }} upgrade --cask {{ item }} || true"
           loop:
             - visual-studio-code
             - 1password
@@ -125,7 +129,7 @@
           when: is_desktop | bool
 
         - name: Clean up Homebrew
-          shell: brew cleanup
+          shell: "{{ brew_bin }} cleanup"
           register: brew_cleanup
           changed_when: false
 
@@ -243,15 +247,26 @@
           changed_when: "'Updated' in mise_update.stdout or 'updated' in mise_update.stdout"
           failed_when: false
 
-    - name: Install and upgrade mise tools from .mise.toml
+    # Install mise tools - use platform-appropriate mise path
+    - name: Install and upgrade mise tools from .mise.toml (macOS)
       tags: [mise, runtimes]
-      shell: |
-        export PATH="{{ ansible_env.HOME }}/.local/bin:$PATH"
-        mise install && mise upgrade
+      when: ansible_os_family == "Darwin"
+      shell: /opt/homebrew/bin/mise install && /opt/homebrew/bin/mise upgrade
       args:
         chdir: "{{ ansible_env.HOME }}"
-      register: mise_tools
-      changed_when: "'installed' in mise_tools.stdout or 'Upgraded' in mise_tools.stdout"
+      register: mise_tools_macos
+      changed_when: "'installed' in mise_tools_macos.stdout or 'Upgraded' in mise_tools_macos.stdout"
+      failed_when: false
+
+    - name: Install and upgrade mise tools from .mise.toml (Linux)
+      tags: [mise, runtimes]
+      when: ansible_os_family != "Darwin"
+      shell: "{{ local_bin }}/mise install && {{ local_bin }}/mise upgrade"
+      args:
+        chdir: "{{ ansible_env.HOME }}"
+      register: mise_tools_linux
+      changed_when: "'installed' in mise_tools_linux.stdout or 'Upgraded' in mise_tools_linux.stdout"
+      failed_when: false
 
     # ========================================
     # RUST
@@ -300,9 +315,18 @@
         - eza
         - bat
 
-    - name: Build bat cache
+    # Build bat cache - use platform-appropriate path
+    - name: Build bat cache (macOS via Homebrew)
       tags: [setup, rust]
-      shell: bat cache --build
+      when: ansible_os_family == "Darwin"
+      shell: /opt/homebrew/bin/bat cache --build
+      changed_when: false
+      failed_when: false
+
+    - name: Build bat cache (Linux via Cargo)
+      tags: [setup, rust]
+      when: ansible_os_family != "Darwin"
+      shell: "{{ cargo_bin }}/bat cache --build"
       changed_when: false
       failed_when: false
 
@@ -383,7 +407,7 @@
     - name: Install Deno Jupyter kernel
       tags: [setup, dev]
       when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.local/share/mise/installs/deno/latest/bin/deno jupyter --install --force"
+      shell: "{{ ansible_env.HOME }}/.local/share/mise/shims/deno jupyter --install --force"
       changed_when: false
       failed_when: false
 
@@ -436,25 +460,25 @@
           when: atuin_check.rc != 0
 
         - name: Update Atuin
-          shell: atuin-update
+          shell: "{{ ansible_env.HOME }}/.atuin/bin/atuin-update"
           when: atuin_check.rc == 0
           register: atuin_update
           changed_when: "'Updated' in atuin_update.stdout or 'updated' in atuin_update.stdout"
           failed_when: false
 
     # pnpm - installed via corepack (comes with Node.js via mise)
+    # Use mise shims path to find corepack regardless of shell PATH
     - name: Enable pnpm via corepack
       tags: [setup, tools]
       block:
-        - name: Check if corepack is available
-          command: which corepack
-          register: corepack_check
-          changed_when: false
-          failed_when: false
+        - name: Check if corepack is available via mise shims
+          stat:
+            path: "{{ ansible_env.HOME }}/.local/share/mise/shims/corepack"
+          register: corepack_shim_check
 
         - name: Enable pnpm via corepack
-          shell: corepack enable pnpm
-          when: corepack_check.rc == 0
+          shell: "{{ ansible_env.HOME }}/.local/share/mise/shims/corepack enable pnpm"
+          when: corepack_shim_check.stat.exists
           changed_when: false
           failed_when: false
 
