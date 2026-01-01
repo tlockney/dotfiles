@@ -7,25 +7,20 @@ case "$(uname -s)" in
 Darwin)
   echo "MacOS detected"
 
-  command -v brew >/dev/null 2>&1 ||
+  command -v /opt/homebrew/bin/brew >/dev/null 2>&1 ||
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-  test -f $HOME/.macos && sh $HOME/.macos
+  test -f "$HOME/.macos" && sh "$HOME/.macos"
 
-  test -f $HOME/.Brewfile && brew bundle --global
+  test -f "$HOME/.Brewfile" && /opt/homebrew/bin/brew bundle --global
 
-  if [ -x $HOME/.config/Code/User ]; then
-    CODE_DIR=$HOME/.config/Code/User
-    pushd $HOME/Library/Application\ Support/Code/User
-    ln -sf $CODE_DIR/settings.json settings.json
-    ln -sf $CODE_DIR/keybindings.json keybindings.json
-    if [ -x "$PROFILE_DIR" ]; then
-      pushd profiles/7db57729
-      ln -sf $CODE_DIR/settings.json settings.json
-      ln -sf $CODE_DIR/keybindings.json keybindings.json
-      popd
-    fi
-    popd
+  # Link VS Code settings if both source and target directories exist
+  CODE_CONFIG="$HOME/.config/Code/User"
+  CODE_APP_DIR="$HOME/Library/Application Support/Code/User"
+  if [ -d "$CODE_CONFIG" ] && [ -d "$CODE_APP_DIR" ]; then
+    echo "Linking VS Code settings..."
+    ln -sf "$CODE_CONFIG/settings.json" "$CODE_APP_DIR/settings.json"
+    ln -sf "$CODE_CONFIG/keybindings.json" "$CODE_APP_DIR/keybindings.json"
   fi
 
   ;;
@@ -38,16 +33,22 @@ Linux)
 
   if [ "$(basename "$SHELL")" != "zsh" ]; then
     echo "Setting zsh as the default shell"
-    chsh -s $(which zsh)
+    chsh -s "$(which zsh)"
   else
     echo "zsh is already the default shell"
   fi
   ;;
 esac
 
+# Run secret synchronization if op is signed in
 if [ -x "$HOME/bin/sync-secrets" ]; then
-  echo "\nRunning secret synchronization..."
-  "$HOME/bin/sync-secrets"
+  if command -v op >/dev/null 2>&1 && op account list >/dev/null 2>&1; then
+    echo "\nRunning secret synchronization..."
+    "$HOME/bin/sync-secrets"
+  else
+    echo "\nSkipping secret sync: 1Password CLI not signed in."
+    echo "Run 'eval \$(op signin)' then '$HOME/bin/sync-secrets' manually."
+  fi
 else
   echo "\nWarning: sync-secrets script not found or not executable."
 fi
