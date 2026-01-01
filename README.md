@@ -64,26 +64,25 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1pass
 sudo apt update && sudo apt install 1password-cli
 ```
 
-### Why 1Password CLI?
-
-The bootstrap process syncs secrets from 1Password to configure tools like git credentials. You must:
-1. Install 1Password CLI before running `yadm clone`
-2. Sign in: `op signin` (or `eval $(op signin)`)
-
 ## Installation
 
 ```sh
+# 1. Sign into 1Password CLI (required for secret sync)
+eval $(op signin)
+
+# 2. Install yadm
 mkdir -p ~/.local/bin
 curl -fLo ~/.local/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/.local/bin/yadm
+
+# 3. Clone dotfiles (runs yadm bootstrap, which syncs secrets)
 ~/.local/bin/yadm clone https://github.com/tlockney/dotfiles.git
-```
 
-After yadm clone completes, run the full bootstrap:
-
-```sh
+# 4. Run full bootstrap to install all tools
 ~/bin/bootstrap        # Standard setup
-~/bin/bootstrap --dev  # Include dev tools
+~/bin/bootstrap --dev  # Include dev tools (optional)
 ```
+
+**Note:** The `op signin` step is required because the yadm bootstrap calls `sync-secrets`, which injects credentials from 1Password into config files.
 
 ## Tips
 
