@@ -202,8 +202,9 @@ defaults write com.googlecode.iterm2 PrefsCustomFolder "$HOME/.config/iterm2"
 defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder 1
 
 # Enable Developer menu in Safari and Web Inspector
-defaults write com.apple.Safari IncludeDevelopMenu -bool true
-defaults write com.apple.Safari WebKitDeveloperExtrasEnabledPreferenceKey -bool true
+# (may fail on fresh install if Safari hasn't been opened yet)
+defaults write com.apple.Safari IncludeDevelopMenu -bool true 2>/dev/null || true
+defaults write com.apple.Safari WebKitDeveloperExtrasEnabledPreferenceKey -bool true 2>/dev/null || true
 
 # Show all processes in Activity Monitor
 defaults write com.apple.ActivityMonitor ShowCategory -int 0

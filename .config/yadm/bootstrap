@@ -42,7 +42,7 @@ esac
 
 # Run secret synchronization if op is signed in
 if [ -x "$HOME/bin/sync-secrets" ]; then
-  if command -v op >/dev/null 2>&1 && op account list >/dev/null 2>&1; then
+  if command -v op >/dev/null 2>&1 && op whoami >/dev/null 2>&1; then
     echo "\nRunning secret synchronization..."
     "$HOME/bin/sync-secrets"
   else
