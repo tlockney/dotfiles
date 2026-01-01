@@ -35,7 +35,9 @@
   pre_tasks:
     # Desktop detection: macOS is always desktop, Linux checks systemd target
     # Override with --extra-vars "is_desktop=true" or "is_desktop=false"
+    # Use 'always' tag so these run even when filtering by tags
     - name: Gather systemd default target (Linux only)
+      tags: [always]
       command: systemctl get-default
       register: systemd_target
       changed_when: false
@@ -43,16 +45,19 @@
       when: ansible_system == "Linux" and ansible_service_mgr == "systemd"
 
     - name: Set desktop fact (macOS is always desktop)
+      tags: [always]
       set_fact:
         is_desktop: true
       when: is_desktop is not defined and ansible_os_family == "Darwin"
 
     - name: Set desktop fact (Linux checks systemd target)
+      tags: [always]
       set_fact:
         is_desktop: "{{ (systemd_target.stdout | default('multi-user.target')) == 'graphical.target' }}"
       when: is_desktop is not defined and ansible_os_family != "Darwin"
 
     - name: Display system type
+      tags: [always]
       debug:
         msg: "System type: {{ 'Desktop' if is_desktop else 'Server' }} ({{ ansible_os_family }})"
 
