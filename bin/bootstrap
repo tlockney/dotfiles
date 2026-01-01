@@ -46,12 +46,14 @@ echo "Running bootstrap setup..."
 echo "========================================"
 echo ""
 
-# Parse arguments to determine if dev mode is requested
+# Parse arguments - filter out our custom flags before passing to ansible
 EXTRA_VARS=""
+ANSIBLE_ARGS=()
 for arg in "$@"; do
     if [[ "$arg" == "--dev" ]]; then
         EXTRA_VARS="--extra-vars dev_mode=true"
-        break
+    else
+        ANSIBLE_ARGS+=("$arg")
     fi
 done
 
@@ -63,7 +65,7 @@ uvx --from ansible-core ansible-playbook \
     --tags setup \
     --ask-become-pass \
     $EXTRA_VARS \
-    "$@"
+    "${ANSIBLE_ARGS[@]}"
 
 echo ""
 echo "========================================"
