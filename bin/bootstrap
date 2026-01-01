@@ -60,12 +60,20 @@ done
 # Run the Ansible playbook with setup tags
 # Add --ask-become-pass to prompt for sudo password when needed (Linux apt tasks)
 # shellcheck disable=SC2086
-uvx --from ansible-core ansible-playbook \
-    "$PLAYBOOK" \
-    --tags setup \
-    --ask-become-pass \
-    $EXTRA_VARS \
-    "${ANSIBLE_ARGS[@]}"
+if [[ ${#ANSIBLE_ARGS[@]} -gt 0 ]]; then
+    uvx --from ansible-core ansible-playbook \
+        "$PLAYBOOK" \
+        --tags setup \
+        --ask-become-pass \
+        $EXTRA_VARS \
+        "${ANSIBLE_ARGS[@]}"
+else
+    uvx --from ansible-core ansible-playbook \
+        "$PLAYBOOK" \
+        --tags setup \
+        --ask-become-pass \
+        $EXTRA_VARS
+fi
 
 echo ""
 echo "========================================"
