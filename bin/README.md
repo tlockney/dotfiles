@@ -23,9 +23,19 @@ This directory contains personal utility scripts that are part of my dotfiles se
 
 - `--check`: Show what would be updated (dry-run)
 - `--diff`: Show changes that would be made
-- `--tags <tag>`: Update only specific tools (e.g., `homebrew`, `mise`)
+- `--tags <tag>`: Update only specific tools (e.g., `homebrew`, `mise`, `rust`, `uv`)
 - `--dev`: Include dev tools in updates
+- `--no-sudo`: Skip sudo password prompt (for passwordless sudo)
+- `--extra-vars "key=value"`: Pass variables to Ansible (e.g., `is_desktop=false`)
 - `-v`: Verbose output
+
+**Desktop vs Server Mode:**
+
+The playbook auto-detects desktop vs server environments:
+- macOS: Always treated as desktop
+- Linux: Detects via systemd target (`graphical.target` = desktop)
+
+Desktop systems install full GUI apps (VS Code, 1Password). Server systems install CLI-only versions. Override with `--extra-vars "is_desktop=false"`.
 
 **Description:** Wrapper around Ansible playbook for convenient daily/weekly tool updates.
 
