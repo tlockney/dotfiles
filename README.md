@@ -30,28 +30,52 @@ Replaces traditional Unix tools with faster, more user-friendly alternatives:
 
 ## Prerequisites
 
-### MacOS
+### macOS
 
 ```sh
-xcode-select --install
+# Install Homebrew (will prompt for Xcode CLI tools if needed)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install tmux
+
+# Install prerequisites
+/opt/homebrew/bin/brew install tmux 1password-cli
 ```
 
 ### Linux
 
 ```sh
-sudo apt install zsh tmux git
+# Install base packages
+sudo apt install zsh tmux git curl gpg
+
+# Set zsh as default shell
 chsh -s /usr/bin/zsh
+
+# Install 1Password CLI (required for secret sync during bootstrap)
+curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+  sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
+  sudo tee /etc/apt/sources.list.d/1password.list
+sudo apt update && sudo apt install 1password-cli
 ```
 
 ## Installation
 
 ```sh
+# 1. Sign into 1Password CLI (required for secret sync)
+eval $(op signin)
+
+# 2. Install yadm
 mkdir -p ~/.local/bin
 curl -fLo ~/.local/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && chmod a+x ~/.local/bin/yadm
+
+# 3. Clone dotfiles (runs yadm bootstrap, which syncs secrets)
 ~/.local/bin/yadm clone https://github.com/tlockney/dotfiles.git
+
+# 4. Run full bootstrap to install all tools
+~/bin/bootstrap        # Standard setup
+~/bin/bootstrap --dev  # Include dev tools (optional)
 ```
+
+**Note:** The `op signin` step is required because the yadm bootstrap calls `sync-secrets`, which injects credentials from 1Password into config files.
 
 ## Tips
 
