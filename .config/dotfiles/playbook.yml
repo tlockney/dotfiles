@@ -132,6 +132,21 @@
           changed_when: "'Upgrading' in brew_cask_install.stdout or 'Installing' in brew_cask_install.stdout"
           when: is_desktop | bool
 
+        # Display mode switching tools (for multi-Mac desk setup)
+        - name: Install display switching casks
+          shell: "{{ brew_bin }} install --cask {{ item }} || {{ brew_bin }} upgrade --cask {{ item }} || true"
+          loop:
+            - betterdisplay
+          register: brew_display_cask_install
+          changed_when: "'Upgrading' in brew_display_cask_install.stdout or 'Installing' in brew_display_cask_install.stdout"
+          when: is_desktop | bool
+
+        - name: Install display-switch formula
+          shell: "{{ brew_bin }} install display-switch || {{ brew_bin }} upgrade display-switch || true"
+          register: brew_display_switch_install
+          changed_when: "'Upgrading' in brew_display_switch_install.stdout or 'Installing' in brew_display_switch_install.stdout"
+          when: is_desktop | bool
+
         - name: Clean up Homebrew
           shell: "{{ brew_bin }} cleanup"
           register: brew_cleanup
