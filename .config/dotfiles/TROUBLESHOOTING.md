@@ -32,8 +32,8 @@ echo "$PATH" | tr ':' '\n' | grep mise
 # Install all tools from .mise.toml
 mise install
 
-# Or use the bootstrap/tool-update scripts
-tool-update --tags mise,runtimes
+# Or use the provision script
+provision --tags mise,runtimes
 ```
 
 #### 2. Mise not activated in shell
@@ -100,8 +100,8 @@ If you're setting up a new machine:
 # 1. Clone dotfiles (if not using yadm)
 git clone <your-repo> ~/dotfiles
 
-# 2. Run bootstrap
-~/dotfiles/bin/bootstrap
+# 2. Run provision
+~/dotfiles/bin/provision --setup-only
 
 # 3. Restart shell
 exec zsh
