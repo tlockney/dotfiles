@@ -110,13 +110,7 @@
           register: homebrew_linux_check
 
         - name: Create Homebrew directory
-          file:
-            path: /home/linuxbrew/.linuxbrew
-            state: directory
-            owner: "{{ ansible_env.USER }}"
-            group: "{{ ansible_env.USER }}"
-            mode: '0755'
-          become: yes
+          shell: sudo mkdir -p /home/linuxbrew/.linuxbrew && sudo chown "$(id -un):$(id -gn)" /home/linuxbrew/.linuxbrew
           when: not homebrew_linux_check.stat.exists
 
         - name: Install Homebrew
