@@ -23,9 +23,6 @@
   hosts: localhost
   connection: local
   gather_facts: yes
-  # Use traditional sudo on Linux to work around Ansible/sudo-rs incompatibility
-  # See: https://github.com/ansible/ansible/issues/85837
-  become_exe: "{{ 'sudo.ws' if ansible_system == 'Linux' else omit }}"
 
   vars:
     dev_mode: false
@@ -112,6 +109,8 @@
             path: /home/linuxbrew/.linuxbrew/bin/brew
           register: homebrew_linux_check
 
+        # Use sudo.ws to work around Ansible/sudo-rs incompatibility
+        # See: https://github.com/ansible/ansible/issues/85837
         - name: Create Homebrew directory
           file:
             path: /home/linuxbrew/.linuxbrew
@@ -120,6 +119,7 @@
             group: "{{ ansible_user_gid }}"
             mode: '0755'
           become: yes
+          become_exe: sudo.ws
           when: not homebrew_linux_check.stat.exists
 
         - name: Install Homebrew
@@ -218,6 +218,8 @@
     # ========================================
     # APT (Linux only)
     # ========================================
+    # Use sudo.ws to work around Ansible/sudo-rs incompatibility
+    # See: https://github.com/ansible/ansible/issues/85837
     - name: Update APT packages
       tags: [apt]
       when: ansible_pkg_mgr == "apt"
@@ -227,11 +229,13 @@
             update_cache: yes
             cache_valid_time: 3600
           become: yes
+          become_exe: sudo.ws
 
         - name: Upgrade all apt packages
           apt:
             upgrade: dist
           become: yes
+          become_exe: sudo.ws
           register: apt_upgrade
 
         # Essential CLI tools for all Linux systems
@@ -246,6 +250,7 @@
               - zsh-syntax-highlighting
             state: latest
           become: yes
+          become_exe: sudo.ws
 
         # Dev tools - only in dev mode
         - name: Install dev apt packages
@@ -254,6 +259,7 @@
               - gh
             state: latest
           become: yes
+          become_exe: sudo.ws
           when: dev_mode | bool
 
         # Desktop-only packages
@@ -263,6 +269,7 @@
               - code
             state: latest
           become: yes
+          become_exe: sudo.ws
           when: is_desktop | bool
           failed_when: false
 
@@ -286,6 +293,7 @@
           args:
             creates: /usr/share/keyrings/1password-archive-keyring.gpg
           become: yes
+          become_exe: sudo.ws
           when: op_check.rc != 0
 
         - name: Add 1Password apt repository
@@ -295,6 +303,7 @@
           args:
             creates: /etc/apt/sources.list.d/1password.list
           become: yes
+          become_exe: sudo.ws
           when: op_check.rc != 0
 
         - name: Install 1Password CLI via apt
@@ -303,6 +312,7 @@
             state: latest
             update_cache: yes
           become: yes
+          become_exe: sudo.ws
 
     # ========================================
     # MISE
