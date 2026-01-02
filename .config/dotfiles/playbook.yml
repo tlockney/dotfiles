@@ -109,8 +109,23 @@
             path: /home/linuxbrew/.linuxbrew/bin/brew
           register: homebrew_linux_check
 
+        # Create directories with Ansible's become (uses sudo.ws to avoid sudo-rs issues)
+        # Then the installer runs without needing sudo
+        - name: Create Homebrew directory structure
+          file:
+            path: /home/linuxbrew/.linuxbrew
+            state: directory
+            owner: "{{ ansible_user_id }}"
+            group: "{{ ansible_user_gid }}"
+            mode: '0755'
+          become: yes
+          become_exe: sudo.ws
+          when: not homebrew_linux_check.stat.exists
+
         - name: Install Homebrew
           shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          environment:
+            NONINTERACTIVE: "1"
           when: not homebrew_linux_check.stat.exists
 
     - name: Update Homebrew and packages
