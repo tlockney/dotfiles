@@ -23,6 +23,9 @@
   hosts: localhost
   connection: local
   gather_facts: yes
+  # Use traditional sudo on Linux to work around Ansible/sudo-rs incompatibility
+  # See: https://github.com/ansible/ansible/issues/85837
+  become_exe: "{{ 'sudo.ws' if ansible_system == 'Linux' else omit }}"
 
   vars:
     dev_mode: false
@@ -109,21 +112,15 @@
             path: /home/linuxbrew/.linuxbrew/bin/brew
           register: homebrew_linux_check
 
-        - name: Check if Homebrew directory exists
-          stat:
+        - name: Create Homebrew directory
+          file:
             path: /home/linuxbrew/.linuxbrew
-          register: homebrew_dir_check
+            state: directory
+            owner: "{{ ansible_user_id }}"
+            group: "{{ ansible_user_gid }}"
+            mode: '0755'
+          become: yes
           when: not homebrew_linux_check.stat.exists
-
-        - name: Fail if Homebrew directory needs creation
-          fail:
-            msg: |
-              Homebrew directory /home/linuxbrew/.linuxbrew does not exist.
-              Please create it manually with:
-                sudo mkdir -p /home/linuxbrew/.linuxbrew
-                sudo chown $(id -un):$(id -gn) /home/linuxbrew/.linuxbrew
-              Then run provision again.
-          when: not homebrew_linux_check.stat.exists and not homebrew_dir_check.stat.exists
 
         - name: Install Homebrew
           shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
