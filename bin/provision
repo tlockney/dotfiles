@@ -78,3 +78,13 @@ ANSIBLE_CMD=(
 
 # Run the Ansible playbook
 "${ANSIBLE_CMD[@]}"
+
+# Post-run hints
+if [[ "$(uname -s)" == "Linux" ]] && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]] && ! command -v brew &>/dev/null; then
+    echo ""
+    echo "========================================"
+    echo "Homebrew installed! To use it now, run:"
+    echo '  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+    echo "Or restart your shell."
+    echo "========================================"
+fi
