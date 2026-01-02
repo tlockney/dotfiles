@@ -109,11 +109,20 @@
             path: /home/linuxbrew/.linuxbrew/bin/brew
           register: homebrew_linux_check
 
+        - name: Create Homebrew directory
+          file:
+            path: /home/linuxbrew/.linuxbrew
+            state: directory
+            owner: "{{ ansible_env.USER }}"
+            group: "{{ ansible_env.USER }}"
+            mode: '0755'
+          become: yes
+          when: not homebrew_linux_check.stat.exists
+
         - name: Install Homebrew
           shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           environment:
             NONINTERACTIVE: "1"
-          become: yes
           when: not homebrew_linux_check.stat.exists
 
     - name: Update Homebrew and packages
