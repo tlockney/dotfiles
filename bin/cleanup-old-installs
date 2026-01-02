@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Cleanup script for removing old tool installations that have been
+# superseded by Homebrew installations.
+#
+# This script removes:
+# - Cargo-installed tools now in Homebrew: eza, bat, onefetch, evcxr
+# - Curl-installed tools now in Homebrew: starship, atuin, mise
+#
+# Usage:
+#   cleanup-old-installs           # Show what would be removed (dry-run)
+#   cleanup-old-installs --force   # Actually remove the files
+
+DRY_RUN=true
+if [[ "${1:-}" == "--force" ]]; then
+    DRY_RUN=false
+fi
+
+CARGO_BIN="$HOME/.cargo/bin"
+LOCAL_BIN="$HOME/.local/bin"
+ATUIN_DIR="$HOME/.atuin"
+
+removed_something=false
+
+remove_file() {
+    local file="$1"
+    if [[ -e "$file" ]]; then
+        removed_something=true
+        if $DRY_RUN; then
+            echo "[dry-run] Would remove: $file"
+        else
+            echo "Removing: $file"
+            rm -rf "$file"
+        fi
+    fi
+}
+
+echo "Checking for old installations to clean up..."
+echo ""
+
+# Cargo-installed tools (now via Homebrew)
+echo "=== Cargo-installed tools ==="
+remove_file "$CARGO_BIN/eza"
+remove_file "$CARGO_BIN/bat"
+remove_file "$CARGO_BIN/onefetch"
+remove_file "$CARGO_BIN/evcxr"
+remove_file "$CARGO_BIN/evcxr_jupyter"
+
+# Curl-installed tools (now via Homebrew)
+echo ""
+echo "=== Curl-installed tools ==="
+remove_file "$LOCAL_BIN/starship"
+remove_file "$LOCAL_BIN/mise"
+
+# Atuin has its own directory when installed via curl
+if [[ -d "$ATUIN_DIR" ]]; then
+    removed_something=true
+    if $DRY_RUN; then
+        echo "[dry-run] Would remove directory: $ATUIN_DIR"
+    else
+        echo "Removing directory: $ATUIN_DIR"
+        rm -rf "$ATUIN_DIR"
+    fi
+fi
+
+echo ""
+
+if ! $removed_something; then
+    echo "No old installations found. Nothing to clean up."
+elif $DRY_RUN; then
+    echo "Run with --force to actually remove these files."
+fi

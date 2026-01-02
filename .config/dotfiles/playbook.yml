@@ -28,7 +28,6 @@
     dev_mode: false
     force: false
     # Standard paths for tools (to avoid PATH dependency during bootstrap)
-    brew_bin: /opt/homebrew/bin/brew
     local_bin: "{{ ansible_env.HOME }}/.local/bin"
     cargo_bin: "{{ ansible_env.HOME }}/.cargo/bin"
 
@@ -61,11 +60,34 @@
       debug:
         msg: "System type: {{ 'Desktop' if is_desktop else 'Server' }} ({{ ansible_os_family }})"
 
+    # Homebrew support detection: macOS always, Linux only on x86_64/aarch64
+    - name: Set Homebrew support fact
+      tags: [always]
+      set_fact:
+        homebrew_supported: "{{ ansible_os_family == 'Darwin' or ansible_architecture in ['x86_64', 'aarch64'] }}"
+
+    - name: Set Homebrew path (macOS)
+      tags: [always]
+      set_fact:
+        brew_bin: /opt/homebrew/bin/brew
+      when: ansible_os_family == "Darwin"
+
+    - name: Set Homebrew path (Linux)
+      tags: [always]
+      set_fact:
+        brew_bin: /home/linuxbrew/.linuxbrew/bin/brew
+      when: ansible_os_family != "Darwin" and homebrew_supported
+
+    - name: Display Homebrew status
+      tags: [always]
+      debug:
+        msg: "Homebrew: {{ 'supported' if homebrew_supported else 'not supported (32-bit ARM)' }}"
+
   tasks:
     # ========================================
-    # HOMEBREW (macOS only)
+    # HOMEBREW
     # ========================================
-    - name: Install Homebrew
+    - name: Install Homebrew (macOS)
       tags: [setup, homebrew]
       when: ansible_os_family == "Darwin"
       block:
@@ -78,32 +100,59 @@
           shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           when: not homebrew_check.stat.exists
 
+    - name: Install Homebrew (Linux)
+      tags: [setup, homebrew]
+      when: ansible_os_family != "Darwin" and homebrew_supported
+      block:
+        - name: Check if Homebrew is installed
+          stat:
+            path: /home/linuxbrew/.linuxbrew/bin/brew
+          register: homebrew_linux_check
+
+        - name: Install Homebrew
+          shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          environment:
+            NONINTERACTIVE: "1"
+          when: not homebrew_linux_check.stat.exists
+
     - name: Update Homebrew and packages
       tags: [homebrew]
-      when: ansible_os_family == "Darwin"
+      when: homebrew_supported
       block:
         - name: Update Homebrew itself
           shell: "{{ brew_bin }} update"
           register: brew_update
           changed_when: "'Already up-to-date' not in brew_update.stdout"
 
-        # Essential CLI tools - installed on all macOS systems
+        # Essential CLI tools - installed on all Homebrew systems
         - name: Install/upgrade essential Homebrew formulae
           shell: "{{ brew_bin }} install {{ item }} || {{ brew_bin }} upgrade {{ item }} || true"
           loop:
+            - atuin
             - bat
             - eza
             - fd
             - fzf
+            - glow
+            - jless
             - jq
             - mise
+            - pandoc
             - ripgrep
+            - sqlite
             - starship
-            - atuin
-            - zsh-autosuggestions
-            - zsh-syntax-highlighting
           register: brew_install
           changed_when: "'Upgrading' in brew_install.stdout or 'Installing' in brew_install.stdout"
+
+        # zsh plugins (may not be available on Linux Homebrew, fail gracefully)
+        - name: Install/upgrade zsh plugins
+          shell: "{{ brew_bin }} install {{ item }} || {{ brew_bin }} upgrade {{ item }} || true"
+          loop:
+            - zsh-autosuggestions
+            - zsh-syntax-highlighting
+          register: brew_zsh_install
+          changed_when: "'Upgrading' in brew_zsh_install.stdout or 'Installing' in brew_zsh_install.stdout"
+          failed_when: false
 
         # Dev tools - only in dev mode
         - name: Install/upgrade dev Homebrew formulae
@@ -122,7 +171,16 @@
           register: op_install
           changed_when: "'Upgrading' in op_install.stdout or 'Installing' in op_install.stdout"
 
-        # Desktop-only casks
+        - name: Clean up Homebrew
+          shell: "{{ brew_bin }} cleanup"
+          register: brew_cleanup
+          changed_when: false
+
+    # macOS-only casks
+    - name: Install macOS desktop casks
+      tags: [homebrew]
+      when: ansible_os_family == "Darwin" and is_desktop | bool
+      block:
         - name: Install desktop Homebrew casks
           shell: "{{ brew_bin }} install --cask {{ item }} || {{ brew_bin }} upgrade --cask {{ item }} || true"
           loop:
@@ -130,7 +188,6 @@
             - 1password
           register: brew_cask_install
           changed_when: "'Upgrading' in brew_cask_install.stdout or 'Installing' in brew_cask_install.stdout"
-          when: is_desktop | bool
 
         # Display mode switching tools (for multi-Mac desk setup)
         - name: Install display switching casks
@@ -139,18 +196,11 @@
             - betterdisplay
           register: brew_display_cask_install
           changed_when: "'Upgrading' in brew_display_cask_install.stdout or 'Installing' in brew_display_cask_install.stdout"
-          when: is_desktop | bool
 
         - name: Install display-switch formula
           shell: "{{ brew_bin }} install display-switch || {{ brew_bin }} upgrade display-switch || true"
           register: brew_display_switch_install
           changed_when: "'Upgrading' in brew_display_switch_install.stdout or 'Installing' in brew_display_switch_install.stdout"
-          when: is_desktop | bool
-
-        - name: Clean up Homebrew
-          shell: "{{ brew_bin }} cleanup"
-          register: brew_cleanup
-          changed_when: false
 
     # ========================================
     # APT (Linux only)
@@ -204,11 +254,11 @@
           failed_when: false
 
     # ========================================
-    # 1PASSWORD CLI (Linux)
+    # 1PASSWORD CLI (Linux without Homebrew)
     # ========================================
-    - name: Install 1Password CLI on Linux
+    - name: Install 1Password CLI on Linux (non-Homebrew)
       tags: [setup, tools]
-      when: ansible_pkg_mgr == "apt"
+      when: ansible_pkg_mgr == "apt" and not homebrew_supported
       block:
         - name: Check if 1Password CLI is installed
           command: which op
@@ -244,47 +294,16 @@
     # ========================================
     # MISE
     # ========================================
-    # On macOS, mise is installed via Homebrew. On Linux, use the installer script.
-    - name: Install mise (Linux only)
-      tags: [mise, setup]
-      when: ansible_os_family != "Darwin"
-      block:
-        - name: Check if mise is installed
-          stat:
-            path: "{{ ansible_env.HOME }}/.local/bin/mise"
-          register: mise_check
-
-        - name: Install mise
-          shell: curl -fsSL https://mise.run | sh
-          args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/mise"
-          when: not mise_check.stat.exists
-
-        - name: Update mise itself
-          shell: "{{ ansible_env.HOME }}/.local/bin/mise self-update"
-          register: mise_update
-          changed_when: "'Updated' in mise_update.stdout or 'updated' in mise_update.stdout"
-          failed_when: false
-
-    # Install mise tools - use platform-appropriate mise path
-    - name: Install and upgrade mise tools from .mise.toml (macOS)
+    # Mise is installed via Homebrew on supported systems
+    # Install mise tools using Homebrew path or shims
+    - name: Install and upgrade mise tools from .mise.toml
       tags: [mise, runtimes]
-      when: ansible_os_family == "Darwin"
-      shell: /opt/homebrew/bin/mise install && /opt/homebrew/bin/mise upgrade
+      when: homebrew_supported
+      shell: "{{ brew_bin | regex_replace('/brew$', '/mise') }} install && {{ brew_bin | regex_replace('/brew$', '/mise') }} upgrade"
       args:
         chdir: "{{ ansible_env.HOME }}"
-      register: mise_tools_macos
-      changed_when: "'installed' in mise_tools_macos.stdout or 'Upgraded' in mise_tools_macos.stdout"
-      failed_when: false
-
-    - name: Install and upgrade mise tools from .mise.toml (Linux)
-      tags: [mise, runtimes]
-      when: ansible_os_family != "Darwin"
-      shell: "{{ local_bin }}/mise install && {{ local_bin }}/mise upgrade"
-      args:
-        chdir: "{{ ansible_env.HOME }}"
-      register: mise_tools_linux
-      changed_when: "'installed' in mise_tools_linux.stdout or 'Upgraded' in mise_tools_linux.stdout"
+      register: mise_tools
+      changed_when: "'installed' in mise_tools.stdout or 'Upgraded' in mise_tools.stdout"
       failed_when: false
 
     # ========================================
@@ -323,47 +342,11 @@
       changed_when: "'Updating' in cargo_updates.stdout"
       failed_when: false
 
-    # On Linux, install eza and bat via cargo (on macOS these come from Homebrew)
-    - name: Install essential Rust tools (Linux only)
+    # Build bat cache (bat is installed via Homebrew)
+    - name: Build bat cache
       tags: [setup, rust]
-      when: ansible_os_family != "Darwin"
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item }}"
-      args:
-        creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item }}"
-      loop:
-        - eza
-        - bat
-
-    # Build bat cache - use platform-appropriate path
-    - name: Build bat cache (macOS via Homebrew)
-      tags: [setup, rust]
-      when: ansible_os_family == "Darwin"
-      shell: /opt/homebrew/bin/bat cache --build
-      changed_when: false
-      failed_when: false
-
-    - name: Build bat cache (Linux via Cargo)
-      tags: [setup, rust]
-      when: ansible_os_family != "Darwin"
-      shell: "{{ cargo_bin }}/bat cache --build"
-      changed_when: false
-      failed_when: false
-
-    - name: Install Rust dev tools
-      tags: [setup, rust, dev]
-      when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item.name }} {{ item.flags | default('') }}"
-      args:
-        creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item.bin }}"
-      loop:
-        - { name: "evcxr_repl", bin: "evcxr", flags: "" }
-        - { name: "evcxr_jupyter", bin: "evcxr_jupyter", flags: "--locked" }
-        - { name: "onefetch", bin: "onefetch", flags: "" }
-
-    - name: Setup Rust Jupyter kernel
-      tags: [setup, rust, dev]
-      when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/evcxr_jupyter --install"
+      when: homebrew_supported
+      shell: "{{ brew_bin | regex_replace('/brew$', '/bat') }} cache --build"
       changed_when: false
       failed_when: false
 
@@ -446,44 +429,6 @@
           args:
             creates: "{{ ansible_env.HOME }}/.local/bin/claude"
           when: not claude_check.stat.exists
-
-    # On macOS, starship is installed via Homebrew. On Linux, use the installer script.
-    - name: Install Starship prompt (Linux only)
-      tags: [setup, tools]
-      when: ansible_os_family != "Darwin"
-      block:
-        - name: Check if Starship is installed
-          stat:
-            path: "{{ ansible_env.HOME }}/.local/bin/starship"
-          register: starship_check
-
-        - name: Install Starship
-          shell: curl -sS https://starship.rs/install.sh | sh -s -- -y -b {{ ansible_env.HOME }}/.local/bin
-          args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/starship"
-          when: not starship_check.stat.exists
-
-    # On macOS, atuin is installed via Homebrew. On Linux, use the installer script.
-    - name: Install/update Atuin (Linux only)
-      tags: [setup, tools]
-      when: ansible_os_family != "Darwin"
-      block:
-        - name: Check if Atuin is installed
-          command: which atuin
-          register: atuin_check
-          changed_when: false
-          failed_when: false
-
-        - name: Install Atuin
-          shell: curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
-          when: atuin_check.rc != 0
-
-        - name: Update Atuin
-          shell: "{{ ansible_env.HOME }}/.atuin/bin/atuin-update"
-          when: atuin_check.rc == 0
-          register: atuin_update
-          changed_when: "'Updated' in atuin_update.stdout or 'updated' in atuin_update.stdout"
-          failed_when: false
 
     # pnpm - installed via corepack (comes with Node.js via mise)
     # Use mise shims path to find corepack regardless of shell PATH
