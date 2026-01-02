@@ -113,6 +113,7 @@
           shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           environment:
             NONINTERACTIVE: "1"
+          become: yes
           when: not homebrew_linux_check.stat.exists
 
     - name: Update Homebrew and packages
