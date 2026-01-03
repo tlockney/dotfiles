@@ -83,6 +83,26 @@
       debug:
         msg: "Homebrew: {{ 'supported' if homebrew_supported else 'not supported (32-bit ARM)' }}"
 
+    # sudo-rs detection: Ubuntu 24.04+ uses sudo-rs which has Ansible compatibility issues
+    # Use sudo.ws wrapper on those systems, regular sudo elsewhere
+    - name: Set sudo executable (Ubuntu 24.04+ uses sudo-rs, needs sudo.ws wrapper)
+      tags: [always]
+      set_fact:
+        sudo_exe: "{{ 'sudo.ws' if (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int >= 24) else 'sudo' }}"
+      when: ansible_system == "Linux"
+
+    - name: Set sudo executable (macOS)
+      tags: [always]
+      set_fact:
+        sudo_exe: "sudo"
+      when: ansible_os_family == "Darwin"
+
+    - name: Display sudo configuration
+      tags: [always]
+      debug:
+        msg: "Using sudo executable: {{ sudo_exe }}"
+      when: ansible_system == "Linux"
+
   tasks:
     # ========================================
     # HOMEBREW
@@ -109,7 +129,7 @@
             path: /home/linuxbrew/.linuxbrew/bin/brew
           register: homebrew_linux_check
 
-        # Create directories with Ansible's become (uses sudo.ws to avoid sudo-rs issues)
+        # Create directories with Ansible's become (uses sudo_exe for compatibility)
         # Then the installer runs without needing sudo
         - name: Create Homebrew directory structure
           file:
@@ -119,7 +139,7 @@
             group: "{{ ansible_user_gid }}"
             mode: '0755'
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
           when: not homebrew_linux_check.stat.exists
 
         - name: Install Homebrew
@@ -218,7 +238,7 @@
     # ========================================
     # APT (Linux only)
     # ========================================
-    # Use sudo.ws to work around Ansible/sudo-rs incompatibility
+    # Use dynamic sudo_exe to work around Ansible/sudo-rs incompatibility on Ubuntu 24.04+
     # See: https://github.com/ansible/ansible/issues/85837
     - name: Update APT packages
       tags: [apt]
@@ -229,13 +249,13 @@
             update_cache: yes
             cache_valid_time: 3600
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
 
         - name: Upgrade all apt packages
           apt:
             upgrade: dist
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
           register: apt_upgrade
 
         # Essential CLI tools for all Linux systems
@@ -250,7 +270,7 @@
               - zsh-syntax-highlighting
             state: latest
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
 
         # Dev tools - only in dev mode
         - name: Install dev apt packages
@@ -259,7 +279,7 @@
               - gh
             state: latest
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
           when: dev_mode | bool
 
         # Desktop-only packages
@@ -269,7 +289,7 @@
               - code
             state: latest
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
           when: is_desktop | bool
           failed_when: false
 
@@ -293,7 +313,7 @@
           args:
             creates: /usr/share/keyrings/1password-archive-keyring.gpg
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
           when: op_check.rc != 0
 
         - name: Add 1Password apt repository
@@ -303,7 +323,7 @@
           args:
             creates: /etc/apt/sources.list.d/1password.list
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
           when: op_check.rc != 0
 
         - name: Install 1Password CLI via apt
@@ -312,7 +332,7 @@
             state: latest
             update_cache: yes
           become: yes
-          become_exe: sudo.ws
+          become_exe: "{{ sudo_exe }}"
 
     # ========================================
     # MISE
