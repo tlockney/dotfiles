@@ -60,11 +60,25 @@
       debug:
         msg: "System type: {{ 'Desktop' if is_desktop else 'Server' }} ({{ ansible_os_family }})"
 
-    # Homebrew support detection: macOS always, Linux only on x86_64/aarch64
+    # Homebrew support detection: macOS always, Linux requires specific CPU features
+    # x86_64 Linux requires SSSE3 instruction set support
+    - name: Check for SSSE3 support (Linux x86_64)
+      tags: [always]
+      shell: grep -q ssse3 /proc/cpuinfo
+      register: ssse3_check
+      changed_when: false
+      failed_when: false
+      when: ansible_system == "Linux" and ansible_architecture == "x86_64"
+
     - name: Set Homebrew support fact
       tags: [always]
       set_fact:
-        homebrew_supported: "{{ ansible_os_family == 'Darwin' or ansible_architecture in ['x86_64', 'aarch64'] }}"
+        homebrew_supported: >-
+          {{
+            ansible_os_family == 'Darwin' or
+            ansible_architecture == 'aarch64' or
+            (ansible_architecture == 'x86_64' and (ssse3_check.rc | default(1)) == 0)
+          }}
 
     - name: Set Homebrew path (macOS)
       tags: [always]
@@ -81,7 +95,11 @@
     - name: Display Homebrew status
       tags: [always]
       debug:
-        msg: "Homebrew: {{ 'supported' if homebrew_supported else 'not supported (32-bit ARM)' }}"
+        msg: >-
+          Homebrew: {{ 'supported' if homebrew_supported else
+            'not supported (' +
+            ('missing SSSE3 CPU instructions' if ansible_architecture == 'x86_64' else 'unsupported architecture') +
+            ')' }}
 
     # sudo-rs detection: Ubuntu 24.04+ uses sudo-rs which has Ansible compatibility issues
     # Use sudo.ws wrapper on those systems, regular sudo elsewhere
