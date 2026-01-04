@@ -1,8 +1,8 @@
 # Tool initialization and environment setup
 # Note: CURRENT_OS, CURRENT_ARCH, and BREW_PREFIX are set in env.zsh
 
-# Terminal configuration
-[[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM="xterm-256color"
+# Source shared shell configuration (PATH, cargo, go, etc.)
+[[ -f "$HOME/.config/shell/common.sh" ]] && source "$HOME/.config/shell/common.sh"
 
 # 1Password SSH Agent configuration
 [[ "$CURRENT_OS" == "Darwin" ]] && export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
@@ -78,9 +78,6 @@ elif [[ "$CURRENT_OS" = "Linux" ]]; then
   export EMACS_SOCKET_NAME
 fi
 
-# Set up cargo
-[[ -d "$HOME/.cargo" ]] && source "$HOME/.cargo/env"
-
 # Set up Java environment
 export JAVA_OPTIONS="-Djava.awt.headless=true"
 # Try to detect Java home across different platforms
@@ -103,9 +100,6 @@ export JAVA_OPTIONS="-Djava.awt.headless=true"
 # Add Java to PATH if JAVA_HOME was found
 [[ -n "$JAVA_HOME" ]] && prepend_to_path "$JAVA_HOME/bin"
 
-# Set up Go if installed
-[[ -d "$HOME/go" ]] && { export GOPATH="$HOME/go"; prepend_to_path "$GOPATH/bin"; }
-
 # opam configuration
 [[ -r ~/.opam/opam-init/init.zsh ]] && source ~/.opam/opam-init/init.zsh > /dev/null 2> /dev/null
 
@@ -116,13 +110,9 @@ if command -v op >/dev/null 2>&1; then
 fi
 [[ -f ~/.config/op/plugins.sh ]] && source ~/.config/op/plugins.sh
 
-# Atuin shell history
-if [[ -d "$HOME/.atuin/bin" ]]; then
-  prepend_to_path "$HOME/.atuin/bin"
-  eval "$(atuin init zsh)"
-elif command -v atuin >/dev/null 2>&1; then
-  eval "$(atuin init zsh)"
-fi
+# Atuin shell history (PATH for standalone install set in common.sh)
+# Works for both Homebrew and standalone installations
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
 
 # Set up PNPM if installed
 (command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]) && {
@@ -153,6 +143,3 @@ fi
 # Claude CLI alias
 # shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -x "$HOME/.claude/local/claude" ]] && alias claude="$HOME/.claude/local/claude"
-
-prepend_to_path "$HOME/bin"
-prepend_to_path "$HOME/.local/bin"

@@ -4,6 +4,9 @@
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
+# Source shared shell configuration
+[ -f "$HOME/.config/shell/common.sh" ] && . "$HOME/.config/shell/common.sh"
+
 # Load bash-preexec if available (enables Atuin shell history)
 [[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh
 

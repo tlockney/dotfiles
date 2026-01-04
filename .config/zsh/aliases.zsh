@@ -3,7 +3,6 @@
 
 # System and utility aliases
 alias mkdir="mkdir -p"
-alias git-scrub="git branch --merged | grep -v main | grep -v master | xargs git branch -d"
 
 # fd is installed as fdfind on Ubuntu/Debian
 command -v fdfind > /dev/null && alias fd=fdfind

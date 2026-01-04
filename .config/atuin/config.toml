@@ -38,15 +38,17 @@ sync_frequency = "10m"
 
 ## which search mode to use
 ## possible values: prefix, fulltext, fuzzy, skim
-# search_mode = "fuzzy"
+## skim provides fast fuzzy matching
+search_mode = "skim"
 
 ## which filter mode to use
 ## possible values: global, host, session, directory
-# filter_mode = "global"
+## directory mode filters to commands run in current directory by default
+filter_mode = "directory"
 
 ## With workspace filtering enabled, Atuin will filter for commands executed
-## in any directory within a git repository tree (default: false)
-# workspaces = false
+## in any directory within a git repository tree
+workspaces = true
 
 ## which filter mode to use when atuin is invoked from a shell up-key binding
 ## the accepted values are identical to those of "filter_mode"
@@ -98,10 +100,14 @@ sync_frequency = "10m"
 ## with ^ or end with $, they'll match anywhere in the command.
 ## For details on the supported regular expression syntax, see
 ## https://docs.rs/regex/latest/regex/#syntax
-# history_filter = [
-#   "^secret-cmd",
-#   "^innocuous-cmd .*--secret=.+",
-# ]
+history_filter = [
+  "^ ",                          # Commands starting with space (intentionally hidden)
+  "--password",                  # Password arguments
+  "--secret",                    # Secret arguments
+  "^export .*=",                 # Environment variable exports (may contain secrets)
+  "^AWS_SECRET",                 # AWS credentials
+  "PRIVATE_KEY",                 # Private keys
+]
 
 ## prevent commands run with cwd matching any of these regexes from being written
 ## to history. Note that these regular expressions are unanchored, i.e. if they don't
