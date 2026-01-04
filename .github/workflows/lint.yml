@@ -22,4 +22,4 @@ jobs:
         with:
           scandir: './bin'
           ignore_names: '*.md'
-          additional_files: '.config/shell/common-profile.sh'
+          additional_files: '.config/shell/common-profile.sh .config/zsh/update-completions.sh'

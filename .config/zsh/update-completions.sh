@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Update shell completions for installed tools
 # This script should be run after installing or updating tools
 
