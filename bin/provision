@@ -16,7 +16,11 @@ set -euo pipefail
 # Find the playbook - it's in .config/dotfiles/ relative to the bin directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-PLAYBOOK="$REPO_ROOT/.config/dotfiles/playbook.yml"
+DOTFILES_CONFIG="$REPO_ROOT/.config/dotfiles"
+PLAYBOOK="$DOTFILES_CONFIG/playbook.yml"
+
+# Point Ansible to our config file (inventory, fact settings, etc.)
+export ANSIBLE_CONFIG="$DOTFILES_CONFIG/ansible.cfg"
 
 # Ensure uv is available, install if missing
 if ! command -v uv &>/dev/null; then
