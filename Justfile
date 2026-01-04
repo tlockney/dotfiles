@@ -6,7 +6,7 @@ default:
     @just --list
 
 # Run environment sanity checks
-check:
+check-env:
     ~/bin/check-env
 
 # Lint all shell scripts with shellcheck
@@ -22,7 +22,7 @@ setup *ARGS:
     ~/bin/provision --setup-only {{ ARGS }}
 
 # Preview what would be updated (dry-run)
-check:
+dry-run:
     ~/bin/provision --check
 
 # Provision only homebrew packages
