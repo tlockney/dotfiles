@@ -77,7 +77,7 @@ ANSIBLE_CMD=(
 
 # Add optional arguments
 [[ -n "$ASK_BECOME_PASS" ]] && ANSIBLE_CMD+=("$ASK_BECOME_PASS")
-[[ -n "$SETUP_ONLY" ]] && ANSIBLE_CMD+=($SETUP_ONLY)
+[[ -n "$SETUP_ONLY" ]] && ANSIBLE_CMD+=("$SETUP_ONLY")
 [[ ${#REMAINING_ARGS[@]} -gt 0 ]] && ANSIBLE_CMD+=("${REMAINING_ARGS[@]}")
 
 # Run the Ansible playbook
