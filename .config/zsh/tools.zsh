@@ -117,10 +117,12 @@ fi
 [[ -f ~/.config/op/plugins.sh ]] && source ~/.config/op/plugins.sh
 
 # Atuin shell history
-[[ -d "$HOME/.atuin/bin" ]] && {
+if [[ -d "$HOME/.atuin/bin" ]]; then
   prepend_to_path "$HOME/.atuin/bin"
   eval "$(atuin init zsh)"
-}
+elif command -v atuin >/dev/null 2>&1; then
+  eval "$(atuin init zsh)"
+fi
 
 # Set up PNPM if installed
 (command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]) && {
