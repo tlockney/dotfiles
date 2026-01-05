@@ -62,3 +62,35 @@ alias sqlite='rlwrap -a -N -c -i -f ~/.rlwrap/sqlite3_completions sqlite3'
 if command -v uvx >/dev/null 2>&1; then
   alias docx2pdf='uvx docx2pdf'
 fi
+
+# zmv convenience aliases (zmv loaded in init.zsh)
+alias zcp='zmv -C'  # Copy with patterns
+alias zln='zmv -L'  # Link with patterns
+
+# Suffix aliases - open files by typing their name
+# Markdown files with glow (pager mode)
+if command -v glow >/dev/null 2>&1; then
+  alias -s md='glow -p'
+fi
+
+# JSON with jless if available, otherwise bat
+if command -v jless >/dev/null 2>&1; then
+  alias -s json=jless
+elif command -v bat >/dev/null 2>&1; then
+  alias -s json=bat
+fi
+
+# Text and log files with bat
+if command -v bat >/dev/null 2>&1; then
+  alias -s txt=bat
+  alias -s log=bat
+fi
+
+# Source files open in editor
+alias -s go='$EDITOR'
+alias -s rs='$EDITOR'
+alias -s py='$EDITOR'
+alias -s js='$EDITOR'
+alias -s ts='$EDITOR'
+alias -s tsx='$EDITOR'
+alias -s jsx='$EDITOR'
