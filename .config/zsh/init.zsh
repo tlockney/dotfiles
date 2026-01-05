@@ -26,6 +26,17 @@ bindkey '^[[H' beginning-of-line   # Home key: beginning of line
 bindkey '^[[F' end-of-line         # End key: end of line
 bindkey '^[[3~' delete-char        # Delete key
 
+# Edit command line in $EDITOR (Ctrl+X Ctrl+E)
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^X^E' edit-command-line
+
+# Magic space: expand history (!!, !$, etc.) when pressing space
+bindkey ' ' magic-space
+
+# zmv for batch file renaming with pattern matching
+autoload -Uz zmv
+
 # Add useful zsh options
 setopt AUTO_CD                  # If a command is a directory name, cd to it
 setopt AUTO_PUSHD               # Push dirs to the stack automatically
