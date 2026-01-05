@@ -71,19 +71,17 @@ fi
 
 # Configure Emacs socket name based on platform
 # These paths must match Emacs's default server-socket-dir behavior
-if [[ "$CURRENT_OS" = "Darwin" ]]; then
-  # Emacs on Darwin uses $TMPDIR/emacs (no UID in path)
+# Emacs checks XDG_RUNTIME_DIR first (on any platform), then falls back
+if [[ -n "$XDG_RUNTIME_DIR" ]]; then
+  EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR}/emacs/server"
+elif [[ "$CURRENT_OS" = "Darwin" ]]; then
+  # Darwin fallback: $TMPDIR/emacs (no UID)
   EMACS_SOCKET_NAME="${TMPDIR%/}/emacs/server"
-  export EMACS_SOCKET_NAME
-elif [[ "$CURRENT_OS" = "Linux" ]]; then
-  # Emacs on Linux uses XDG_RUNTIME_DIR if available, otherwise /tmp/emacs<uid>
-  if [[ -n "$XDG_RUNTIME_DIR" ]]; then
-    EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR}/emacs/server"
-  else
-    EMACS_SOCKET_NAME="/tmp/emacs$(id -u)/server"
-  fi
-  export EMACS_SOCKET_NAME
+else
+  # Linux fallback without XDG_RUNTIME_DIR: /tmp/emacs<uid>
+  EMACS_SOCKET_NAME="/tmp/emacs$(id -u)/server"
 fi
+export EMACS_SOCKET_NAME
 
 # Set up Java environment
 export JAVA_OPTIONS="-Djava.awt.headless=true"
