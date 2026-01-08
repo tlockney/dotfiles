@@ -84,11 +84,18 @@
         msg: "Homebrew: {{ 'supported' if homebrew_supported else 'not supported (32-bit ARM)' }}"
 
     # sudo-rs detection: Ubuntu 24.04+ uses sudo-rs which has Ansible compatibility issues
-    # Use sudo.ws wrapper on those systems, regular sudo elsewhere
-    - name: Set sudo executable (Ubuntu 24.04+ uses sudo-rs, needs sudo.ws wrapper)
+    # Use sudo.ws wrapper on those systems if available, regular sudo elsewhere
+    - name: Check if sudo.ws wrapper exists (Ubuntu 24.04+ workaround)
+      tags: [always]
+      stat:
+        path: /usr/bin/sudo.ws
+      register: sudo_ws_check
+      when: ansible_facts.system == "Linux"
+
+    - name: Set sudo executable (Ubuntu 24.04+ uses sudo-rs, prefer sudo.ws wrapper if available)
       tags: [always]
       set_fact:
-        sudo_exe: "{{ 'sudo.ws' if (ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_major_version | int >= 24) else 'sudo' }}"
+        sudo_exe: "{{ 'sudo.ws' if (ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_major_version | int >= 24 and sudo_ws_check.stat.exists | default(false)) else 'sudo' }}"
       when: ansible_facts.system == "Linux"
 
     - name: Set sudo executable (macOS)
@@ -100,7 +107,7 @@
     - name: Display sudo configuration
       tags: [always]
       debug:
-        msg: "Using sudo executable: {{ sudo_exe }}"
+        msg: "Using sudo executable: {{ sudo_exe }}{{ ' (sudo.ws wrapper not found, using standard sudo)' if (ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_major_version | int >= 24 and not (sudo_ws_check.stat.exists | default(false))) else '' }}"
       when: ansible_facts.system == "Linux"
 
   tasks:
