@@ -265,6 +265,20 @@
           become_exe: "{{ sudo_exe }}"
           register: apt_upgrade
 
+        # Build dependencies needed for compiling native code (Rust crates, etc.)
+        - name: Install build dependencies
+          apt:
+            name:
+              - build-essential
+              - cmake
+              - curl
+              - git
+              - libssl-dev
+              - pkg-config
+            state: present
+          become: yes
+          become_exe: "{{ sudo_exe }}"
+
         # Essential CLI tools for all Linux systems
         - name: Install essential apt packages
           apt:
