@@ -131,24 +131,24 @@ function buildModes(config: Config): Record<string, Mode> {
 // DDC control
 // ---------------------------------------------------------------------------
 
-async function getInput(monitorName: string): Promise<number> {
+async function getInput(monitorName: string): Promise<number | null> {
   const cmd = new Deno.Command("betterdisplaycli", {
     args: ["get", `-nameLike=${monitorName}`, "-ddc", "-vcp=inputSelect", "-value"],
     stdout: "piped",
     stderr: "piped",
   });
 
-  const { code, stdout, stderr } = await cmd.output();
-  if (code !== 0) {
-    const err = new TextDecoder().decode(stderr);
-    throw new Error(`Failed to read ${monitorName} input: ${err}`);
-  }
+  const { code, stdout } = await cmd.output();
+  if (code !== 0) return null;
 
-  const value = parseInt(new TextDecoder().decode(stdout).trim(), 10);
-  if (isNaN(value)) {
-    throw new Error(`Unexpected response reading ${monitorName} input`);
-  }
-  return value;
+  const output = new TextDecoder().decode(stdout).trim();
+  if (output === "Failed." || output === "") return null;
+
+  const raw = parseInt(output, 10);
+  if (isNaN(raw)) return null;
+
+  // betterdisplaycli returns a packed 16-bit value (high byte = low byte = input code)
+  return raw & 0xFF;
 }
 
 async function setInput(monitorName: string, value: number): Promise<void> {
@@ -171,11 +171,21 @@ async function detectMode(modes: Record<string, Mode>): Promise<string> {
     getInput("benq"),
   ]);
 
+  if (dell === null && benq === null) return "unknown (both displays unreachable)";
+
   const match = Object.entries(modes).find(
-    ([_, mode]) => mode.dell === dell && mode.benq === benq
+    ([_, mode]) =>
+      (dell === null || mode.dell === dell) &&
+      (benq === null || mode.benq === benq)
   );
 
-  return match ? match[0] : `unknown (dell=${dell}, benq=${benq})`;
+  if (match) return match[0];
+
+  const parts = [
+    dell !== null ? `dell=${dell}` : "dell=unreachable",
+    benq !== null ? `benq=${benq}` : "benq=unreachable",
+  ];
+  return `unknown (${parts.join(", ")})`;
 }
 
 async function switchMode(modeName: string, modes: Record<string, Mode>): Promise<void> {
