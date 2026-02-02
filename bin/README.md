@@ -43,6 +43,18 @@ Desktop systems install full GUI apps (VS Code, 1Password). Server systems insta
 **Usage:** `unlock-keychain`
 **Description:** Unlocks the login keychain, useful for automation scripts that need keychain access.
 
+### `display-wake`
+
+**Purpose:** Wake the macOS display (macOS only)
+**Usage:** `display-wake`
+**Description:** Wakes the display by asserting user activity via `caffeinate`. Works over SSH for remote triggering and integrates with automation tools.
+
+### `display-sleep`
+
+**Purpose:** Put the macOS display to sleep (macOS only)
+**Usage:** `display-sleep`
+**Description:** Puts the display to sleep immediately via `pmset displaysleepnow`. Works over SSH for remote triggering and integrates with automation tools.
+
 ## Development Utilities
 
 ### `check-env`
