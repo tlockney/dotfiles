@@ -1,0 +1,17 @@
+{
+  "ddc": {
+    "dell_tb": 27,
+    "dell_hdmi": 17,
+    "benq_hdmi1": 17,
+    "benq_hdmi2": 18,
+    "benq_usbc": 15
+  },
+  "mqtt": {
+    "broker": "localhost",
+    "port": 1883,
+    "username": "",
+    "password": "",
+    "topic_prefix": "display-switch"
+  },
+  "poll_interval_seconds": 30
+}
