@@ -1,0 +1,311 @@
+#!/usr/bin/env -S deno run --allow-run --allow-read --allow-write --allow-net --allow-env
+
+/**
+ * display-switch — Multi-monitor display mode switcher
+ *
+ * Switches Dell U4025QW and BenQ MA320U inputs via BetterDisplay CLI (DDC).
+ * Optionally connects to an MQTT broker for Home Assistant integration.
+ *
+ * Usage:
+ *   ./display-switch.ts <command>
+ *
+ * Commands:
+ *   init           Generate default config file
+ *   status         Detect current mode from display inputs
+ *   serve          Connect to MQTT broker and listen for commands
+ *   work           Both displays → MBP
+ *   split-air      Dell → MBP, BenQ → Air
+ *   split-mini     Dell → MBP, BenQ → Mini
+ *   nonwork        Both displays → Mini
+ *   nonwork-air    Dell → Mini, BenQ → Air
+ */
+
+import { connect } from "npm:mqtt@5";
+import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+interface Config {
+  ddc: {
+    dell_tb: number;
+    dell_hdmi: number;
+    benq_hdmi1: number;
+    benq_hdmi2: number;
+    benq_usbc: number;
+  };
+  mqtt: {
+    broker: string;
+    port: number;
+    username: string;
+    password: string;
+    topic_prefix: string;
+  };
+  poll_interval_seconds: number;
+}
+
+const DEFAULT_CONFIG: Config = {
+  ddc: {
+    dell_tb: 27,
+    dell_hdmi: 17,
+    benq_hdmi1: 17,
+    benq_hdmi2: 18,
+    benq_usbc: 15,
+  },
+  mqtt: {
+    broker: "localhost",
+    port: 1883,
+    username: "",
+    password: "",
+    topic_prefix: "display-switch",
+  },
+  poll_interval_seconds: 30,
+};
+
+function configDir(): string {
+  const home = Deno.env.get("HOME") ?? "~";
+  return join(home, ".config", "display-switch");
+}
+
+function configPath(): string {
+  return join(configDir(), "config.json");
+}
+
+async function loadConfig(): Promise<Config> {
+  try {
+    const text = await Deno.readTextFile(configPath());
+    const parsed = JSON.parse(text);
+    return {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+      ddc: { ...DEFAULT_CONFIG.ddc, ...parsed.ddc },
+      mqtt: { ...DEFAULT_CONFIG.mqtt, ...parsed.mqtt },
+    };
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+async function initConfig(): Promise<void> {
+  const dir = configDir();
+  await Deno.mkdir(dir, { recursive: true });
+
+  const path = configPath();
+  try {
+    await Deno.lstat(path);
+    console.log(`Config already exists: ${path}`);
+    console.log("Delete it first if you want to regenerate.");
+    return;
+  } catch {
+    // File doesn't exist, proceed
+  }
+
+  await Deno.writeTextFile(path, JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n");
+  console.log(`Config written to ${path}`);
+  console.log("Edit the DDC values and MQTT settings, then run: display-switch.ts serve");
+}
+
+// ---------------------------------------------------------------------------
+// Modes
+// ---------------------------------------------------------------------------
+
+interface Mode {
+  dell: number;
+  benq: number;
+  desc: string;
+}
+
+function buildModes(config: Config): Record<string, Mode> {
+  const { ddc } = config;
+  return {
+    "work":        { dell: ddc.dell_tb,   benq: ddc.benq_hdmi1, desc: "Both → MBP" },
+    "split-air":   { dell: ddc.dell_tb,   benq: ddc.benq_usbc,  desc: "Dell → MBP, BenQ → Air" },
+    "split-mini":  { dell: ddc.dell_tb,   benq: ddc.benq_hdmi2, desc: "Dell → MBP, BenQ → Mini" },
+    "nonwork":     { dell: ddc.dell_hdmi, benq: ddc.benq_hdmi2, desc: "Both → Mini" },
+    "nonwork-air": { dell: ddc.dell_hdmi, benq: ddc.benq_usbc,  desc: "Dell → Mini, BenQ → Air" },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// DDC control
+// ---------------------------------------------------------------------------
+
+async function getInput(monitorName: string): Promise<number> {
+  const cmd = new Deno.Command("betterdisplaycli", {
+    args: ["get", `-nameLike=${monitorName}`, "-ddc", "-vcp=inputSelect", "-value"],
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  const { code, stdout, stderr } = await cmd.output();
+  if (code !== 0) {
+    const err = new TextDecoder().decode(stderr);
+    throw new Error(`Failed to read ${monitorName} input: ${err}`);
+  }
+
+  const value = parseInt(new TextDecoder().decode(stdout).trim(), 10);
+  if (isNaN(value)) {
+    throw new Error(`Unexpected response reading ${monitorName} input`);
+  }
+  return value;
+}
+
+async function setInput(monitorName: string, value: number): Promise<void> {
+  const cmd = new Deno.Command("betterdisplaycli", {
+    args: ["set", `-nameLike=${monitorName}`, "-ddc", "-vcp=0x60", `-value=${value}`],
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  const { code, stderr } = await cmd.output();
+  if (code !== 0) {
+    const err = new TextDecoder().decode(stderr);
+    throw new Error(`Failed to set ${monitorName} to ${value}: ${err}`);
+  }
+}
+
+async function detectMode(modes: Record<string, Mode>): Promise<string> {
+  const [dell, benq] = await Promise.all([
+    getInput("dell"),
+    getInput("benq"),
+  ]);
+
+  const match = Object.entries(modes).find(
+    ([_, mode]) => mode.dell === dell && mode.benq === benq
+  );
+
+  return match ? match[0] : `unknown (dell=${dell}, benq=${benq})`;
+}
+
+async function switchMode(modeName: string, modes: Record<string, Mode>): Promise<void> {
+  const mode = modes[modeName];
+  if (!mode) {
+    console.error(`Unknown mode: ${modeName}`);
+    printUsage(modes);
+    Deno.exit(1);
+  }
+
+  console.log(`Switching to "${modeName}" — ${mode.desc}`);
+
+  await Promise.all([
+    setInput("dell", mode.dell),
+    setInput("benq", mode.benq),
+  ]);
+
+  console.log("Done.");
+}
+
+// ---------------------------------------------------------------------------
+// MQTT serve
+// ---------------------------------------------------------------------------
+
+async function serve(config: Config, modes: Record<string, Mode>): Promise<void> {
+  const { mqtt: mqttConfig, poll_interval_seconds } = config;
+  const commandTopic = `${mqttConfig.topic_prefix}/command`;
+  const statusTopic = `${mqttConfig.topic_prefix}/status`;
+
+  const url = `mqtt://${mqttConfig.broker}:${mqttConfig.port}`;
+  const opts: Record<string, unknown> = {};
+  if (mqttConfig.username) {
+    opts.username = mqttConfig.username;
+    opts.password = mqttConfig.password;
+  }
+
+  console.log(`Connecting to ${url}...`);
+  const client = connect(url, opts);
+
+  client.on("connect", () => {
+    console.log(`Connected. Subscribing to ${commandTopic}`);
+    client.subscribe(commandTopic);
+    pollAndPublish(client, statusTopic, modes);
+  });
+
+  client.on("message", async (_topic: string, payload: Buffer) => {
+    const requested = payload.toString().trim();
+    console.log(`Received command: ${requested}`);
+
+    if (!modes[requested]) {
+      console.error(`Unknown mode: ${requested}`);
+      return;
+    }
+
+    try {
+      await switchMode(requested, modes);
+      client.publish(statusTopic, requested, { retain: true });
+    } catch (err) {
+      console.error(`Switch failed: ${err}`);
+    }
+  });
+
+  client.on("error", (err: Error) => {
+    console.error(`MQTT error: ${err.message}`);
+  });
+
+  setInterval(() => pollAndPublish(client, statusTopic, modes), poll_interval_seconds * 1000);
+
+  // Keep alive
+  await new Promise(() => {});
+}
+
+async function pollAndPublish(
+  client: ReturnType<typeof connect>,
+  topic: string,
+  modes: Record<string, Mode>,
+): Promise<void> {
+  try {
+    const current = await detectMode(modes);
+    client.publish(topic, current, { retain: true });
+  } catch (err) {
+    console.error(`Status poll failed: ${err}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CLI
+// ---------------------------------------------------------------------------
+
+function printUsage(modes: Record<string, Mode>): void {
+  console.log(`
+Usage: display-switch.ts <command>
+
+Commands:
+  init           Generate default config file
+  status         Detect current mode from display inputs
+  serve          Connect to MQTT broker and listen for commands
+`);
+  for (const [name, { desc }] of Object.entries(modes)) {
+    console.log(`  ${name.padEnd(14)} ${desc}`);
+  }
+  console.log(`\nConfig: ${configPath()}`);
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+const config = await loadConfig();
+const modes = buildModes(config);
+const command = Deno.args[0];
+
+if (!command || command === "--help" || command === "-h") {
+  printUsage(modes);
+  Deno.exit(0);
+}
+
+switch (command) {
+  case "init":
+    await initConfig();
+    break;
+  case "status": {
+    const current = await detectMode(modes);
+    console.log(current);
+    break;
+  }
+  case "serve":
+    await serve(config, modes);
+    break;
+  default:
+    await switchMode(command, modes);
+    break;
+}
