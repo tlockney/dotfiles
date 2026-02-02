@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Provision script - sets up and maintains system configuration via Ansible
+#
+# Usage:
+#   provision                     # Full provisioning with dev tools (default)
+#   provision --no-dev            # Provision without dev tools
+#   provision --setup-only        # Run only setup tasks (for initial bootstrap)
+#   provision --check             # Show what would change (dry-run)
+#   provision --diff              # Show changes that would be made
+#   provision --tags homebrew     # Run only specific tags
+#   provision --no-sudo           # Skip sudo password prompt (for passwordless sudo)
+#   provision -v                  # Verbose output
+
+# Find the playbook - it's in .config/dotfiles/ relative to the bin directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+DOTFILES_CONFIG="$REPO_ROOT/.config/dotfiles"
+PLAYBOOK="$DOTFILES_CONFIG/playbook.yml"
+
+# Point Ansible to our config file (inventory, fact settings, etc.)
+export ANSIBLE_CONFIG="$DOTFILES_CONFIG/ansible.cfg"
+
+# Ensure uv is available, install if missing
+if ! command -v uv &>/dev/null; then
+    echo "Installing uv package manager..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Add uv to PATH for this session
+    export PATH="$HOME/.local/bin:$PATH"
+
+    if ! command -v uv &>/dev/null; then
+        echo "Error: uv installation failed or not in PATH"
+        echo "Please add $HOME/.local/bin to your PATH and try again"
+        exit 1
+    fi
+    echo "✓ uv installed successfully"
+fi
+
+# Check if playbook exists
+if [[ ! -f "$PLAYBOOK" ]]; then
+    echo "Error: Playbook not found at $PLAYBOOK"
+    echo "Please ensure your dotfiles are properly set up"
+    exit 1
+fi
+
+# Parse arguments
+DEV_MODE="true"  # Dev tools included by default
+ASK_BECOME_PASS="--ask-become-pass"
+SETUP_ONLY=""
+REMAINING_ARGS=()
+
+for arg in "$@"; do
+    case "$arg" in
+        --no-dev)
+            DEV_MODE="false"
+            ;;
+        --no-sudo)
+            ASK_BECOME_PASS=""
+            ;;
+        --setup-only)
+            SETUP_ONLY="--tags setup"
+            ;;
+        *)
+            REMAINING_ARGS+=("$arg")
+            ;;
+    esac
+done
+
+# Build the ansible command
+ANSIBLE_CMD=(
+    uvx --from ansible-core ansible-playbook
+    "$PLAYBOOK"
+    --extra-vars "dev_mode=$DEV_MODE"
+)
+
+# Add optional arguments
+[[ -n "$ASK_BECOME_PASS" ]] && ANSIBLE_CMD+=("$ASK_BECOME_PASS")
+[[ -n "$SETUP_ONLY" ]] && ANSIBLE_CMD+=("$SETUP_ONLY")
+[[ ${#REMAINING_ARGS[@]} -gt 0 ]] && ANSIBLE_CMD+=("${REMAINING_ARGS[@]}")
+
+# Run the Ansible playbook
+"${ANSIBLE_CMD[@]}"
+
+# Post-run hints
+if [[ "$(uname -s)" == "Linux" ]] && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]] && ! command -v brew &>/dev/null; then
+    echo ""
+    echo "========================================"
+    echo "Homebrew installed! To use it now, run:"
+    echo '  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+    echo "Or restart your shell."
+    echo "========================================"
+fi

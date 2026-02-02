@@ -4,27 +4,17 @@ This directory contains personal utility scripts that are part of my dotfiles se
 
 ## System Setup and Maintenance
 
-### `bootstrap`
+### `provision`
 
-**Purpose:** Initial system setup script for fresh installations
-**Usage:** `bootstrap [--dev]`
-**Description:**
-
-- Installs uv package manager if not present
-- Runs Ansible playbook to set up all development tools
-- Use `--dev` flag to include development tools (Python, Jupyter, etc.)
-- This is the first script to run on a new system
-
-### `tool-update`
-
-**Purpose:** Update all development tools and package managers
-**Usage:** `tool-update [OPTIONS]`
+**Purpose:** System setup and maintenance via Ansible
+**Usage:** `provision [OPTIONS]`
 **Flags:**
 
+- `--no-dev`: Exclude dev tools (dev tools included by default)
+- `--setup-only`: Run only initial setup tasks (for first-time bootstrap)
 - `--check`: Show what would be updated (dry-run)
 - `--diff`: Show changes that would be made
-- `--tags <tag>`: Update only specific tools (e.g., `homebrew`, `mise`, `rust`, `uv`)
-- `--dev`: Include dev tools in updates
+- `--tags <tag>`: Run only specific tags (e.g., `homebrew`, `mise`, `rust`, `uv`)
 - `--no-sudo`: Skip sudo password prompt (for passwordless sudo)
 - `--extra-vars "key=value"`: Pass variables to Ansible (e.g., `is_desktop=false`)
 - `-v`: Verbose output
@@ -37,7 +27,7 @@ The playbook auto-detects desktop vs server environments:
 
 Desktop systems install full GUI apps (VS Code, 1Password). Server systems install CLI-only versions. Override with `--extra-vars "is_desktop=false"`.
 
-**Description:** Wrapper around Ansible playbook for convenient daily/weekly tool updates.
+**Description:** Unified script that handles both initial setup and ongoing maintenance. Installs uv if not present.
 
 ## File and System Utilities
 

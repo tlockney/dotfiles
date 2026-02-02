@@ -52,3 +52,11 @@ if [ -x "$HOME/bin/sync-secrets" ]; then
 else
   echo "\nWarning: sync-secrets script not found or not executable."
 fi
+
+# Run provision to install all tools
+if [ -x "$HOME/bin/provision" ]; then
+  echo "\nRunning system provisioning..."
+  "$HOME/bin/provision" --setup-only
+else
+  echo "\nWarning: provision script not found. Run '$HOME/bin/provision' manually after setup."
+fi

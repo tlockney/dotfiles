@@ -21,4 +21,5 @@ jobs:
         uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: './bin'
+          ignore_names: '*.md'
           additional_files: '.config/shell/common-profile.sh .config/zsh/update-completions.sh'

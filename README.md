@@ -18,7 +18,7 @@ Replaces traditional Unix tools with faster, more user-friendly alternatives:
 
 - **Multi-language support**: Python (uv), Node.js, Deno, Go, Rust
 - **Version management**: mise for consistent tool versions across projects
-- **Automated setup**: Ansible-based tool management with `bootstrap` and `tool-update`
+- **Automated setup**: Ansible-based tool management with `provision`
 - **Cross-platform**: Works on macOS (Intel & Apple Silicon) and Linux
 
 ### Shell Configuration
@@ -70,12 +70,13 @@ curl -fLo ~/.local/bin/yadm https://github.com/yadm-dev/yadm/raw/master/yadm && 
 # 3. Clone dotfiles (runs yadm bootstrap, which syncs secrets)
 ~/.local/bin/yadm clone https://github.com/tlockney/dotfiles.git
 
-# 4. Run full bootstrap to install all tools
-~/bin/bootstrap        # Standard setup
-~/bin/bootstrap --dev  # Include dev tools (optional)
+# 4. Run provision to install all tools
+~/bin/provision              # Full setup (dev tools included by default)
+~/bin/provision --no-dev     # Minimal setup without dev tools
+~/bin/provision --setup-only # First-time setup tasks only
 ```
 
-**Note:** The `op signin` step is required because the yadm bootstrap calls `sync-secrets`, which injects credentials from 1Password into config files.
+**Note:** The `op signin` step is required because yadm bootstrap calls `sync-secrets`, which injects credentials from 1Password into config files.
 
 ## Tips
 
@@ -113,24 +114,24 @@ done
 The repository includes automated tool management via Ansible:
 
 ```sh
-# Fresh system setup (first time)
-bootstrap
+# Full provisioning (dev tools included by default)
+provision
 
-# Update all installed tools
-tool-update
+# Preview what would change (dry-run)
+provision --check
 
-# Preview what would be updated (dry-run)
-tool-update --check
+# First-time setup only (limited to setup tasks)
+provision --setup-only
 
-# Update specific category
-tool-update --tags homebrew
-tool-update --tags mise
+# Provision specific category
+provision --tags homebrew
+provision --tags mise
 
-# Include dev tools in update
-tool-update --dev
+# Minimal setup without dev tools
+provision --no-dev
 
 # Force server mode (CLI-only tools, no desktop apps)
-tool-update --extra-vars "is_desktop=false"
+provision --extra-vars "is_desktop=false"
 ```
 
 **Desktop vs Server Detection:**

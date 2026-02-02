@@ -6,40 +6,40 @@ default:
     @just --list
 
 # Run environment sanity checks
-check:
+check-env:
     ~/bin/check-env
 
 # Lint all shell scripts with shellcheck
 lint:
     ~/bin/lint-shell
 
-# Bootstrap a fresh system (first-time setup)
-bootstrap *ARGS:
-    ~/bin/bootstrap {{ ARGS }}
+# Provision system (setup and updates)
+provision *ARGS:
+    ~/bin/provision {{ ARGS }}
 
-# Update all development tools
-update *ARGS:
-    tool-update {{ ARGS }}
+# First-time setup (runs only setup tasks)
+setup *ARGS:
+    ~/bin/provision --setup-only {{ ARGS }}
 
 # Preview what would be updated (dry-run)
-update-check:
-    tool-update --check
+dry-run:
+    ~/bin/provision --check
 
-# Update only homebrew packages
-update-homebrew:
-    tool-update --tags homebrew
+# Provision only homebrew packages
+homebrew:
+    ~/bin/provision --tags homebrew
 
-# Update only mise-managed tools
-update-mise:
-    tool-update --tags mise
+# Provision only mise-managed tools
+mise:
+    ~/bin/provision --tags mise
 
-# Update rust toolchain and cargo packages
-update-rust:
-    tool-update --tags rust
+# Provision rust toolchain and cargo packages
+rust:
+    ~/bin/provision --tags rust
 
-# Update uv-managed Python tools
-update-uv:
-    tool-update --tags uv
+# Provision uv-managed Python tools
+uv:
+    ~/bin/provision --tags uv
 
 # Sync 1Password secrets to dotfiles
 sync-secrets:
@@ -65,10 +65,6 @@ yadm-status:
 git-status:
     git status
 
-# Install dev tools with bootstrap
-bootstrap-dev:
-    ~/bin/bootstrap --dev
-
-# Update with dev tools included
-update-dev:
-    tool-update --dev
+# Provision without dev tools (minimal setup)
+minimal:
+    ~/bin/provision --no-dev

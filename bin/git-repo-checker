@@ -79,7 +79,8 @@ is_git_repo() {
 # Function to check for uncommitted changes
 check_uncommitted_changes() {
     local dir="$1"
-    local repo_name=$(basename "$dir")
+    local repo_name
+    repo_name=$(basename "$dir")
 
     cd "$dir"
 
@@ -123,10 +124,12 @@ check_unpushed_commits() {
     cd "$dir"
 
     # Get current branch
-    local current_branch=$(git rev-parse --abbrev-ref HEAD)
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
 
     # Check if branch has upstream
-    local upstream=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+    local upstream
+    upstream=$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null || echo "")
 
     if [[ -z "$upstream" ]]; then
         echo -e "${YELLOW}  ⚠️  No upstream branch set for '$current_branch'${NC}"
@@ -134,7 +137,8 @@ check_unpushed_commits() {
     fi
 
     # Check for unpushed commits
-    local unpushed_count=$(git rev-list --count HEAD ^"$upstream" 2>/dev/null || echo "0")
+    local unpushed_count
+    unpushed_count=$(git rev-list --count HEAD ^"$upstream" 2>/dev/null || echo "0")
 
     if [[ "$unpushed_count" -gt 0 ]]; then
         echo -e "${YELLOW}  ⚠️  $unpushed_count unpushed commit(s) on '$current_branch'${NC}"
@@ -151,7 +155,8 @@ check_unpushed_commits() {
 # Function to process a single repository
 process_repo() {
     local dir="$1"
-    local repo_name=$(basename "$dir")
+    local repo_name
+    repo_name=$(basename "$dir")
 
     echo -e "${BLUE}📁 $repo_name${NC}"
 

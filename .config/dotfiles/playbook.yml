@@ -28,41 +28,95 @@
     dev_mode: false
     force: false
     # Standard paths for tools (to avoid PATH dependency during bootstrap)
-    brew_bin: /opt/homebrew/bin/brew
-    local_bin: "{{ ansible_env.HOME }}/.local/bin"
-    cargo_bin: "{{ ansible_env.HOME }}/.cargo/bin"
+    local_bin: "{{ ansible_facts.env.HOME }}/.local/bin"
+    cargo_bin: "{{ ansible_facts.env.HOME }}/.cargo/bin"
 
   pre_tasks:
     # Desktop detection: macOS is always desktop, Linux checks systemd target
     # Override with --extra-vars "is_desktop=true" or "is_desktop=false"
+    # Use 'always' tag so these run even when filtering by tags
     - name: Gather systemd default target (Linux only)
+      tags: [always]
       command: systemctl get-default
       register: systemd_target
       changed_when: false
       failed_when: false
-      when: ansible_system == "Linux" and ansible_service_mgr == "systemd"
+      when: ansible_facts.system == "Linux" and ansible_facts.service_mgr == "systemd"
 
     - name: Set desktop fact (macOS is always desktop)
+      tags: [always]
       set_fact:
         is_desktop: true
-      when: is_desktop is not defined and ansible_os_family == "Darwin"
+      when: is_desktop is not defined and ansible_facts.os_family == "Darwin"
 
     - name: Set desktop fact (Linux checks systemd target)
+      tags: [always]
       set_fact:
         is_desktop: "{{ (systemd_target.stdout | default('multi-user.target')) == 'graphical.target' }}"
-      when: is_desktop is not defined and ansible_os_family != "Darwin"
+      when: is_desktop is not defined and ansible_facts.os_family != "Darwin"
 
     - name: Display system type
+      tags: [always]
       debug:
-        msg: "System type: {{ 'Desktop' if is_desktop else 'Server' }} ({{ ansible_os_family }})"
+        msg: "System type: {{ 'Desktop' if is_desktop else 'Server' }} ({{ ansible_facts.os_family }})"
+
+    # Homebrew support detection: macOS always, Linux only on x86_64/aarch64
+    - name: Set Homebrew support fact
+      tags: [always]
+      set_fact:
+        homebrew_supported: "{{ ansible_facts.os_family == 'Darwin' or ansible_facts.architecture in ['x86_64', 'aarch64'] }}"
+
+    - name: Set Homebrew path (macOS)
+      tags: [always]
+      set_fact:
+        brew_bin: /opt/homebrew/bin/brew
+      when: ansible_facts.os_family == "Darwin"
+
+    - name: Set Homebrew path (Linux)
+      tags: [always]
+      set_fact:
+        brew_bin: /home/linuxbrew/.linuxbrew/bin/brew
+      when: ansible_facts.os_family != "Darwin" and homebrew_supported
+
+    - name: Display Homebrew status
+      tags: [always]
+      debug:
+        msg: "Homebrew: {{ 'supported' if homebrew_supported else 'not supported (32-bit ARM)' }}"
+
+    # sudo-rs detection: Ubuntu 24.04+ uses sudo-rs which has Ansible compatibility issues
+    # Use sudo.ws wrapper on those systems if available, regular sudo elsewhere
+    - name: Check if sudo.ws wrapper exists (Ubuntu 24.04+ workaround)
+      tags: [always]
+      stat:
+        path: /usr/bin/sudo.ws
+      register: sudo_ws_check
+      when: ansible_facts.system == "Linux"
+
+    - name: Set sudo executable (Ubuntu 24.04+ uses sudo-rs, prefer sudo.ws wrapper if available)
+      tags: [always]
+      set_fact:
+        sudo_exe: "{{ 'sudo.ws' if (ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_major_version | int >= 24 and sudo_ws_check.stat.exists | default(false)) else 'sudo' }}"
+      when: ansible_facts.system == "Linux"
+
+    - name: Set sudo executable (macOS)
+      tags: [always]
+      set_fact:
+        sudo_exe: "sudo"
+      when: ansible_facts.os_family == "Darwin"
+
+    - name: Display sudo configuration
+      tags: [always]
+      debug:
+        msg: "Using sudo executable: {{ sudo_exe }}{{ ' (sudo.ws wrapper not found, using standard sudo)' if (ansible_facts.distribution == 'Ubuntu' and ansible_facts.distribution_major_version | int >= 24 and not (sudo_ws_check.stat.exists | default(false))) else '' }}"
+      when: ansible_facts.system == "Linux"
 
   tasks:
     # ========================================
-    # HOMEBREW (macOS only)
+    # HOMEBREW
     # ========================================
-    - name: Install Homebrew
+    - name: Install Homebrew (macOS)
       tags: [setup, homebrew]
-      when: ansible_os_family == "Darwin"
+      when: ansible_facts.os_family == "Darwin"
       block:
         - name: Check if Homebrew is installed
           stat:
@@ -73,32 +127,72 @@
           shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           when: not homebrew_check.stat.exists
 
+    - name: Install Homebrew (Linux)
+      tags: [setup, homebrew]
+      when: ansible_facts.os_family != "Darwin" and homebrew_supported
+      block:
+        - name: Check if Homebrew is installed
+          stat:
+            path: /home/linuxbrew/.linuxbrew/bin/brew
+          register: homebrew_linux_check
+
+        # Create directories with Ansible's become (uses sudo_exe for compatibility)
+        # Then the installer runs without needing sudo
+        - name: Create Homebrew directory structure
+          file:
+            path: /home/linuxbrew/.linuxbrew
+            state: directory
+            owner: "{{ ansible_facts.user_id }}"
+            group: "{{ ansible_facts.user_gid }}"
+            mode: '0755'
+          become: yes
+          become_exe: "{{ sudo_exe }}"
+          when: not homebrew_linux_check.stat.exists
+
+        - name: Install Homebrew
+          shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          environment:
+            NONINTERACTIVE: "1"
+          when: not homebrew_linux_check.stat.exists
+
     - name: Update Homebrew and packages
       tags: [homebrew]
-      when: ansible_os_family == "Darwin"
+      when: homebrew_supported
       block:
         - name: Update Homebrew itself
           shell: "{{ brew_bin }} update"
           register: brew_update
           changed_when: "'Already up-to-date' not in brew_update.stdout"
 
-        # Essential CLI tools - installed on all macOS systems
+        # Essential CLI tools - installed on all Homebrew systems
         - name: Install/upgrade essential Homebrew formulae
           shell: "{{ brew_bin }} install {{ item }} || {{ brew_bin }} upgrade {{ item }} || true"
           loop:
+            - atuin
             - bat
             - eza
             - fd
             - fzf
+            - glow
+            - jless
             - jq
             - mise
+            - pandoc
             - ripgrep
+            - sqlite
             - starship
-            - atuin
-            - zsh-autosuggestions
-            - zsh-syntax-highlighting
           register: brew_install
           changed_when: "'Upgrading' in brew_install.stdout or 'Installing' in brew_install.stdout"
+
+        # zsh plugins (may not be available on Linux Homebrew, fail gracefully)
+        - name: Install/upgrade zsh plugins
+          shell: "{{ brew_bin }} install {{ item }} || {{ brew_bin }} upgrade {{ item }} || true"
+          loop:
+            - zsh-autosuggestions
+            - zsh-syntax-highlighting
+          register: brew_zsh_install
+          changed_when: "'Upgrading' in brew_zsh_install.stdout or 'Installing' in brew_zsh_install.stdout"
+          failed_when: false
 
         # Dev tools - only in dev mode
         - name: Install/upgrade dev Homebrew formulae
@@ -117,7 +211,16 @@
           register: op_install
           changed_when: "'Upgrading' in op_install.stdout or 'Installing' in op_install.stdout"
 
-        # Desktop-only casks
+        - name: Clean up Homebrew
+          shell: "{{ brew_bin }} cleanup"
+          register: brew_cleanup
+          changed_when: false
+
+    # macOS-only casks
+    - name: Install macOS desktop casks
+      tags: [homebrew]
+      when: ansible_facts.os_family == "Darwin" and is_desktop | bool
+      block:
         - name: Install desktop Homebrew casks
           shell: "{{ brew_bin }} install --cask {{ item }} || {{ brew_bin }} upgrade --cask {{ item }} || true"
           loop:
@@ -125,31 +228,56 @@
             - 1password
           register: brew_cask_install
           changed_when: "'Upgrading' in brew_cask_install.stdout or 'Installing' in brew_cask_install.stdout"
-          when: is_desktop | bool
 
-        - name: Clean up Homebrew
-          shell: "{{ brew_bin }} cleanup"
-          register: brew_cleanup
-          changed_when: false
+        # Display mode switching tools (for multi-Mac desk setup)
+        - name: Install display switching casks
+          shell: "{{ brew_bin }} install --cask {{ item }} || {{ brew_bin }} upgrade --cask {{ item }} || true"
+          loop:
+            - betterdisplay
+          register: brew_display_cask_install
+          changed_when: "'Upgrading' in brew_display_cask_install.stdout or 'Installing' in brew_display_cask_install.stdout"
+
+        - name: Install display-switch formula
+          shell: "{{ brew_bin }} install display-switch || {{ brew_bin }} upgrade display-switch || true"
+          register: brew_display_switch_install
+          changed_when: "'Upgrading' in brew_display_switch_install.stdout or 'Installing' in brew_display_switch_install.stdout"
 
     # ========================================
     # APT (Linux only)
     # ========================================
+    # Use dynamic sudo_exe to work around Ansible/sudo-rs incompatibility on Ubuntu 24.04+
+    # See: https://github.com/ansible/ansible/issues/85837
     - name: Update APT packages
       tags: [apt]
-      when: ansible_pkg_mgr == "apt"
+      when: ansible_facts.pkg_mgr == "apt"
       block:
         - name: Update apt cache
           apt:
             update_cache: yes
             cache_valid_time: 3600
           become: yes
+          become_exe: "{{ sudo_exe }}"
 
         - name: Upgrade all apt packages
           apt:
             upgrade: dist
           become: yes
+          become_exe: "{{ sudo_exe }}"
           register: apt_upgrade
+
+        # Build dependencies needed for compiling native code (Rust crates, etc.)
+        - name: Install build dependencies
+          apt:
+            name:
+              - build-essential
+              - cmake
+              - curl
+              - git
+              - libssl-dev
+              - pkg-config
+            state: present
+          become: yes
+          become_exe: "{{ sudo_exe }}"
 
         # Essential CLI tools for all Linux systems
         - name: Install essential apt packages
@@ -163,6 +291,7 @@
               - zsh-syntax-highlighting
             state: latest
           become: yes
+          become_exe: "{{ sudo_exe }}"
 
         # Dev tools - only in dev mode
         - name: Install dev apt packages
@@ -171,6 +300,7 @@
               - gh
             state: latest
           become: yes
+          become_exe: "{{ sudo_exe }}"
           when: dev_mode | bool
 
         # Desktop-only packages
@@ -180,15 +310,16 @@
               - code
             state: latest
           become: yes
+          become_exe: "{{ sudo_exe }}"
           when: is_desktop | bool
           failed_when: false
 
     # ========================================
-    # 1PASSWORD CLI (Linux)
+    # 1PASSWORD CLI (Linux without Homebrew)
     # ========================================
-    - name: Install 1Password CLI on Linux
+    - name: Install 1Password CLI on Linux (non-Homebrew)
       tags: [setup, tools]
-      when: ansible_pkg_mgr == "apt"
+      when: ansible_facts.pkg_mgr == "apt" and not homebrew_supported
       block:
         - name: Check if 1Password CLI is installed
           command: which op
@@ -203,6 +334,7 @@
           args:
             creates: /usr/share/keyrings/1password-archive-keyring.gpg
           become: yes
+          become_exe: "{{ sudo_exe }}"
           when: op_check.rc != 0
 
         - name: Add 1Password apt repository
@@ -212,6 +344,7 @@
           args:
             creates: /etc/apt/sources.list.d/1password.list
           become: yes
+          become_exe: "{{ sudo_exe }}"
           when: op_check.rc != 0
 
         - name: Install 1Password CLI via apt
@@ -220,51 +353,21 @@
             state: latest
             update_cache: yes
           become: yes
+          become_exe: "{{ sudo_exe }}"
 
     # ========================================
     # MISE
     # ========================================
-    # On macOS, mise is installed via Homebrew. On Linux, use the installer script.
-    - name: Install mise (Linux only)
-      tags: [mise, setup]
-      when: ansible_os_family != "Darwin"
-      block:
-        - name: Check if mise is installed
-          stat:
-            path: "{{ ansible_env.HOME }}/.local/bin/mise"
-          register: mise_check
-
-        - name: Install mise
-          shell: curl -fsSL https://mise.run | sh
-          args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/mise"
-          when: not mise_check.stat.exists
-
-        - name: Update mise itself
-          shell: "{{ ansible_env.HOME }}/.local/bin/mise self-update"
-          register: mise_update
-          changed_when: "'Updated' in mise_update.stdout or 'updated' in mise_update.stdout"
-          failed_when: false
-
-    # Install mise tools - use platform-appropriate mise path
-    - name: Install and upgrade mise tools from .mise.toml (macOS)
+    # Mise is installed via Homebrew on supported systems
+    # Install mise tools using Homebrew path or shims
+    - name: Install and upgrade mise tools from .mise.toml
       tags: [mise, runtimes]
-      when: ansible_os_family == "Darwin"
-      shell: /opt/homebrew/bin/mise install && /opt/homebrew/bin/mise upgrade
+      when: homebrew_supported
+      shell: "{{ brew_bin | regex_replace('/brew$', '/mise') }} install && {{ brew_bin | regex_replace('/brew$', '/mise') }} upgrade"
       args:
-        chdir: "{{ ansible_env.HOME }}"
-      register: mise_tools_macos
-      changed_when: "'installed' in mise_tools_macos.stdout or 'Upgraded' in mise_tools_macos.stdout"
-      failed_when: false
-
-    - name: Install and upgrade mise tools from .mise.toml (Linux)
-      tags: [mise, runtimes]
-      when: ansible_os_family != "Darwin"
-      shell: "{{ local_bin }}/mise install && {{ local_bin }}/mise upgrade"
-      args:
-        chdir: "{{ ansible_env.HOME }}"
-      register: mise_tools_linux
-      changed_when: "'installed' in mise_tools_linux.stdout or 'Upgraded' in mise_tools_linux.stdout"
+        chdir: "{{ ansible_facts.env.HOME }}"
+      register: mise_tools
+      changed_when: "'installed' in mise_tools.stdout or 'Upgraded' in mise_tools.stdout"
       failed_when: false
 
     # ========================================
@@ -275,75 +378,39 @@
       block:
         - name: Check if rustup is installed
           stat:
-            path: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+            path: "{{ ansible_facts.env.HOME }}/.cargo/bin/rustup"
           register: rustup_check
 
         - name: Install Rust via rustup
           shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y -q
           args:
-            creates: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+            creates: "{{ ansible_facts.env.HOME }}/.cargo/bin/rustup"
           when: not rustup_check.stat.exists
 
     - name: Update Rust toolchain
       tags: [rust]
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/rustup update"
+      shell: "{{ ansible_facts.env.HOME }}/.cargo/bin/rustup update"
       register: rustup_update
       changed_when: "'updated' in rustup_update.stdout or 'installing' in rustup_update.stdout"
 
     - name: Install cargo-update
       tags: [setup, rust]
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install cargo-update"
+      shell: "{{ ansible_facts.env.HOME }}/.cargo/bin/cargo install cargo-update"
       args:
-        creates: "{{ ansible_env.HOME }}/.cargo/bin/cargo-install-update"
+        creates: "{{ ansible_facts.env.HOME }}/.cargo/bin/cargo-install-update"
 
     - name: Update cargo packages
       tags: [rust]
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install-update -a"
+      shell: "{{ ansible_facts.env.HOME }}/.cargo/bin/cargo install-update -a"
       register: cargo_updates
       changed_when: "'Updating' in cargo_updates.stdout"
       failed_when: false
 
-    # On Linux, install eza and bat via cargo (on macOS these come from Homebrew)
-    - name: Install essential Rust tools (Linux only)
+    # Build bat cache (bat is installed via Homebrew)
+    - name: Build bat cache
       tags: [setup, rust]
-      when: ansible_os_family != "Darwin"
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item }}"
-      args:
-        creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item }}"
-      loop:
-        - eza
-        - bat
-
-    # Build bat cache - use platform-appropriate path
-    - name: Build bat cache (macOS via Homebrew)
-      tags: [setup, rust]
-      when: ansible_os_family == "Darwin"
-      shell: /opt/homebrew/bin/bat cache --build
-      changed_when: false
-      failed_when: false
-
-    - name: Build bat cache (Linux via Cargo)
-      tags: [setup, rust]
-      when: ansible_os_family != "Darwin"
-      shell: "{{ cargo_bin }}/bat cache --build"
-      changed_when: false
-      failed_when: false
-
-    - name: Install Rust dev tools
-      tags: [setup, rust, dev]
-      when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/cargo install {{ item.name }} {{ item.flags | default('') }}"
-      args:
-        creates: "{{ ansible_env.HOME }}/.cargo/bin/{{ item.bin }}"
-      loop:
-        - { name: "evcxr_repl", bin: "evcxr", flags: "" }
-        - { name: "evcxr_jupyter", bin: "evcxr_jupyter", flags: "--locked" }
-        - { name: "onefetch", bin: "onefetch", flags: "" }
-
-    - name: Setup Rust Jupyter kernel
-      tags: [setup, rust, dev]
-      when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.cargo/bin/evcxr_jupyter --install"
+      when: homebrew_supported
+      shell: "{{ brew_bin | regex_replace('/brew$', '/bat') }} cache --build"
       changed_when: false
       failed_when: false
 
@@ -355,22 +422,22 @@
       block:
         - name: Check if uv is installed
           stat:
-            path: "{{ ansible_env.HOME }}/.local/bin/uv"
+            path: "{{ ansible_facts.env.HOME }}/.local/bin/uv"
           register: uv_check
 
         - name: Install uv
           shell: curl -LsSf https://astral.sh/uv/install.sh | sh
           args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/uv"
+            creates: "{{ ansible_facts.env.HOME }}/.local/bin/uv"
           when: not uv_check.stat.exists
 
     - name: Update uv tools
       tags: [uv]
       shell: |
-        for tool in $({{ ansible_env.HOME }}/.local/bin/uv tool list 2>/dev/null | grep -v '^-' | awk '{ print $1}'); do
+        for tool in $({{ ansible_facts.env.HOME }}/.local/bin/uv tool list 2>/dev/null | grep -v '^-' | awk '{ print $1}'); do
           echo "Updating $tool"
-          {{ ansible_env.HOME }}/.local/bin/uv tool upgrade "$tool" || \
-          {{ ansible_env.HOME }}/.local/bin/uv tool install "$tool" --reinstall
+          {{ ansible_facts.env.HOME }}/.local/bin/uv tool upgrade "$tool" || \
+          {{ ansible_facts.env.HOME }}/.local/bin/uv tool install "$tool" --reinstall
         done
       register: uv_updates
       changed_when: "'Installed' in uv_updates.stdout or 'Updated' in uv_updates.stdout"
@@ -379,9 +446,9 @@
     - name: Install Python tools via uv
       tags: [setup, uv, dev]
       when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.local/bin/uv tool install {{ item }}"
+      shell: "{{ ansible_facts.env.HOME }}/.local/bin/uv tool install {{ item }}"
       args:
-        creates: "{{ ansible_env.HOME }}/.local/share/uv/tools/{{ item }}"
+        creates: "{{ ansible_facts.env.HOME }}/.local/share/uv/tools/{{ item }}"
       loop:
         - yt-dlp
         - pygments
@@ -392,7 +459,7 @@
       tags: [setup, uv, dev]
       when: dev_mode | bool
       shell: >
-        {{ ansible_env.HOME }}/.local/bin/uv tool install jupyter-core
+        {{ ansible_facts.env.HOME }}/.local/bin/uv tool install jupyter-core
         --with jupyterlab
         --with requests
         --with pandas
@@ -401,12 +468,12 @@
         --with nbconvert
         --with nbclassic
       args:
-        creates: "{{ ansible_env.HOME }}/.local/share/uv/tools/jupyter-core"
+        creates: "{{ ansible_facts.env.HOME }}/.local/share/uv/tools/jupyter-core"
 
     - name: Install Deno Jupyter kernel
       tags: [setup, dev]
       when: dev_mode | bool
-      shell: "{{ ansible_env.HOME }}/.local/share/mise/shims/deno jupyter --install --force"
+      shell: "{{ ansible_facts.env.HOME }}/.local/share/mise/shims/deno jupyter --install --force"
       changed_when: false
       failed_when: false
 
@@ -418,52 +485,14 @@
       block:
         - name: Check if Claude Code is installed
           stat:
-            path: "{{ ansible_env.HOME }}/.local/bin/claude"
+            path: "{{ ansible_facts.env.HOME }}/.local/bin/claude"
           register: claude_check
 
         - name: Install Claude Code
           shell: curl -fsSL https://claude.ai/install.sh | bash
           args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/claude"
+            creates: "{{ ansible_facts.env.HOME }}/.local/bin/claude"
           when: not claude_check.stat.exists
-
-    # On macOS, starship is installed via Homebrew. On Linux, use the installer script.
-    - name: Install Starship prompt (Linux only)
-      tags: [setup, tools]
-      when: ansible_os_family != "Darwin"
-      block:
-        - name: Check if Starship is installed
-          stat:
-            path: "{{ ansible_env.HOME }}/.local/bin/starship"
-          register: starship_check
-
-        - name: Install Starship
-          shell: curl -sS https://starship.rs/install.sh | sh -s -- -y -b {{ ansible_env.HOME }}/.local/bin
-          args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/starship"
-          when: not starship_check.stat.exists
-
-    # On macOS, atuin is installed via Homebrew. On Linux, use the installer script.
-    - name: Install/update Atuin (Linux only)
-      tags: [setup, tools]
-      when: ansible_os_family != "Darwin"
-      block:
-        - name: Check if Atuin is installed
-          command: which atuin
-          register: atuin_check
-          changed_when: false
-          failed_when: false
-
-        - name: Install Atuin
-          shell: curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
-          when: atuin_check.rc != 0
-
-        - name: Update Atuin
-          shell: "{{ ansible_env.HOME }}/.atuin/bin/atuin-update"
-          when: atuin_check.rc == 0
-          register: atuin_update
-          changed_when: "'Updated' in atuin_update.stdout or 'updated' in atuin_update.stdout"
-          failed_when: false
 
     # pnpm - installed via corepack (comes with Node.js via mise)
     # Use mise shims path to find corepack regardless of shell PATH
@@ -472,11 +501,11 @@
       block:
         - name: Check if corepack is available via mise shims
           stat:
-            path: "{{ ansible_env.HOME }}/.local/share/mise/shims/corepack"
+            path: "{{ ansible_facts.env.HOME }}/.local/share/mise/shims/corepack"
           register: corepack_shim_check
 
         - name: Enable pnpm via corepack
-          shell: "{{ ansible_env.HOME }}/.local/share/mise/shims/corepack enable pnpm"
+          shell: "{{ ansible_facts.env.HOME }}/.local/share/mise/shims/corepack enable pnpm"
           when: corepack_shim_check.stat.exists
           changed_when: false
           failed_when: false
@@ -495,10 +524,10 @@
         - name: Download and install VS Code CLI
           shell: |
             curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64' -o /tmp/vscode_cli.tar.gz
-            tar -xf /tmp/vscode_cli.tar.gz -C {{ ansible_env.HOME }}/.local/bin
+            tar -xf /tmp/vscode_cli.tar.gz -C {{ ansible_facts.env.HOME }}/.local/bin
             rm /tmp/vscode_cli.tar.gz
           args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/code"
+            creates: "{{ ansible_facts.env.HOME }}/.local/bin/code"
           when: code_cli_check.rc != 0
 
     - name: Setup tmux plugin manager
@@ -506,12 +535,12 @@
       block:
         - name: Check if tpm is installed
           stat:
-            path: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+            path: "{{ ansible_facts.env.HOME }}/.tmux/plugins/tpm"
           register: tpm_check
 
         - name: Create tmux plugins directory
           file:
-            path: "{{ ansible_env.HOME }}/.tmux/plugins"
+            path: "{{ ansible_facts.env.HOME }}/.tmux/plugins"
             state: directory
             mode: '0755'
           when: not tpm_check.stat.exists
@@ -519,7 +548,7 @@
         - name: Clone tmux plugin manager
           git:
             repo: https://github.com/tmux-plugins/tpm
-            dest: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+            dest: "{{ ansible_facts.env.HOME }}/.tmux/plugins/tpm"
             update: yes
 
     # ========================================
@@ -527,7 +556,7 @@
     # ========================================
     - name: Update shell completions
       tags: [completions]
-      shell: "{{ ansible_env.HOME }}/.config/zsh/update-completions.sh"
+      shell: "{{ ansible_facts.env.HOME }}/.config/zsh/update-completions.sh"
       args:
         executable: /bin/zsh
       changed_when: false
