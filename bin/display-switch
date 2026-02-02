@@ -6,6 +6,10 @@
  * Switches Dell U4025QW and BenQ MA320U inputs via BetterDisplay CLI (DDC).
  * Optionally connects to an MQTT broker for Home Assistant integration.
  *
+ * When dell_host is configured, Dell DDC commands are sent via BetterDisplay's
+ * HTTP API to the MBP (which has a Thunderbolt connection that supports DDC
+ * regardless of active input). BenQ commands always run locally.
+ *
  * Usage:
  *   ./display-switch.ts <command>
  *
@@ -35,6 +39,10 @@ interface Config {
     benq_hdmi2: number;
     benq_usbc: number;
   };
+  // BetterDisplay HTTP endpoint for Dell DDC (e.g. "mbp.local:55777").
+  // When set, Dell commands are sent via HTTP to this host instead of local CLI.
+  // Leave empty to use local CLI (when running on the MBP itself).
+  dell_host: string;
   mqtt: {
     broker: string;
     port: number;
@@ -47,12 +55,13 @@ interface Config {
 
 const DEFAULT_CONFIG: Config = {
   ddc: {
-    dell_tb: 27,
+    dell_tb: 25,
     dell_hdmi: 17,
     benq_hdmi1: 17,
     benq_hdmi2: 18,
     benq_usbc: 15,
   },
+  dell_host: "",
   mqtt: {
     broker: "localhost",
     port: 1883,
@@ -128,10 +137,10 @@ function buildModes(config: Config): Record<string, Mode> {
 }
 
 // ---------------------------------------------------------------------------
-// DDC control
+// DDC control — local CLI
 // ---------------------------------------------------------------------------
 
-async function getInput(monitorName: string): Promise<number | null> {
+async function getInputLocal(monitorName: string): Promise<number | null> {
   const cmd = new Deno.Command("betterdisplaycli", {
     args: ["get", `-nameLike=${monitorName}`, "-ddc", "-vcp=inputSelect", "-value"],
     stdout: "piped",
@@ -142,7 +151,7 @@ async function getInput(monitorName: string): Promise<number | null> {
   if (code !== 0) return null;
 
   const output = new TextDecoder().decode(stdout).trim();
-  if (output === "Failed." || output === "") return null;
+  if (output === "" || output.startsWith("Failed")) return null;
 
   const raw = parseInt(output, 10);
   if (isNaN(raw)) return null;
@@ -151,7 +160,7 @@ async function getInput(monitorName: string): Promise<number | null> {
   return raw & 0xFF;
 }
 
-async function setInput(monitorName: string, value: number): Promise<void> {
+async function setInputLocal(monitorName: string, value: number): Promise<void> {
   const cmd = new Deno.Command("betterdisplaycli", {
     args: ["set", `-nameLike=${monitorName}`, "-ddc", "-vcp=0x60", `-value=${value}`],
     stdout: "piped",
@@ -165,10 +174,71 @@ async function setInput(monitorName: string, value: number): Promise<void> {
   }
 }
 
-async function detectMode(modes: Record<string, Mode>): Promise<string> {
+// ---------------------------------------------------------------------------
+// DDC control — remote via BetterDisplay HTTP API
+// ---------------------------------------------------------------------------
+
+async function getInputRemote(host: string, monitorName: string): Promise<number | null> {
+  try {
+    const url = `http://${host}/get?nameLike=${monitorName}&ddc&vcp=inputSelect&value`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+
+    const output = (await resp.text()).trim();
+    if (output === "" || output.startsWith("Failed")) return null;
+
+    const raw = parseInt(output, 10);
+    if (isNaN(raw)) return null;
+
+    return raw & 0xFF;
+  } catch {
+    return null;
+  }
+}
+
+async function setInputRemote(host: string, monitorName: string, value: number): Promise<void> {
+  const url = `http://${host}/set?nameLike=${monitorName}&ddc&vcp=0x60&value=${value}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Failed to set ${monitorName} to ${value} via ${host}: ${err}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DDC control — routed based on config
+// ---------------------------------------------------------------------------
+
+async function getDellInput(config: Config): Promise<number | null> {
+  if (config.dell_host) {
+    return getInputRemote(config.dell_host, "dell");
+  }
+  return getInputLocal("dell");
+}
+
+async function setDellInput(config: Config, value: number): Promise<void> {
+  if (config.dell_host) {
+    return setInputRemote(config.dell_host, "dell", value);
+  }
+  return setInputLocal("dell", value);
+}
+
+async function getBenqInput(): Promise<number | null> {
+  return getInputLocal("benq");
+}
+
+async function setBenqInput(value: number): Promise<void> {
+  return setInputLocal("benq", value);
+}
+
+// ---------------------------------------------------------------------------
+// Mode detection and switching
+// ---------------------------------------------------------------------------
+
+async function detectMode(config: Config, modes: Record<string, Mode>): Promise<string> {
   const [dell, benq] = await Promise.all([
-    getInput("dell"),
-    getInput("benq"),
+    getDellInput(config),
+    getBenqInput(),
   ]);
 
   if (dell === null && benq === null) return "unknown (both displays unreachable)";
@@ -188,7 +258,11 @@ async function detectMode(modes: Record<string, Mode>): Promise<string> {
   return `unknown (${parts.join(", ")})`;
 }
 
-async function switchMode(modeName: string, modes: Record<string, Mode>): Promise<void> {
+async function switchMode(
+  modeName: string,
+  config: Config,
+  modes: Record<string, Mode>,
+): Promise<void> {
   const mode = modes[modeName];
   if (!mode) {
     console.error(`Unknown mode: ${modeName}`);
@@ -199,8 +273,8 @@ async function switchMode(modeName: string, modes: Record<string, Mode>): Promis
   console.log(`Switching to "${modeName}" — ${mode.desc}`);
 
   await Promise.all([
-    setInput("dell", mode.dell),
-    setInput("benq", mode.benq),
+    setDellInput(config, mode.dell),
+    setBenqInput(mode.benq),
   ]);
 
   console.log("Done.");
@@ -228,7 +302,7 @@ async function serve(config: Config, modes: Record<string, Mode>): Promise<void>
   client.on("connect", () => {
     console.log(`Connected. Subscribing to ${commandTopic}`);
     client.subscribe(commandTopic);
-    pollAndPublish(client, statusTopic, modes);
+    pollAndPublish(client, statusTopic, config, modes);
   });
 
   client.on("message", async (_topic: string, payload: Buffer) => {
@@ -241,7 +315,7 @@ async function serve(config: Config, modes: Record<string, Mode>): Promise<void>
     }
 
     try {
-      await switchMode(requested, modes);
+      await switchMode(requested, config, modes);
       client.publish(statusTopic, requested, { retain: true });
     } catch (err) {
       console.error(`Switch failed: ${err}`);
@@ -252,7 +326,10 @@ async function serve(config: Config, modes: Record<string, Mode>): Promise<void>
     console.error(`MQTT error: ${err.message}`);
   });
 
-  setInterval(() => pollAndPublish(client, statusTopic, modes), poll_interval_seconds * 1000);
+  setInterval(
+    () => pollAndPublish(client, statusTopic, config, modes),
+    poll_interval_seconds * 1000,
+  );
 
   // Keep alive
   await new Promise(() => {});
@@ -261,10 +338,11 @@ async function serve(config: Config, modes: Record<string, Mode>): Promise<void>
 async function pollAndPublish(
   client: ReturnType<typeof connect>,
   topic: string,
+  config: Config,
   modes: Record<string, Mode>,
 ): Promise<void> {
   try {
-    const current = await detectMode(modes);
+    const current = await detectMode(config, modes);
     client.publish(topic, current, { retain: true });
   } catch (err) {
     console.error(`Status poll failed: ${err}`);
@@ -308,7 +386,7 @@ switch (command) {
     await initConfig();
     break;
   case "status": {
-    const current = await detectMode(modes);
+    const current = await detectMode(config, modes);
     console.log(current);
     break;
   }
@@ -316,6 +394,6 @@ switch (command) {
     await serve(config, modes);
     break;
   default:
-    await switchMode(command, modes);
+    await switchMode(command, config, modes);
     break;
 }
