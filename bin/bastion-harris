@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+az network bastion tunnel --name "Harris-RG-vnet-bastion" --resource-group "Harris-RG" --target-resource-id "/subscriptions/3f1f0199-34af-4921-bf18-2b83880954e1/resourceGroups/harris-rg/providers/Microsoft.Compute/virtualMachines/vm-har-prd-eu2" --resource-port 3389 --port 9090
