@@ -43,6 +43,14 @@ function module.apply_to_config(config)
     { key = 'DownArrow',  mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Down', 5 }) },
     -- Pane zoom toggle
     { key = 'z', mods = 'CMD', action = action.TogglePaneZoomState },
+    -- Detach pane to new window
+    {
+      key = 'd',
+      mods = 'CMD|SHIFT',
+      action = wezterm.action_callback(function(win, pane)
+        pane:move_to_new_window()
+      end),
+    },
   }
 
   -- Numeric tab switching
