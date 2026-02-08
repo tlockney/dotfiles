@@ -176,6 +176,7 @@
             - glow
             - jless
             - jq
+            - lazygit
             - mise
             - pandoc
             - ripgrep
