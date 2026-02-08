@@ -51,6 +51,47 @@ function module.apply_to_config(config)
         pane:move_to_new_window()
       end),
     },
+    -- Move pane to existing window
+    {
+      key = 'm',
+      mods = 'CMD|SHIFT',
+      action = wezterm.action_callback(function(window, pane)
+        local choices = {}
+        local current_win_id = window:mux_window():window_id()
+
+        for _, win in ipairs(wezterm.mux.all_windows()) do
+          local win_id = win:window_id()
+          if win_id ~= current_win_id then
+            table.insert(choices, {
+              id = tostring(win_id),
+              label = 'Window ' .. win_id,
+            })
+          end
+        end
+
+        if #choices == 0 then
+          return
+        end
+
+        window:perform_action(
+          wezterm.action.InputSelector {
+            title = 'Move pane to window',
+            choices = choices,
+            action = wezterm.action_callback(function(_, _, id, _)
+              if id then
+                local pane_id = pane:pane_id()
+                wezterm.background_child_process {
+                  'wezterm', 'cli', 'move-pane-to-new-tab',
+                  '--pane-id', tostring(pane_id),
+                  '--window-id', id,
+                }
+              end
+            end),
+          },
+          pane
+        )
+      end),
+    },
   }
 
   -- Numeric tab switching
