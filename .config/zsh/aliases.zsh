@@ -87,13 +87,13 @@ if command -v bat >/dev/null 2>&1; then
 fi
 
 # Source files open in editor
-# alias -s go='$EDITOR'
-# alias -s rs='$EDITOR'
-# alias -s py='$EDITOR'
-# alias -s js='$EDITOR'
-# alias -s ts='$EDITOR'
-# alias -s tsx='$EDITOR'
-# alias -s jsx='$EDITOR'
+alias -s go='$EDITOR'
+alias -s rs='$EDITOR'
+#alias -s py='$EDITOR'
+alias -s js='$EDITOR'
+alias -s ts='$EDITOR'
+alias -s tsx='$EDITOR'
+alias -s jsx='$EDITOR'
 
 if command -v claude >/dev/null 2>&1; then
   alias obc='cd ~/Obsidian/Personal; claude'
