@@ -3,23 +3,13 @@
     "PreCompact": [
       {
         "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bd prime"
-          }
-        ]
+        "hooks": []
       }
     ],
     "SessionStart": [
       {
         "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bd prime"
-          }
-        ]
+        "hooks": []
       }
     ]
   },
