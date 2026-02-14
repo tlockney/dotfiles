@@ -1,7 +1,35 @@
 {
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd prime"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd prime"
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "obsidian@obsidian-skills": true,
     "lua-lsp@claude-plugins-official": true
   },
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
