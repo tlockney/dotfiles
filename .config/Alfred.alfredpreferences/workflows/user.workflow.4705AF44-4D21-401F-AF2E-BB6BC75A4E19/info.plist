@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string></string>
+	<key>connections</key>
+	<dict>
+		<key>1F505002-3D15-4334-BFB6-DC1D738199FC</key>
+		<array/>
+		<key>30ED5B66-3196-4A44-BF76-71BD1FE732DC</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>1F505002-3D15-4334-BFB6-DC1D738199FC</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string></string>
+	<key>description</key>
+	<string></string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>Daily Note Toggle</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>hotkey</key>
+				<integer>2</integer>
+				<key>hotmod</key>
+				<integer>655360</integer>
+				<key>hotstring</key>
+				<string>D</string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>30ED5B66-3196-4A44-BF76-71BD1FE732DC</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>FRONT=$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true')
+if [ "$FRONT" = "Obsidian" ]; then
+    osascript -e 'tell application "System Events" to set visible of process "Obsidian" to false'
+else
+    open "obsidian://daily"
+	sleep 0.5
+	osascript -e 'tell application "System Events" to tell process "Obsidian"
+		set position of front window to {400, 100}
+		set size of front window to {800, 900}
+	end tell'
+	# Move cursor to end of note
+    osascript -e 'tell application "System Events" to key code 125 using {command down}'
+    sleep 0.1
+    # Add a newline so dictation appends cleanly
+    osascript -e 'tell application "System Events" to key code 36'
+fi</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>1F505002-3D15-4334-BFB6-DC1D738199FC</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string></string>
+	<key>uidata</key>
+	<dict>
+		<key>1F505002-3D15-4334-BFB6-DC1D738199FC</key>
+		<dict>
+			<key>xpos</key>
+			<real>375</real>
+			<key>ypos</key>
+			<real>310</real>
+		</dict>
+		<key>30ED5B66-3196-4A44-BF76-71BD1FE732DC</key>
+		<dict>
+			<key>xpos</key>
+			<real>90</real>
+			<key>ypos</key>
+			<real>250</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
+	<key>webaddress</key>
+	<string></string>
+</dict>
+</plist>
