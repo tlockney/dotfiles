@@ -63,6 +63,25 @@ EOF
     fi
 }
 
+# Parent directory display label
+parent_label() {
+    echo "📂 $(basename "$1")"
+}
+
+# Resolve selected project to full path
+resolve_project_path() {
+    local selected="$1"
+    local dir="$2"
+    local plabel
+    plabel=$(parent_label "$dir")
+
+    if [[ "$selected" == "$plabel" ]]; then
+        echo "$dir"
+    else
+        echo "$dir/$selected"
+    fi
+}
+
 # Help message
 show_help() {
     cat << EOF
@@ -119,8 +138,11 @@ select_project() {
     local projects="$1"
     local dir="$2"
 
+    local plabel
+    plabel=$(parent_label "$dir")
+
     clear >/dev/tty
-    echo "$projects" | sed "s|$dir/||" | fzf \
+    echo "$projects" | sed "s|^${dir}$|${plabel}|; s|${dir}/||" | fzf \
         --height=60% \
         --layout=reverse \
         --border \
@@ -161,8 +183,13 @@ EOF
 
     local first=true
     while IFS= read -r project; do
-        local project_name
+        local project_name display_name
         project_name=$(basename "$project")
+        if [[ "$project" == "$RPROJ_DIR" ]]; then
+            display_name=$(parent_label "$RPROJ_DIR")
+        else
+            display_name="$project_name"
+        fi
 
         # Filter by query if provided (case-insensitive)
         if [[ -n "$query" ]] && [[ ! "${project_name,,}" =~ ${query,,} ]]; then
@@ -177,7 +204,7 @@ EOF
         cat << EOF
 {
     "uid": "$project_name",
-    "title": "$project_name",
+    "title": "$display_name",
     "subtitle": "Open in VS Code: $project",
     "arg": "$host|$project",
     "autocomplete": "$project_name",
@@ -257,13 +284,19 @@ cmd_list() {
     local projects
     projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
 
+    # Prepend parent directory as an option
+    if [[ -n "$projects" ]]; then
+        projects="$RPROJ_DIR"$'\n'"$projects"
+    else
+        projects="$RPROJ_DIR"
+    fi
+
     if [[ "$JSON_MODE" == "true" ]]; then
         output_alfred_json "$projects" "$RPROJ_HOST" "$QUERY"
     else
-        if [[ -z "$projects" ]]; then
-            error "No projects found in $RPROJ_DIR"
-        fi
-        echo "$projects" | sed "s|$RPROJ_DIR/||"
+        local plabel
+        plabel=$(parent_label "$RPROJ_DIR")
+        echo "$projects" | sed "s|^${RPROJ_DIR}$|${plabel}|; s|${RPROJ_DIR}/||"
     fi
 }
 
@@ -280,7 +313,12 @@ cmd_tmux() {
         local projects
         projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
 
-        [[ -z "$projects" ]] && error "No projects found in $RPROJ_DIR"
+        # Prepend parent directory as an option
+        if [[ -n "$projects" ]]; then
+            projects="$RPROJ_DIR"$'\n'"$projects"
+        else
+            projects="$RPROJ_DIR"
+        fi
 
         selected=$(select_project "$projects" "$RPROJ_DIR")
         [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
@@ -291,8 +329,11 @@ cmd_tmux() {
         info "Using project: $selected"
     fi
 
-    local project_path="$RPROJ_DIR/$selected"
-    success "Opening tmux session '$selected' at $project_path..."
+    local project_path
+    project_path=$(resolve_project_path "$selected" "$RPROJ_DIR")
+    local session_name
+    session_name=$(basename "$project_path")
+    success "Opening tmux session '$session_name' at $project_path..."
 
     # Connect and run tc to create/attach tmux session
     ssh -A -t "$RPROJ_HOST" "cd '$project_path' && ~/bin/tc"
@@ -311,7 +352,12 @@ cmd_code() {
         local projects
         projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
 
-        [[ -z "$projects" ]] && error "No projects found in $RPROJ_DIR"
+        # Prepend parent directory as an option
+        if [[ -n "$projects" ]]; then
+            projects="$RPROJ_DIR"$'\n'"$projects"
+        else
+            projects="$RPROJ_DIR"
+        fi
 
         selected=$(select_project "$projects" "$RPROJ_DIR")
         [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
@@ -322,7 +368,8 @@ cmd_code() {
         info "Using project: $selected"
     fi
 
-    local project_path="$RPROJ_DIR/$selected"
+    local project_path
+    project_path=$(resolve_project_path "$selected" "$RPROJ_DIR")
     success "Opening $project_path in VS Code..."
 
     code --remote "ssh-remote+$RPROJ_HOST" "$project_path"
