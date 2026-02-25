@@ -3,4 +3,4 @@
   github = Thomas-Lockney_metron
 
 [core]
-  sshCommand = ssh -i ~/.ssh/id_rsa_metron -o IdentitiesOnly=yes
+  sshCommand = ssh -i ~/.ssh/id_rsa_metron -o IdentitiesOnly=yes -o IdentityAgent=none

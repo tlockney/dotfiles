@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Put the macOS display to sleep immediately.
+# Useful for remote triggering via SSH or automation tools.
+set -euo pipefail
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "Error: this script only works on macOS" >&2
+    exit 1
+fi
+
+pmset displaysleepnow
