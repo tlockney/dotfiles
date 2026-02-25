@@ -1,18 +1,44 @@
 #!/usr/bin/env bash
+# get-aws-creds - Retrieve AWS credentials from 1Password and export them.
+#
+# IMPORTANT: This script must be sourced, not executed:
+#   source get-aws-creds
+#   . get-aws-creds
+#
+# Uses 1Password CLI v2 to fetch credentials.
 
 set -euC -o pipefail
 
-UUID="y2zuzh4e6ra4npazlxmaqw2qde"
-
-if [ ! "${OP_SESSION_lockney:-}" ]; then
-    eval "$(op signin lockney.1password.com thomas@lockney.net)"
-else
-    op list users > /dev/null 2>&1
-    test $? -eq 0 || eval "$(op signin lockney.1password.com thomas@lockney.net)"
+# Guard: warn if executed instead of sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "Error: This script must be sourced to export credentials." >&2
+    echo "  Usage: source $(basename "$0")" >&2
+    echo "     or: . $(basename "$0")" >&2
+    exit 1
 fi
 
-ITEM=$(op get item "$UUID")
-AWS_ACCESS_KEY_ID=$(echo "$ITEM" | jq -Mcr '.details.fields[] | select(.name=="username") | .value')
+if ! command -v op >/dev/null 2>&1; then
+    echo "Error: 1Password CLI (op) is not installed" >&2
+    return 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is not installed (install: brew install jq)" >&2
+    return 1
+fi
+
+UUID="y2zuzh4e6ra4npazlxmaqw2qde"
+
+echo "Fetching AWS credentials from 1Password..."
+
+ITEM=$(op item get "$UUID" --format json) || {
+    echo "Error: Failed to retrieve credentials from 1Password" >&2
+    return 1
+}
+
+AWS_ACCESS_KEY_ID=$(echo "$ITEM" | jq -Mcr '.fields[] | select(.label=="username") | .value')
 export AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY=$(echo "$ITEM" | jq -Mcr '.details.fields[] | select(.name=="password") | .value')
+AWS_SECRET_ACCESS_KEY=$(echo "$ITEM" | jq -Mcr '.fields[] | select(.label=="password") | .value')
 export AWS_SECRET_ACCESS_KEY
+
+echo "AWS credentials exported."

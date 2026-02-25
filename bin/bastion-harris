@@ -1,3 +1,27 @@
 #!/usr/bin/env bash
+# bastion-harris - Open an Azure Bastion tunnel to the Harris VM.
+# Usage: bastion-harris
 
-az network bastion tunnel --name "Harris-RG-vnet-bastion" --resource-group "Harris-RG" --target-resource-id "/subscriptions/3f1f0199-34af-4921-bf18-2b83880954e1/resourceGroups/harris-rg/providers/Microsoft.Compute/virtualMachines/vm-har-prd-eu2" --resource-port 3389 --port 9090
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: bastion-harris"
+    echo ""
+    echo "Open an Azure Bastion tunnel (RDP port 3389 -> localhost:9090)."
+    exit 0
+fi
+
+require_command "az" "brew install azure-cli"
+
+info "Opening Bastion tunnel to Harris VM (localhost:9090 -> RDP)..."
+
+az network bastion tunnel \
+    --name "Harris-RG-vnet-bastion" \
+    --resource-group "Harris-RG" \
+    --target-resource-id "/subscriptions/3f1f0199-34af-4921-bf18-2b83880954e1/resourceGroups/harris-rg/providers/Microsoft.Compute/virtualMachines/vm-har-prd-eu2" \
+    --resource-port 3389 \
+    --port 9090

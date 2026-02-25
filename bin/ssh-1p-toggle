@@ -1,14 +1,48 @@
 #!/usr/bin/env bash
+# ssh-1p-toggle - Toggle the 1Password SSH agent in ~/.ssh/config.
+# Usage: ssh-1p-toggle [--status]
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
 
 CONFIG="$HOME/.ssh/config"
 AGENT_LINE='  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'
 
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: ssh-1p-toggle [--status]"
+    echo ""
+    echo "Toggle the 1Password SSH agent line in ~/.ssh/config."
+    echo ""
+    echo "Options:"
+    echo "  --status    Show current state without toggling"
+    echo "  -h, --help  Show this help"
+    exit 0
+fi
+
+if [[ ! -f "$CONFIG" ]]; then
+    error "SSH config not found: $CONFIG"
+fi
+
+# Show status only
+if [[ "${1:-}" == "--status" ]]; then
+    if grep -q "^$AGENT_LINE" "$CONFIG"; then
+        success "1Password SSH agent: enabled"
+    else
+        warn "1Password SSH agent: disabled"
+    fi
+    exit 0
+fi
+
+# Create backup before modifying
+cp "$CONFIG" "$CONFIG.bak"
+
 if grep -q "^$AGENT_LINE" "$CONFIG"; then
     sed -i '' "s|^$AGENT_LINE|#$AGENT_LINE|" "$CONFIG"
-    echo "1Password SSH agent disabled"
+    warn "1Password SSH agent disabled"
 else
     sed -i '' "s|^#$AGENT_LINE|$AGENT_LINE|" "$CONFIG"
-    echo "1Password SSH agent enabled"
+    success "1Password SSH agent enabled"
 fi

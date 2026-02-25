@@ -1,19 +1,31 @@
 #!/usr/bin/env bash
+# tc - Create or attach to a tmux session named after the current directory.
+# Usage: tc [session-name]
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: tc [session-name]"
+    echo ""
+    echo "Create or attach to a tmux session."
+    echo "Defaults to the current directory name if no session name is given."
+    exit 0
+fi
+
 PATH=/opt/homebrew/bin:$PATH
 
-echo "path=$PATH"
+require_command "tmux" "brew install tmux"
 
-# Get the base name of the current directory
-DIR_NAME=$(basename "$(pwd)")
+SESSION_NAME="${1:-$(basename "$(pwd)")}"
 
-# Check if a tmux session with the directory name already exists
-if tmux has-session -t "$DIR_NAME" 2>/dev/null; then
-    # If the session exists, attach to it
-    tmux attach-session -t "$DIR_NAME"
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    info "Attaching to session '$SESSION_NAME'..."
+    tmux attach-session -t "$SESSION_NAME"
 else
-    # If the session doesn't exist, create a new session with the directory name
-    tmux new-session -s "$DIR_NAME"
+    info "Creating session '$SESSION_NAME'..."
+    tmux new-session -s "$SESSION_NAME"
 fi

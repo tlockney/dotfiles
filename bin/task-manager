@@ -16,6 +16,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
 # Configuration
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/task-manager"
 CONFIG_FILE="$CONFIG_DIR/config.json"
@@ -33,12 +37,26 @@ SHOW_URLS=false
 #------------------------------------------------------------------------------
 
 die() {
-    echo "Error: $1" >&2
-    exit 1
+    error "$1"
 }
 
 usage() {
-    sed -n '3,13p' "$0" | sed 's/^# \?//'
+    cat << 'EOF'
+task-manager - CLI for managing tasks in Notion
+
+Usage:
+  task-manager add <title>       Add a new task (lands in Triage)
+  task-manager list [filter]     List tasks (ready, focus, all)
+  task-manager complete <id>     Mark a task as complete
+  task-manager open              Open database (or print URL if in SSH)
+
+Aliases: a=add, ls/l=list, done/d=complete, o=open
+
+Options:
+  --json                         Output in Alfred-compatible JSON format
+  --urls                         Include URLs in list output
+  -h, --help                     Show this help message
+EOF
     exit 0
 }
 
@@ -144,8 +162,8 @@ cmd_add() {
         jq -n --arg id "$page_id" --arg url "$page_url" --arg title "$title" \
             '{ success: true, id: $id, url: $url, title: $title }'
     else
-        echo "Created: $title"
-        echo "URL: $page_url"
+        success "Created: $title"
+        info "URL: $page_url"
     fi
 }
 
@@ -291,7 +309,7 @@ cmd_complete() {
         jq -n --arg id "$page_id" --arg title "$title" \
             '{ success: true, id: $id, title: $title, status: "complete" }'
     else
-        echo "Completed: $title"
+        success "Completed: $title"
     fi
 }
 
@@ -359,20 +377,20 @@ main() {
     load_config
 
     case "$command" in
-        add)
+        a|add)
             cmd_add "${*:-}"
             ;;
-        list|ls)
+        l|ls|list)
             cmd_list "${1:-active}"
             ;;
-        complete|done)
+        d|done|complete)
             cmd_complete "${1:-}"
             ;;
-        open)
+        o|open)
             cmd_open
             ;;
         *)
-            die "Unknown command: $command"
+            die "Unknown command: $command. Run with --help for usage."
             ;;
     esac
 }

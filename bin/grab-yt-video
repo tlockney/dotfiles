@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
+# grab-yt-video - Download video from a YouTube URL.
+# Usage: grab-yt-video <url>
 
-YT_URL=$1
+set -euo pipefail
 
-yt-dlp -f 'bv+ba' -o "%(title)s.%(ext)s" "$YT_URL"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+if [[ $# -eq 0 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: grab-yt-video <url>"
+    echo ""
+    echo "Download video from a YouTube URL."
+    echo ""
+    echo "Example: grab-yt-video https://youtube.com/watch?v=..."
+    exit 0
+fi
+
+require_command "yt-dlp" "brew install yt-dlp"
+
+info "Downloading video..."
+yt-dlp -f 'bv+ba' -o "%(title)s.%(ext)s" "$1"
+success "Download complete."
