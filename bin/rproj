@@ -414,6 +414,7 @@ cmd_default() {
         --height=30% \
         --layout=reverse \
         --border \
+        --no-preview \
         --prompt="Action: " \
         --header="Open '$project_display' with:")
 
