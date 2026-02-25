@@ -9,8 +9,11 @@ set -euo pipefail
 #   tmux   Open tmux session for a remote project
 #   code   Open VS Code for a remote project
 #   help   Show this help
+#
+# Run with no arguments for interactive mode.
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # Config file location
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/rproj/config"
@@ -34,6 +37,7 @@ NC='\033[0m'
 # State
 JSON_MODE=false
 QUERY=""
+PROJECT_PATH=""
 
 # Logging (respects JSON mode)
 info() {
@@ -85,13 +89,16 @@ resolve_project_path() {
 # Help message
 show_help() {
     cat << EOF
-Usage: $SCRIPT_NAME <command> [options] [project]
+Usage: $SCRIPT_NAME [command] [options] [project]
 
 Commands:
-    list    List remote projects
-    tmux    Open tmux session for a project
-    code    Open VS Code for a project
-    help    Show this help
+    list  (l)   List remote projects
+    tmux  (t)   Open tmux session for a project
+    code  (c)   Open VS Code for a project
+    open  (o)   Open from Alfred (host|path format)
+    help        Show this help
+
+    If no command is given, interactively select a project and action.
 
 Options:
     -h, --host HOST   Remote host (default: $RPROJ_HOST)
@@ -102,11 +109,12 @@ Options:
     --help            Show this help
 
 Examples:
-    $SCRIPT_NAME list                    # List all projects
+    $SCRIPT_NAME                         # Interactive: pick project & action
+    $SCRIPT_NAME l                       # List all projects (short form)
     $SCRIPT_NAME list --json             # JSON output for Alfred
-    $SCRIPT_NAME tmux                    # Interactive tmux selection
+    $SCRIPT_NAME t                       # Interactive tmux selection
     $SCRIPT_NAME tmux myproject          # Direct to 'myproject' tmux
-    $SCRIPT_NAME code -h otherhost       # VS Code on different host
+    $SCRIPT_NAME c -h otherhost          # VS Code on different host
     $SCRIPT_NAME code -p myproject       # Direct to 'myproject' in VS Code
 
 Config file: $CONFIG_FILE
@@ -120,8 +128,9 @@ test_connection() {
     local dir="$2"
     local timeout="${3:-5}"
 
+    info "Connecting to $host..."
     if ! ssh -o BatchMode=yes -o ConnectTimeout="$timeout" "$host" "test -d '$dir'" 2>/dev/null; then
-        error "Cannot connect to $host or directory $dir doesn't exist"
+        error "Cannot connect to $host or directory $dir doesn't exist.\n  Check your SSH config or try: ssh -v $host"
     fi
 }
 
@@ -133,22 +142,52 @@ discover_projects() {
     ssh "$host" "find '$dir' -maxdepth 1 -mindepth 1 -type d -not -name '.*' | sort" 2>/dev/null
 }
 
+# Preview a project (called internally by fzf --preview)
+cmd_preview() {
+    local host="$1"
+    local dir="$2"
+    local item="$3"
+    local path
+
+    if [[ "$item" == 📂* ]]; then
+        path="$dir"
+    else
+        path="$dir/$item"
+    fi
+
+    ssh -o ConnectTimeout=2 "$host" "
+        echo '$path'
+        echo
+        if git -C '$path' rev-parse --git-dir >/dev/null 2>&1; then
+            echo 'Branch:'
+            git -C '$path' branch --show-current 2>/dev/null
+            echo
+            echo 'Recent commits:'
+            git -C '$path' log --oneline -5 2>/dev/null
+            echo
+        fi
+        echo 'Contents:'
+        ls -1 '$path' 2>/dev/null | head -20
+    " 2>/dev/null
+}
+
 # Interactive project selection with fzf
 select_project() {
     local projects="$1"
     local dir="$2"
+    local host="$3"
 
     local plabel
     plabel=$(parent_label "$dir")
 
-    clear >/dev/tty
     echo "$projects" | sed "s|^${dir}$|${plabel}|; s|${dir}/||" | fzf \
         --height=60% \
         --layout=reverse \
         --border \
         --cycle \
         --prompt="Select project: " \
-        --header="Select a project to open"
+        --header="Select a project to open" \
+        --preview "'$SCRIPT_PATH' _preview '$host' '$dir' {}"
 }
 
 # Verify a specific project exists
@@ -157,7 +196,44 @@ verify_project() {
     local project_path="$2"
 
     if ! ssh -o BatchMode=yes "$host" "test -d '$project_path'" 2>/dev/null; then
-        error "Project not found at $project_path"
+        error "Project not found at $project_path on $host"
+    fi
+}
+
+# Get project selection - interactive or by name
+# Sets global PROJECT_PATH
+get_project_selection() {
+    local host="$1"
+    local dir="$2"
+    local project_name="$3"
+
+    if [[ -n "$project_name" ]]; then
+        local plabel
+        plabel=$(parent_label "$dir")
+        if [[ "$project_name" == "$plabel" ]]; then
+            PROJECT_PATH="$dir"
+        else
+            PROJECT_PATH="$dir/$project_name"
+            verify_project "$host" "$PROJECT_PATH"
+        fi
+        info "Using project: $project_name"
+    else
+        info "Finding projects in $dir..."
+        local projects
+        projects=$(discover_projects "$host" "$dir")
+
+        # Prepend parent directory as an option
+        if [[ -n "$projects" ]]; then
+            projects="$dir"$'\n'"$projects"
+        else
+            projects="$dir"
+        fi
+
+        local selected
+        selected=$(select_project "$projects" "$dir" "$host")
+        [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
+
+        PROJECT_PATH=$(resolve_project_path "$selected" "$dir")
     fi
 }
 
@@ -303,76 +379,58 @@ cmd_list() {
 # Command: tmux
 cmd_tmux() {
     parse_options "$@"
-
     test_connection "$RPROJ_HOST" "$RPROJ_DIR"
+    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
 
-    local selected="$PROJECT_NAME"
-
-    if [[ -z "$selected" ]]; then
-        info "Finding projects in $RPROJ_DIR..."
-        local projects
-        projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
-
-        # Prepend parent directory as an option
-        if [[ -n "$projects" ]]; then
-            projects="$RPROJ_DIR"$'\n'"$projects"
-        else
-            projects="$RPROJ_DIR"
-        fi
-
-        selected=$(select_project "$projects" "$RPROJ_DIR")
-        [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
-    else
-        # Verify the specified project exists
-        local project_path="$RPROJ_DIR/$selected"
-        verify_project "$RPROJ_HOST" "$project_path"
-        info "Using project: $selected"
-    fi
-
-    local project_path
-    project_path=$(resolve_project_path "$selected" "$RPROJ_DIR")
     local session_name
-    session_name=$(basename "$project_path")
-    success "Opening tmux session '$session_name' at $project_path..."
+    session_name=$(basename "$PROJECT_PATH")
+    success "Opening tmux session '$session_name' at $PROJECT_PATH..."
 
     # Connect and run tc to create/attach tmux session
-    ssh -A -t "$RPROJ_HOST" "cd '$project_path' && ~/bin/tc"
+    ssh -A -t "$RPROJ_HOST" "cd '$PROJECT_PATH' && ~/bin/tc"
 }
 
 # Command: code
 cmd_code() {
     parse_options "$@"
-
     test_connection "$RPROJ_HOST" "$RPROJ_DIR"
+    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
 
-    local selected="$PROJECT_NAME"
+    success "Opening $PROJECT_PATH in VS Code..."
+    code --remote "ssh-remote+$RPROJ_HOST" "$PROJECT_PATH"
+}
 
-    if [[ -z "$selected" ]]; then
-        info "Finding projects in $RPROJ_DIR..."
-        local projects
-        projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
+# Command: default (interactive project + action selection)
+cmd_default() {
+    parse_options "$@"
+    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
+    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
 
-        # Prepend parent directory as an option
-        if [[ -n "$projects" ]]; then
-            projects="$RPROJ_DIR"$'\n'"$projects"
-        else
-            projects="$RPROJ_DIR"
-        fi
+    local project_display
+    project_display=$(basename "$PROJECT_PATH")
 
-        selected=$(select_project "$projects" "$RPROJ_DIR")
-        [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
-    else
-        # Verify the specified project exists
-        local project_path="$RPROJ_DIR/$selected"
-        verify_project "$RPROJ_HOST" "$project_path"
-        info "Using project: $selected"
-    fi
+    local action
+    action=$(printf "tmux\ncode" | fzf \
+        --height=30% \
+        --layout=reverse \
+        --border \
+        --prompt="Action: " \
+        --header="Open '$project_display' with:")
 
-    local project_path
-    project_path=$(resolve_project_path "$selected" "$RPROJ_DIR")
-    success "Opening $project_path in VS Code..."
+    [[ -z "$action" ]] && { echo "Cancelled."; exit 0; }
 
-    code --remote "ssh-remote+$RPROJ_HOST" "$project_path"
+    case "$action" in
+        tmux)
+            local session_name
+            session_name=$(basename "$PROJECT_PATH")
+            success "Opening tmux session '$session_name' at $PROJECT_PATH..."
+            ssh -A -t "$RPROJ_HOST" "cd '$PROJECT_PATH' && ~/bin/tc"
+            ;;
+        code)
+            success "Opening $PROJECT_PATH in VS Code..."
+            code --remote "ssh-remote+$RPROJ_HOST" "$PROJECT_PATH"
+            ;;
+    esac
 }
 
 # Command: open (for Alfred - opens with host|path format)
@@ -395,27 +453,35 @@ cmd_open() {
 # Main
 main() {
     if [[ $# -lt 1 ]]; then
-        show_help
+        cmd_default
+        return
     fi
 
     local command="$1"
     shift
 
     case "$command" in
-        list)
+        l|list)
             cmd_list "$@"
             ;;
-        tmux)
+        t|tmux)
             cmd_tmux "$@"
             ;;
-        code)
+        c|code)
             cmd_code "$@"
             ;;
-        open)
+        o|open)
             cmd_open "$@"
             ;;
-        help|--help|-h)
+        _preview)
+            cmd_preview "$@"
+            ;;
+        help|--help)
             show_help
+            ;;
+        -*)
+            # Options without a subcommand -> interactive mode
+            cmd_default "$command" "$@"
             ;;
         *)
             error "Unknown command: $command. Use '$SCRIPT_NAME help' for usage."
