@@ -3,16 +3,16 @@
 <plist version="1.0">
 <dict>
 	<key>bundleid</key>
-	<string>com.tlockney.vscode-remote-selector</string>
+	<string>com.tlockney.meeting-notes</string>
 	<key>category</key>
-	<string>Tools</string>
+	<string>Productivity</string>
 	<key>connections</key>
 	<dict>
-		<key>7F1C3E8B-1234-5678-90AB-CDEF12345678</key>
+		<key>B1A2C3D4-1111-2222-3333-SCRIPTFILTER1</key>
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>8F2D4F9C-2345-6789-01BC-DEF234567890</string>
+				<string>C2B3D4E5-4444-5555-6666-RUNSCRIPT001</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -25,11 +25,11 @@
 	<key>createdby</key>
 	<string>Thomas Lockney</string>
 	<key>description</key>
-	<string>Open remote projects in VS Code via SSH</string>
+	<string>Create meeting notes from calendar events</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
-	<string>VS Code Remote Selector</string>
+	<string>Meeting Notes</string>
 	<key>objects</key>
 	<array>
 		<dict>
@@ -40,7 +40,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>script</key>
-				<string>./open_project.sh "$1"</string>
+				<string>./create_note.sh "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -51,7 +51,7 @@
 			<key>type</key>
 			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
-			<string>8F2D4F9C-2345-6789-01BC-DEF234567890</string>
+			<string>C2B3D4E5-4444-5555-6666-RUNSCRIPT001</string>
 			<key>version</key>
 			<integer>2</integer>
 		</dict>
@@ -63,7 +63,7 @@
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>0</integer>
 				<key>argumenttreatemptyqueryasnil</key>
-				<true/>
+				<false/>
 				<key>argumenttrimmode</key>
 				<integer>0</integer>
 				<key>argumenttype</key>
@@ -71,7 +71,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>keyword</key>
-				<string>rcode</string>
+				<string>mtg</string>
 				<key>queuedelaycustom</key>
 				<integer>3</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -81,17 +81,17 @@
 				<key>queuemode</key>
 				<integer>1</integer>
 				<key>runningsubtext</key>
-				<string>Loading projects...</string>
+				<string>Loading meetings...</string>
 				<key>script</key>
-				<string>./remote_project_selector.sh "$1"</string>
+				<string>./list_meetings.sh "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string></string>
 				<key>subtext</key>
-				<string>Select a remote project to open in VS Code</string>
+				<string>Select a meeting to create notes for</string>
 				<key>title</key>
-				<string>VS Code Remote Project</string>
+				<string>Meeting Notes</string>
 				<key>type</key>
 				<integer>0</integer>
 				<key>withspace</key>
@@ -100,35 +100,35 @@
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
-			<string>7F1C3E8B-1234-5678-90AB-CDEF12345678</string>
+			<string>B1A2C3D4-1111-2222-3333-SCRIPTFILTER1</string>
 			<key>version</key>
 			<integer>3</integer>
 		</dict>
 	</array>
 	<key>readme</key>
-	<string>## VS Code Remote Selector
+	<string>## Meeting Notes
 
-This workflow allows you to quickly open remote projects in VS Code via SSH.
+Quickly create meeting notes from your calendar.
 
 ### Usage:
-- Type `rcode` to list all projects
-- Type `rcode [filter]` to filter projects
-- Type `rcode @hostname` to use a different host
+- Type `mtg` to list today's meetings
+- Type `mtg [filter]` to filter by meeting name
+- Select a meeting to create a note and open it in Obsidian
 
-### Configuration:
-You can set custom defaults using workflow variables:
-- `remote_host`: Default SSH host (default: workmbp)
-- `remote_dir`: Default remote directory (default: /Users/thomas.lockney/src/metron)</string>
+### Requirements:
+- ~/bin/mtg script
+- Calendar data at ~/.local/var/cal_agenda.json
+- Obsidian with Personal vault</string>
 	<key>uidata</key>
 	<dict>
-		<key>7F1C3E8B-1234-5678-90AB-CDEF12345678</key>
+		<key>B1A2C3D4-1111-2222-3333-SCRIPTFILTER1</key>
 		<dict>
 			<key>xpos</key>
 			<real>100</real>
 			<key>ypos</key>
 			<real>100</real>
 		</dict>
-		<key>8F2D4F9C-2345-6789-01BC-DEF234567890</key>
+		<key>C2B3D4E5-4444-5555-6666-RUNSCRIPT001</key>
 		<dict>
 			<key>xpos</key>
 			<real>300</real>
@@ -136,51 +136,6 @@ You can set custom defaults using workflow variables:
 			<real>100</real>
 		</dict>
 	</dict>
-	<key>userconfigurationconfig</key>
-	<array>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>workmbp</string>
-				<key>placeholder</key>
-				<string>workmbp</string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string>Default SSH host for remote projects</string>
-			<key>label</key>
-			<string>Remote Host</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>remote_host</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>/Users/thomas.lockney/src/metron</string>
-				<key>placeholder</key>
-				<string>/Users/thomas.lockney/src/metron</string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string>Default directory to search for projects on remote host</string>
-			<key>label</key>
-			<string>Remote Directory</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>remote_dir</string>
-		</dict>
-	</array>
 	<key>variablesdontexport</key>
 	<array/>
 	<key>version</key>
