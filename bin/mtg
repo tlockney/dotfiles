@@ -1,312 +1,495 @@
-#!/usr/bin/env bash
+#!/usr/bin/env -S deno run --allow-read --allow-run --allow-env --allow-write
 
-set -euo pipefail
+import { parseArgs } from "jsr:@std/cli@1/parse-args";
+import { existsSync } from "jsr:@std/fs@1/exists";
+import { join } from "jsr:@std/path@1/join";
 
-SCRIPT_NAME="$(basename "$0")"
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+// --- Configuration ---
+const CAL_FILE = join(Deno.env.get("HOME")!, ".local/var/cal_agenda.json");
+const VAULT_PATH = join(Deno.env.get("HOME")!, "Obsidian/Personal");
+const MEETINGS_DIR = join(VAULT_PATH, "Active/Metron/Meetings");
+const CALENDAR_FILTER = "Work Calendar";
+const SELF_NAME = "Thomas Lockney";
 
-# --- Configuration ---
-CAL_FILE="$HOME/.local/var/cal_agenda.json"
-VAULT_PATH="$HOME/Obsidian/Personal"
-MEETINGS_DIR="$VAULT_PATH/Active/Metron/Meetings"
-CALENDAR_FILTER="Work Calendar"
-SELF_NAME="Thomas Lockney"
-
-# --- State ---
-JSON_MODE=false
-QUERY=""
-TARGET_DATE="$(date +%Y-%m-%d)"
-EVENT_UID=""
-
-# --- Colors (disabled in JSON mode) ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[0;33m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-# --- Logging ---
-info()    { [[ "$JSON_MODE" == "true" ]] && return; echo -e "${BLUE}$*${NC}"; }
-success() { [[ "$JSON_MODE" == "true" ]] && return; echo -e "${GREEN}$*${NC}"; }
-warn()    { [[ "$JSON_MODE" == "true" ]] && return; echo -e "${YELLOW}$*${NC}" >&2; }
-error() {
-    if [[ "$JSON_MODE" == "true" ]]; then
-        jq -n --arg m "$*" '{"items": [{"title": "Error", "subtitle": $m, "valid": false}]}'
-        exit 0
-    else
-        echo -e "${RED}Error: $*${NC}" >&2
-        exit 1
-    fi
+// --- Types ---
+interface Attendee {
+  email: string;
+  name: string;
+  role: string;
+  status: string;
 }
 
-# --- Utilities ---
-
-# Convert UTC ISO 8601 timestamp to local time
-utc_to_local() {
-    local utc_time="$1"
-    local format="${2:-%Y-%m-%d %H:%M}"
-    local epoch
-    epoch=$(TZ=UTC date -jf "%Y-%m-%dT%H:%M:%SZ" "$utc_time" "+%s" 2>/dev/null) || return 1
-    date -r "$epoch" "+$format"
+interface CalendarEvent {
+  all_day: boolean;
+  attendees?: Attendee[];
+  calendar: string;
+  end: string;
+  location?: string;
+  notes?: string;
+  organizer?: Attendee;
+  recurrence_rule?: {
+    end_date: string;
+    frequency: string;
+    interval: number;
+  };
+  recurring?: boolean;
+  start: string;
+  status: string;
+  title: string;
+  uid: string;
 }
 
-# Sanitize a string for use as a filename
-sanitize_filename() {
-    echo "$1" | sed 's/1:1/1-1/g; s/://g; s|/| - |g; s/[\\<>"|?*]//g; s/  */ /g; s/^ *//; s/ *$//'
+interface CalendarData {
+  calendars: string[];
+  event_count: number;
+  events: CalendarEvent[];
 }
 
-# Detect meeting type from title and invitee count
-detect_meeting_type() {
-    local title="$1"
-    local invitee_count="$2"
-    local lower
-    lower=$(echo "$title" | tr '[:upper:]' '[:lower:]')
+// --- Colors ---
+const color = {
+  red: (s: string) => `\x1b[0;31m${s}\x1b[0m`,
+  green: (s: string) => `\x1b[0;32m${s}\x1b[0m`,
+  blue: (s: string) => `\x1b[0;34m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[0;33m${s}\x1b[0m`,
+  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
+};
 
-    if [[ "$lower" =~ 1:1|1-1|1on1|one-on-one ]]; then
-        echo "1-1"
-    elif [[ "$invitee_count" -le 1 ]]; then
-        echo "1-1"
-    elif [[ "$lower" =~ standup|stand-up|daily\ scrum ]]; then
-        echo "standup"
-    elif [[ "$lower" =~ grooming|refinement ]]; then
-        echo "grooming"
-    elif [[ "$lower" =~ sprint.*planning|planning.*sprint ]]; then
-        echo "planning"
-    elif [[ "$lower" =~ retro(spective)? ]]; then
-        echo "retro"
-    fi
+// --- Utilities ---
+
+function loadCalendar(): CalendarData {
+  if (!existsSync(CAL_FILE)) {
+    throw new Error(`Calendar file not found: ${CAL_FILE}`);
+  }
+  return JSON.parse(Deno.readTextFileSync(CAL_FILE));
 }
 
-# Verify required tools are available
-check_deps() {
-    local missing=()
-    command -v jq >/dev/null 2>&1 || missing+=("jq")
-    [[ "$JSON_MODE" != "true" ]] && { command -v fzf >/dev/null 2>&1 || missing+=("fzf"); }
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        error "Missing required dependencies: ${missing[*]}"
-    fi
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
-# --- Data ---
-
-# Get events for a target date, filtered to the configured calendar
-get_events() {
-    local target_date="$1"
-    [[ ! -f "$CAL_FILE" ]] && error "Calendar file not found: $CAL_FILE"
-
-    local all_events
-    all_events=$(jq -c --arg cal "$CALENDAR_FILTER" '
-        .events
-        | map(select(.calendar == $cal and .all_day == false))
-        | sort_by(.start)
-        | .[]
-    ' "$CAL_FILE" 2>/dev/null) || error "Failed to parse calendar file"
-
-    # Filter by local date (UTC times may fall on different local dates)
-    local filtered=()
-    while IFS= read -r event; do
-        [[ -z "$event" ]] && continue
-        local start_utc local_date
-        start_utc=$(echo "$event" | jq -r '.start')
-        local_date=$(utc_to_local "$start_utc" "%Y-%m-%d") || continue
-        [[ "$local_date" == "$target_date" ]] && filtered+=("$event")
-    done <<< "$all_events"
-
-    if [[ ${#filtered[@]} -eq 0 ]]; then
-        echo "[]"
-    else
-        printf '%s\n' "${filtered[@]}" | jq -s '.'
-    fi
+function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-# Look up a single event by its calendar UID
-get_event_by_uid() {
-    local uid="$1"
-    jq -c --arg uid "$uid" '.events | map(select(.uid == $uid)) | first // empty' "$CAL_FILE"
+function toLocalDate(utcIso: string): Date {
+  return new Date(utcIso);
 }
 
-# Get invitee names (excluding self) as a JSON array
-get_invitees() {
-    local event="$1"
-    echo "$event" | jq --arg self "$SELF_NAME" '
-        (
-            [(.attendees // [])[].name] +
-            [.organizer.name // empty]
-        ) |
-        map(select(. != $self and . != null)) |
-        unique
-    '
+function sanitizeFilename(title: string): string {
+  return title
+    .replace(/1:1/g, "1-1")
+    .replace(/:/g, "")
+    .replace(/\//g, " - ")
+    .replace(/[\\<>"|?*]/g, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
 }
 
-# Format a single event for terminal display
-format_event_display() {
-    local event="$1"
-    local start_utc end_utc title
-    start_utc=$(echo "$event" | jq -r '.start')
-    end_utc=$(echo "$event" | jq -r '.end')
-    title=$(echo "$event" | jq -r '.title')
-
-    local invitees invitee_count
-    invitees=$(get_invitees "$event")
-    invitee_count=$(echo "$invitees" | jq 'length')
-
-    local start_time end_time
-    start_time=$(utc_to_local "$start_utc" "%H:%M")
-    end_time=$(utc_to_local "$end_utc" "%H:%M")
-
-    if [[ "$invitee_count" -eq 1 ]]; then
-        printf "%s - %s  %s (1 invitee)" "$start_time" "$end_time" "$title"
-    else
-        printf "%s - %s  %s (%d invitees)" "$start_time" "$end_time" "$title" "$invitee_count"
-    fi
+function detectMeetingType(
+  title: string,
+  inviteeCount: number,
+): string | undefined {
+  const lower = title.toLowerCase();
+  if (/1:1|1-1|1on1|one-on-one/.test(lower)) return "1-1";
+  if (inviteeCount <= 1) return "1-1";
+  if (/standup|stand-up|daily scrum/.test(lower)) return "standup";
+  if (/grooming|refinement/.test(lower)) return "grooming";
+  if (/sprint.*planning|planning.*sprint/.test(lower)) return "planning";
+  if (/retro(spective)?/.test(lower)) return "retro";
+  return undefined;
 }
 
-# Open a meeting note in Obsidian
-open_in_obsidian() {
-    local filename="$1"
-    local note_name="${filename%.md}"
-    local encoded
-    encoded=$(python3 -c "import urllib.parse; print(urllib.parse.quote('Active/Metron/Meetings/$note_name'))")
-    open "obsidian://open?vault=Personal&file=$encoded" 2>/dev/null || true
+function getInvitees(event: CalendarEvent): string[] {
+  const names = new Set<string>();
+  for (const a of event.attendees ?? []) {
+    if (a.name && a.name !== SELF_NAME) names.add(a.name);
+  }
+  if (event.organizer?.name && event.organizer.name !== SELF_NAME) {
+    names.add(event.organizer.name);
+  }
+  return [...names].sort();
 }
 
-# --- Commands ---
-
-# Internal fzf subcommands for day navigation
-
-# Output UID\tdisplay lines for the date stored in a datefile
-# Uses a single python3 call for speed (avoids per-event subprocess spawning)
-cmd_fzf_data() {
-    local datefile="$1"
-    local target_date
-    target_date=$(cat "$datefile")
-
-    python3 - "$CAL_FILE" "$target_date" "$CALENDAR_FILTER" "$SELF_NAME" <<'PYEOF'
-import json, sys
-from datetime import datetime
-
-cal_file, target, cal_filter, self_name = sys.argv[1:5]
-
-with open(cal_file) as f:
-    data = json.load(f)
-
-events = [e for e in data["events"]
-          if e.get("calendar") == cal_filter and not e.get("all_day", False)]
-events.sort(key=lambda e: e["start"])
-
-for event in events:
-    start = datetime.fromisoformat(event["start"]).astimezone()
-    if start.strftime("%Y-%m-%d") != target:
-        continue
-    end = datetime.fromisoformat(event["end"]).astimezone()
-
-    names = set()
-    for a in event.get("attendees", []):
-        name = a.get("name")
-        if name and name != self_name:
-            names.add(name)
-    org = (event.get("organizer") or {}).get("name")
-    if org and org != self_name:
-        names.add(org)
-
-    n = len(names)
-    label = "1 invitee" if n == 1 else f"{n} invitees"
-    st = start.strftime("%H:%M")
-    et = end.strftime("%H:%M")
-
-    print(f"{event['uid']}\t{st} - {et}  {event['title']} ({label})")
-PYEOF
+function getEventsForDate(
+  data: CalendarData,
+  targetDate: string,
+): CalendarEvent[] {
+  return data.events
+    .filter((e) => e.calendar === CALENDAR_FILTER && !e.all_day)
+    .filter((e) => formatDate(toLocalDate(e.start)) === targetDate)
+    .sort((a, b) => a.start.localeCompare(b.start));
 }
 
-# Navigate to previous or next day, updating the datefile
-cmd_fzf_nav() {
-    local direction="$1"
-    local datefile="$2"
-    local current_date new_date
-    current_date=$(cat "$datefile")
-    if [[ "$direction" == "prev" ]]; then
-        new_date=$(date -v-1d -jf "%Y-%m-%d" "$current_date" "+%Y-%m-%d")
-    else
-        new_date=$(date -v+1d -jf "%Y-%m-%d" "$current_date" "+%Y-%m-%d")
-    fi
-    echo "$new_date" > "$datefile"
+function getEventByUid(
+  data: CalendarData,
+  uid: string,
+): CalendarEvent | undefined {
+  return data.events.find((e) => e.uid === uid);
 }
 
-# Output the fzf header for the current date
-cmd_fzf_header() {
-    local datefile="$1"
-    local current_date day_name
-    current_date=$(cat "$datefile")
-    day_name=$(date -jf "%Y-%m-%d" "$current_date" "+%A")
-    echo "$day_name $current_date  |  ← prev day  ·  next day →"
+function isRecurring(data: CalendarData, event: CalendarEvent): boolean {
+  if (event.recurring) return true;
+  if (event.uid.includes("/RID=")) {
+    const baseUid = event.uid.split("/RID=")[0];
+    const parent = data.events.find((e) => e.uid === baseUid);
+    return parent?.recurring === true;
+  }
+  return false;
 }
 
-# Preview command for fzf (called internally)
-cmd_preview() {
-    local uid="$1"
-    local event
-    event=$(get_event_by_uid "$uid")
-    [[ -z "$event" ]] && { echo "Event not found"; return; }
-
-    local title start_utc end_utc location organizer_name recurring
-    title=$(echo "$event" | jq -r '.title')
-    start_utc=$(echo "$event" | jq -r '.start')
-    end_utc=$(echo "$event" | jq -r '.end')
-    location=$(echo "$event" | jq -r '.location // ""')
-    organizer_name=$(echo "$event" | jq -r '.organizer.name // ""')
-    recurring=$(echo "$event" | jq -r '.recurring // false')
-
-    local start_time end_time local_date
-    local_date=$(utc_to_local "$start_utc" "%Y-%m-%d")
-    start_time=$(utc_to_local "$start_utc" "%H:%M")
-    end_time=$(utc_to_local "$end_utc" "%H:%M")
-
-    local invitees_json invitee_count meeting_type
-    invitees_json=$(get_invitees "$event")
-    invitee_count=$(echo "$invitees_json" | jq 'length')
-    meeting_type=$(detect_meeting_type "$title" "$invitee_count")
-
-    echo -e "${BOLD}${title}${NC}"
-    echo
-    echo -e "  Date:       $local_date"
-    echo -e "  Time:       $start_time - $end_time"
-    [[ -n "$meeting_type" ]] && echo -e "  Type:       $meeting_type"
-
-    # Check recurring: either the event itself or its parent (via /RID= UID)
-    local is_recurring="$recurring"
-    if [[ "$is_recurring" != "true" ]]; then
-        local event_uid
-        event_uid=$(echo "$event" | jq -r '.uid')
-        if [[ "$event_uid" == *"/RID="* ]]; then
-            local base_uid="${event_uid%%/RID=*}"
-            is_recurring=$(jq -r --arg uid "$base_uid" \
-                '.events[] | select(.uid == $uid) | .recurring // false' "$CAL_FILE" 2>/dev/null | head -1)
-        fi
-    fi
-    [[ "$is_recurring" == "true" ]] && echo -e "  Recurring:  yes"
-    [[ -n "$location" ]] && echo -e "  Location:   $location"
-    [[ -n "$organizer_name" && "$organizer_name" != "$SELF_NAME" ]] && echo -e "  Organizer:  $organizer_name"
-    echo
-    echo -e "${BOLD}Invitees ($invitee_count):${NC}"
-    while IFS= read -r name; do
-        echo "  - $name"
-    done < <(echo "$invitees_json" | jq -r '.[]')
-
-    # Check if note already exists
-    local safe_title filename filepath
-    safe_title=$(sanitize_filename "$title")
-    filename="${safe_title} - ${local_date}.md"
-    filepath="$MEETINGS_DIR/$filename"
-    if [[ -f "$filepath" ]]; then
-        echo
-        echo -e "${YELLOW}Note already exists${NC}"
-    fi
+function openInObsidian(filename: string): void {
+  const noteName = filename.replace(/\.md$/, "");
+  const encoded = encodeURIComponent(`Active/Metron/Meetings/${noteName}`);
+  const cmd = new Deno.Command("open", {
+    args: [`obsidian://open?vault=Personal&file=${encoded}`],
+    stderr: "null",
+  });
+  cmd.outputSync();
 }
 
-show_help() {
-    cat <<EOF
-Usage: $SCRIPT_NAME [command] [options]
+// --- Commands ---
+
+function cmdList(
+  targetDate: string,
+  jsonMode: boolean,
+  query: string,
+): void {
+  const data = loadCalendar();
+  const events = getEventsForDate(data, targetDate);
+
+  if (events.length === 0) {
+    if (jsonMode) {
+      console.log(JSON.stringify({
+        items: [{
+          title: "No meetings",
+          subtitle: `No meetings found for ${targetDate}`,
+          valid: false,
+        }],
+      }));
+    } else {
+      console.log(color.blue(`No meetings found for ${targetDate}`));
+    }
+    return;
+  }
+
+  if (jsonMode) {
+    const items = events
+      .filter((event) => {
+        if (!query) return true;
+        return event.title.toLowerCase().includes(query.toLowerCase());
+      })
+      .map((event) => {
+        const start = toLocalDate(event.start);
+        const end = toLocalDate(event.end);
+        const inviteeCount = getInvitees(event).length;
+        return {
+          uid: event.uid,
+          title: event.title,
+          subtitle: `${formatTime(start)} - ${
+            formatTime(end)
+          } • ${inviteeCount} invitees`,
+          arg: event.uid,
+          autocomplete: event.title,
+        };
+      });
+    console.log(JSON.stringify({ items }));
+  } else {
+    console.log(color.blue(`Meetings for ${targetDate}:`));
+    console.log();
+    for (const event of events) {
+      const start = toLocalDate(event.start);
+      const end = toLocalDate(event.end);
+      const inviteeCount = getInvitees(event).length;
+      const label = inviteeCount === 1
+        ? "1 invitee"
+        : `${inviteeCount} invitees`;
+      console.log(
+        `  ${formatTime(start)} - ${
+          formatTime(end)
+        }  ${event.title} (${label})`,
+      );
+    }
+  }
+}
+
+function cmdPreview(uid: string): void {
+  const data = loadCalendar();
+  const event = getEventByUid(data, uid);
+  if (!event) {
+    console.log("Event not found");
+    return;
+  }
+
+  const start = toLocalDate(event.start);
+  const end = toLocalDate(event.end);
+  const localDate = formatDate(start);
+  const invitees = getInvitees(event);
+  const meetingType = detectMeetingType(event.title, invitees.length);
+  const recurring = isRecurring(data, event);
+
+  console.log(color.bold(event.title));
+  console.log();
+  console.log(`  Date:       ${localDate}`);
+  console.log(`  Time:       ${formatTime(start)} - ${formatTime(end)}`);
+  if (meetingType) console.log(`  Type:       ${meetingType}`);
+  if (recurring) console.log(`  Recurring:  yes`);
+  if (event.location) console.log(`  Location:   ${event.location}`);
+  if (event.organizer?.name && event.organizer.name !== SELF_NAME) {
+    console.log(`  Organizer:  ${event.organizer.name}`);
+  }
+  console.log();
+  console.log(color.bold(`Invitees (${invitees.length}):`));
+  for (const name of invitees) {
+    console.log(`  - ${name}`);
+  }
+
+  // Check if note already exists
+  const safeTitle = sanitizeFilename(event.title);
+  const filename = `${safeTitle} - ${localDate}.md`;
+  const filepath = join(MEETINGS_DIR, filename);
+  if (existsSync(filepath)) {
+    console.log();
+    console.log(color.yellow("Note already exists"));
+  }
+}
+
+function cmdFzfData(datefile: string): void {
+  const targetDate = Deno.readTextFileSync(datefile).trim();
+  const data = loadCalendar();
+  const events = getEventsForDate(data, targetDate);
+
+  for (const event of events) {
+    const start = toLocalDate(event.start);
+    const end = toLocalDate(event.end);
+    const invitees = getInvitees(event);
+    const label = invitees.length === 1
+      ? "1 invitee"
+      : `${invitees.length} invitees`;
+    console.log(
+      `${event.uid}\t${formatTime(start)} - ${
+        formatTime(end)
+      }  ${event.title} (${label})`,
+    );
+  }
+}
+
+function cmdFzfNav(direction: string, datefile: string): void {
+  const currentDate = Deno.readTextFileSync(datefile).trim();
+  const date = new Date(currentDate + "T12:00:00");
+  date.setDate(date.getDate() + (direction === "prev" ? -1 : 1));
+  Deno.writeTextFileSync(datefile, formatDate(date));
+}
+
+function cmdFzfHeader(datefile: string): void {
+  const currentDate = Deno.readTextFileSync(datefile).trim();
+  const date = new Date(currentDate + "T12:00:00");
+  const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+  console.log(
+    `${dayName} ${currentDate}  |  ← prev day  ·  next day →`,
+  );
+}
+
+async function cmdCreate(
+  targetDate: string,
+  eventUid: string,
+  jsonMode: boolean,
+): Promise<void> {
+  const data = loadCalendar();
+  let event: CalendarEvent | undefined;
+
+  if (eventUid) {
+    event = getEventByUid(data, eventUid);
+    if (!event) {
+      if (jsonMode) {
+        console.log(JSON.stringify({
+          items: [{
+            title: "Error",
+            subtitle: `No event found with UID: ${eventUid}`,
+            valid: false,
+          }],
+        }));
+        Deno.exit(0);
+      }
+      console.error(color.red(`Error: No event found with UID: ${eventUid}`));
+      Deno.exit(1);
+    }
+  } else {
+    // Interactive selection via fzf with day navigation
+    const scriptPath = new URL(import.meta.url).pathname;
+    const datefile = await Deno.makeTempFile();
+
+    try {
+      Deno.writeTextFileSync(datefile, targetDate);
+
+      // Generate initial data directly (no subprocess needed for initial load)
+      const data2 = loadCalendar();
+      const initialEvents = getEventsForDate(
+        data2,
+        Deno.readTextFileSync(datefile).trim(),
+      );
+      const fzfInput = initialEvents
+        .map((e) => {
+          const s = toLocalDate(e.start);
+          const en = toLocalDate(e.end);
+          const inv = getInvitees(e);
+          const lbl = inv.length === 1 ? "1 invitee" : `${inv.length} invitees`;
+          return `${e.uid}\t${formatTime(s)} - ${
+            formatTime(en)
+          }  ${e.title} (${lbl})`;
+        })
+        .join("\n");
+
+      const currentDate = Deno.readTextFileSync(datefile).trim();
+      const headerDate = new Date(currentDate + "T12:00:00");
+      const dayName = headerDate.toLocaleDateString("en-US", {
+        weekday: "long",
+      });
+      const initialHeader =
+        `${dayName} ${currentDate}  |  ← prev day  ·  next day →`;
+
+      const bindPrev =
+        `left:execute-silent(${scriptPath} _fzf-nav prev ${datefile})+reload(${scriptPath} _fzf-data ${datefile})+transform-header(${scriptPath} _fzf-header ${datefile})`;
+      const bindNext =
+        `right:execute-silent(${scriptPath} _fzf-nav next ${datefile})+reload(${scriptPath} _fzf-data ${datefile})+transform-header(${scriptPath} _fzf-header ${datefile})`;
+
+      const fzfProc = new Deno.Command("fzf", {
+        args: [
+          "--height=80%",
+          "--layout=reverse",
+          "--border",
+          "--delimiter=\t",
+          "--with-nth=2",
+          `--preview=${scriptPath} _preview {1}`,
+          "--preview-window=right:50%:wrap",
+          `--bind=${bindPrev}`,
+          `--bind=${bindNext}`,
+          "--prompt=Select meeting: ",
+          `--header=${initialHeader}`,
+        ],
+        stdin: "piped",
+        stdout: "piped",
+        stderr: "inherit",
+      });
+
+      const child = fzfProc.spawn();
+      const writer = child.stdin.getWriter();
+      await writer.write(new TextEncoder().encode(fzfInput));
+      await writer.close();
+      const output = await child.output();
+      const selected = new TextDecoder().decode(output.stdout).trim();
+
+      if (!selected) {
+        console.log("Cancelled.");
+        Deno.exit(0);
+      }
+
+      const selectedUid = selected.split("\t")[0];
+      event = getEventByUid(data, selectedUid);
+      if (!event) {
+        console.error(color.red("Error: Failed to find selected meeting"));
+        Deno.exit(1);
+      }
+    } finally {
+      try {
+        Deno.removeSync(datefile);
+      } catch { /* ignore */ }
+    }
+  }
+
+  // Extract event details
+  const start = toLocalDate(event.start);
+  const end = toLocalDate(event.end);
+  const localDate = formatDate(start);
+  const startTime = formatTime(start);
+  const endTime = formatTime(end);
+  const invitees = getInvitees(event);
+  const meetingType = detectMeetingType(event.title, invitees.length);
+  const recurring = isRecurring(data, event);
+  const series = recurring ? event.title : undefined;
+
+  // Build file path
+  const safeTitle = sanitizeFilename(event.title);
+  const filename = `${safeTitle} - ${localDate}.md`;
+  const filepath = join(MEETINGS_DIR, filename);
+
+  // Check for existing note
+  if (existsSync(filepath)) {
+    if (jsonMode) {
+      console.error(color.yellow(`Note already exists: ${filename}`));
+      return;
+    }
+    console.error(color.yellow(`Note already exists: ${filename}`));
+    if (Deno.stdin.isTerminal()) {
+      const buf = new Uint8Array(10);
+      Deno.stdout.writeSync(
+        new TextEncoder().encode("Open existing note? [Y/n] "),
+      );
+      const n = Deno.stdin.readSync(buf);
+      const answer = n
+        ? new TextDecoder().decode(buf.subarray(0, n)).trim()
+        : "Y";
+      if (/^[Yy]?$/.test(answer)) {
+        openInObsidian(filename);
+      }
+    }
+    return;
+  }
+
+  // Ensure directory exists
+  await Deno.mkdir(MEETINGS_DIR, { recursive: true });
+
+  // Build note content
+  const inviteeYaml = invitees.map((name) => `  - ${name}`).join("\n");
+  const inviteeLinks = invitees.map((name) => `- [[${name}]]`).join("\n");
+
+  let frontmatter = `---
+tags:
+  - meeting
+date: ${localDate}
+start-time: "${startTime}"
+end-time: "${endTime}"`;
+
+  if (series) frontmatter += `\nseries: "${series}"`;
+  if (meetingType) frontmatter += `\nmeeting-type: ${meetingType}`;
+  frontmatter += `\ninvitees:\n${inviteeYaml}`;
+  if (event.organizer?.name && event.organizer.name !== SELF_NAME) {
+    frontmatter += `\norganizer: ${event.organizer.name}`;
+  }
+  if (event.location) frontmatter += `\nlocation: "${event.location}"`;
+  frontmatter += `\ncalendar: ${CALENDAR_FILTER}`;
+  frontmatter += `\n---`;
+
+  const noteContent = `${frontmatter}
+
+# ${event.title}
+
+## Attendees
+${inviteeLinks}
+
+## Notes
+
+## Summary
+
+## Action Items
+- [ ] `;
+
+  Deno.writeTextFileSync(filepath, noteContent);
+  console.log(color.green(`Created: ${filename}`));
+  openInObsidian(filename);
+}
+
+// --- Help ---
+
+function showHelp(): void {
+  const name = "mtg";
+  console.log(`Usage: ${name} [command] [options]
 
 Commands:
     list   (l)   List meetings for today (or specified date)
@@ -323,302 +506,83 @@ Options:
     --help        Show this help
 
 Examples:
-    $SCRIPT_NAME                           # Interactive: pick meeting & create note
-    $SCRIPT_NAME l                         # List today's meetings
-    $SCRIPT_NAME list --date 2026-03-01    # List meetings for a specific date
-    $SCRIPT_NAME list --json               # JSON output for Alfred
-    $SCRIPT_NAME list --json -q standup    # Alfred JSON filtered by query
-    $SCRIPT_NAME c                         # Interactively create a meeting note
-    $SCRIPT_NAME create --uid ABC-123      # Create note for a specific meeting UID
-EOF
-    exit 0
+    ${name}                           # Interactive: pick meeting & create note
+    ${name} l                         # List today's meetings
+    ${name} list --date 2026-03-01    # List meetings for a specific date
+    ${name} list --json               # JSON output for Alfred
+    ${name} list --json -q standup    # Alfred JSON filtered by query
+    ${name} c                         # Interactively create a meeting note
+    ${name} create --uid ABC-123      # Create note for a specific meeting UID`);
 }
 
-cmd_list() {
-    check_deps
+// --- Main ---
 
-    local events
-    events=$(get_events "$TARGET_DATE")
-    local count
-    count=$(echo "$events" | jq 'length')
+const args = Deno.args;
+const command = args[0] ?? "";
 
-    if [[ "$count" -eq 0 ]]; then
-        if [[ "$JSON_MODE" == "true" ]]; then
-            jq -n --arg d "$TARGET_DATE" \
-                '{"items": [{"title": "No meetings", "subtitle": ("No meetings found for " + $d), "valid": false}]}'
-        else
-            info "No meetings found for $TARGET_DATE"
-        fi
-        return
-    fi
-
-    if [[ "$JSON_MODE" == "true" ]]; then
-        echo '{"items": ['
-        local first=true
-        while IFS= read -r event; do
-            local title uid start_utc end_utc start_time end_time invitee_count
-            title=$(echo "$event" | jq -r '.title')
-            uid=$(echo "$event" | jq -r '.uid')
-            start_utc=$(echo "$event" | jq -r '.start')
-            end_utc=$(echo "$event" | jq -r '.end')
-            start_time=$(utc_to_local "$start_utc" "%H:%M")
-            end_time=$(utc_to_local "$end_utc" "%H:%M")
-            invitee_count=$(echo "$event" | jq --arg self "$SELF_NAME" \
-                '[(.attendees // [])[].name] | map(select(. != $self)) | length')
-
-            # Filter by query if provided
-            if [[ -n "$QUERY" ]]; then
-                local lower_title lower_query
-                lower_title=$(echo "$title" | tr '[:upper:]' '[:lower:]')
-                lower_query=$(echo "$QUERY" | tr '[:upper:]' '[:lower:]')
-                [[ "$lower_title" != *"$lower_query"* ]] && continue
-            fi
-
-            [[ "$first" != "true" ]] && echo ","
-            first=false
-
-            jq -n \
-                --arg uid "$uid" \
-                --arg title "$title" \
-                --arg subtitle "$start_time - $end_time • $invitee_count invitees" \
-                '{
-                    "uid": $uid,
-                    "title": $title,
-                    "subtitle": $subtitle,
-                    "arg": $uid,
-                    "autocomplete": $title
-                }'
-        done < <(echo "$events" | jq -c '.[]')
-        echo ']}'
-    else
-        info "Meetings for $TARGET_DATE:"
-        echo
-        while IFS= read -r event; do
-            echo "  $(format_event_display "$event")"
-        done < <(echo "$events" | jq -c '.[]')
-    fi
+// Internal subcommands (called by fzf)
+if (command === "_preview") {
+  cmdPreview(args[1]);
+  Deno.exit(0);
+}
+if (command === "_fzf-data") {
+  cmdFzfData(args[1]);
+  Deno.exit(0);
+}
+if (command === "_fzf-nav") {
+  cmdFzfNav(args[1], args[2]);
+  Deno.exit(0);
+}
+if (command === "_fzf-header") {
+  cmdFzfHeader(args[1]);
+  Deno.exit(0);
 }
 
-cmd_create() {
-    check_deps
+// Parse remaining args after the command
+const isCommand = ["l", "list", "c", "create", "help", "--help"].includes(
+  command,
+);
+const restArgs = isCommand ? args.slice(1) : args;
+const parsed = parseArgs(restArgs, {
+  string: ["date", "q", "uid"],
+  boolean: ["json", "help"],
+  default: {
+    date: formatDate(new Date()),
+    json: false,
+    q: "",
+    uid: "",
+  },
+});
 
-    local event=""
-
-    if [[ -n "$EVENT_UID" ]]; then
-        event=$(get_event_by_uid "$EVENT_UID")
-        [[ -z "$event" ]] && error "No event found with UID: $EVENT_UID"
-    else
-        # Interactive selection via fzf with day navigation
-        local datefile
-        datefile=$(mktemp)
-        trap "rm -f '$datefile'" EXIT
-        echo "$TARGET_DATE" > "$datefile"
-
-        # Generate initial data
-        local fzf_input
-        fzf_input=$("$SCRIPT_PATH" _fzf-data "$datefile")
-        local initial_header
-        initial_header=$("$SCRIPT_PATH" _fzf-header "$datefile")
-
-        local bind_prev="left:execute-silent(${SCRIPT_PATH} _fzf-nav prev ${datefile})+reload(${SCRIPT_PATH} _fzf-data ${datefile})+transform-header(${SCRIPT_PATH} _fzf-header ${datefile})"
-        local bind_next="right:execute-silent(${SCRIPT_PATH} _fzf-nav next ${datefile})+reload(${SCRIPT_PATH} _fzf-data ${datefile})+transform-header(${SCRIPT_PATH} _fzf-header ${datefile})"
-
-        local selected
-        selected=$(echo "$fzf_input" | fzf \
-            --height=80% \
-            --layout=reverse \
-            --border \
-            --delimiter=$'\t' \
-            --with-nth=2 \
-            --preview "'$SCRIPT_PATH' _preview {1}" \
-            --preview-window=right:50%:wrap \
-            --bind "$bind_prev" \
-            --bind "$bind_next" \
-            --prompt="Select meeting: " \
-            --header="$initial_header") || { echo "Cancelled."; exit 0; }
-
-        local selected_uid
-        selected_uid=$(echo "$selected" | cut -f1)
-        event=$(get_event_by_uid "$selected_uid")
-        [[ -z "$event" ]] && error "Failed to find selected meeting"
-    fi
-
-    # --- Extract event details ---
-    local title start_utc end_utc location organizer_name recurring
-    title=$(echo "$event" | jq -r '.title')
-    start_utc=$(echo "$event" | jq -r '.start')
-    end_utc=$(echo "$event" | jq -r '.end')
-    location=$(echo "$event" | jq -r '.location // ""')
-    organizer_name=$(echo "$event" | jq -r '.organizer.name // ""')
-    recurring=$(echo "$event" | jq -r '.recurring // false')
-
-    local local_date start_time end_time
-    local_date=$(utc_to_local "$start_utc" "%Y-%m-%d")
-    start_time=$(utc_to_local "$start_utc" "%H:%M")
-    end_time=$(utc_to_local "$end_utc" "%H:%M")
-
-    local invitees_json invitee_count
-    invitees_json=$(get_invitees "$event")
-    invitee_count=$(echo "$invitees_json" | jq 'length')
-
-    local meeting_type
-    meeting_type=$(detect_meeting_type "$title" "$invitee_count")
-
-    # Detect series: check event's own flag, or if UID has /RID= it's a
-    # recurring instance — look up the parent event's recurring flag
-    local series=""
-    if [[ "$recurring" == "true" ]]; then
-        series="$title"
-    elif [[ "$EVENT_UID" == *"/RID="* ]]; then
-        local base_uid="${EVENT_UID%%/RID=*}"
-        local parent_recurring
-        parent_recurring=$(jq -r --arg uid "$base_uid" \
-            '.events[] | select(.uid == $uid) | .recurring // false' "$CAL_FILE" 2>/dev/null | head -1)
-        [[ "$parent_recurring" == "true" ]] && series="$title"
-    else
-        # Also check if UID from fzf selection was a recurring instance
-        local event_uid
-        event_uid=$(echo "$event" | jq -r '.uid')
-        if [[ "$event_uid" == *"/RID="* ]]; then
-            local base_uid="${event_uid%%/RID=*}"
-            local parent_recurring
-            parent_recurring=$(jq -r --arg uid "$base_uid" \
-                '.events[] | select(.uid == $uid) | .recurring // false' "$CAL_FILE" 2>/dev/null | head -1)
-            [[ "$parent_recurring" == "true" ]] && series="$title"
-        fi
-    fi
-
-    # --- Build file path ---
-    local safe_title filename filepath
-    safe_title=$(sanitize_filename "$title")
-    filename="${safe_title} - ${local_date}.md"
-    filepath="$MEETINGS_DIR/$filename"
-
-    # Check for existing note
-    if [[ -f "$filepath" ]]; then
-        warn "Note already exists: $filename"
-        if [[ "$JSON_MODE" != "true" ]] && [[ -t 0 ]]; then
-            read -rp "Open existing note? [Y/n] " answer
-            if [[ "${answer:-Y}" =~ ^[Yy]$ ]]; then
-                open_in_obsidian "$filename"
-            fi
-        fi
-        return
-    fi
-
-    mkdir -p "$MEETINGS_DIR"
-
-    # --- Write note ---
-    {
-        echo "---"
-        echo "tags:"
-        echo "  - meeting"
-        echo "date: $local_date"
-        echo "start-time: \"$start_time\""
-        echo "end-time: \"$end_time\""
-
-        if [[ -n "$series" ]]; then
-            echo "series: \"$series\""
-        fi
-
-        if [[ -n "$meeting_type" ]]; then
-            echo "meeting-type: $meeting_type"
-        fi
-
-        echo "invitees:"
-        while IFS= read -r name; do
-            echo "  - $name"
-        done < <(echo "$invitees_json" | jq -r '.[]')
-
-        if [[ -n "$organizer_name" && "$organizer_name" != "$SELF_NAME" ]]; then
-            echo "organizer: $organizer_name"
-        fi
-
-        if [[ -n "$location" ]]; then
-            echo "location: \"$location\""
-        fi
-
-        echo "calendar: $CALENDAR_FILTER"
-        echo "---"
-        echo
-        echo "# $title"
-        echo
-        echo "## Attendees"
-        while IFS= read -r name; do
-            echo "- [[$name]]"
-        done < <(echo "$invitees_json" | jq -r '.[]')
-        echo
-        echo "## Notes"
-        echo
-        echo "## Summary"
-        echo
-        echo "## Action Items"
-        echo "- [ ] "
-    } > "$filepath"
-
-    success "Created: $filename"
-    open_in_obsidian "$filename"
+if (parsed.help || command === "help" || command === "--help") {
+  showHelp();
+  Deno.exit(0);
 }
 
-# --- Option Parsing ---
+const targetDate = parsed.date as string;
+const jsonMode = parsed.json as boolean;
+const query = parsed.q as string;
+const eventUid = parsed.uid as string;
 
-parse_options() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --help)
-                show_help
-                ;;
-            --date)
-                [[ $# -lt 2 ]] && error "--date requires a YYYY-MM-DD argument"
-                TARGET_DATE="$2"
-                shift 2
-                ;;
-            --json)
-                JSON_MODE=true
-                shift
-                ;;
-            -q)
-                [[ $# -lt 2 ]] && error "-q requires a query string"
-                QUERY="$2"
-                shift 2
-                ;;
-            --uid)
-                [[ $# -lt 2 ]] && error "--uid requires a UID argument"
-                EVENT_UID="$2"
-                shift 2
-                ;;
-            -*)
-                error "Unknown option: $1"
-                ;;
-            *)
-                error "Unexpected argument: $1"
-                ;;
-        esac
-    done
+switch (command) {
+  case "l":
+  case "list":
+    cmdList(targetDate, jsonMode, query);
+    break;
+  case "c":
+  case "create":
+    await cmdCreate(targetDate, eventUid, jsonMode);
+    break;
+  default:
+    // No command or unknown flag — default to create
+    if (command && !command.startsWith("-")) {
+      console.error(
+        color.red(
+          `Error: Unknown command: ${command}. Use 'mtg help' for usage.`,
+        ),
+      );
+      Deno.exit(1);
+    }
+    await cmdCreate(targetDate, eventUid, jsonMode);
+    break;
 }
-
-# --- Main ---
-
-main() {
-    if [[ $# -lt 1 ]]; then
-        cmd_create
-        return
-    fi
-
-    local command="$1"
-    shift
-
-    case "$command" in
-        l|list)     parse_options "$@"; cmd_list ;;
-        c|create)   parse_options "$@"; cmd_create ;;
-        _preview)   cmd_preview "$@" ;;
-        _fzf-data)  cmd_fzf_data "$@" ;;
-        _fzf-nav)   cmd_fzf_nav "$@" ;;
-        _fzf-header) cmd_fzf_header "$@" ;;
-        help|--help) show_help ;;
-        -*)         parse_options "$command" "$@"; cmd_create ;;
-        *)          error "Unknown command: $command. Use '$SCRIPT_NAME help' for usage." ;;
-    esac
-}
-
-main "$@"
