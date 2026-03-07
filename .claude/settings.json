@@ -26,7 +26,9 @@
     "typescript-lsp@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "obsidian@obsidian-skills": true,
-    "lua-lsp@claude-plugins-official": true
+    "lua-lsp@claude-plugins-official": true,
+    "learning-opportunities@learning-opportunities": true,
+    "skill-creator@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
