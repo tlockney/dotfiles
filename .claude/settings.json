@@ -7,14 +7,14 @@
   "hooks": {
     "PreCompact": [
       {
-        "matcher": "",
-        "hooks": []
+	"matcher": "",
+	"hooks": []
       }
     ],
     "SessionStart": [
       {
-        "matcher": "",
-        "hooks": []
+	"matcher": "",
+	"hooks": []
       }
     ]
   },
@@ -35,7 +35,8 @@
     "slack@claude-plugins-official": true,
     "pr-review-toolkit@claude-plugins-official": true,
     "learning-output-style@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true
+    "claude-code-setup@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
