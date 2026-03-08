@@ -1,0 +1,468 @@
+#!/usr/bin/env -S deno run --allow-net --allow-read --allow-env
+
+import { parseArgs } from "jsr:@std/cli@1/parse-args";
+import { join } from "jsr:@std/path@1/join";
+
+// --- Types ---
+
+interface ProxyConfig {
+  allowedDomains: string[];
+  port: number;
+  logLevel: "quiet" | "normal" | "verbose";
+}
+
+interface ConfigFile {
+  allowedDomains?: string[];
+  port?: number;
+  logLevel?: "quiet" | "normal" | "verbose";
+}
+
+// --- Logging ---
+
+type LogLevel = ProxyConfig["logLevel"];
+
+const LOG_PRIORITY: Record<LogLevel, number> = {
+  quiet: 0,
+  normal: 1,
+  verbose: 2,
+};
+
+let currentLogLevel: LogLevel = "normal";
+
+function log(level: LogLevel, ...args: unknown[]): void {
+  if (LOG_PRIORITY[level] <= LOG_PRIORITY[currentLogLevel]) {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}]`, ...args);
+  }
+}
+
+// --- Configuration ---
+
+const DEFAULT_CONFIG_PATH = join(
+  Deno.env.get("HOME") ?? ".",
+  ".config",
+  "claude-proxy",
+  "config.json",
+);
+
+function loadConfigFile(path: string): ConfigFile {
+  try {
+    const content = Deno.readTextFileSync(path);
+    return JSON.parse(content) as ConfigFile;
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      log("verbose", `Config file not found: ${path}`);
+      return {};
+    }
+    throw new Error(`Failed to read config file ${path}: ${err}`);
+  }
+}
+
+function buildConfig(args: string[]): ProxyConfig {
+  const parsed = parseArgs(args, {
+    string: ["config", "port", "log-level"],
+    collect: ["allow"],
+    boolean: ["help"],
+    alias: { c: "config", p: "port", a: "allow", h: "help" },
+    default: {
+      config: DEFAULT_CONFIG_PATH,
+      port: "8080",
+    },
+  });
+
+  if (parsed.help) {
+    printUsage();
+    Deno.exit(0);
+  }
+
+  const configFile = loadConfigFile(parsed.config as string);
+
+  const cliDomains = (parsed.allow as string[] | undefined) ?? [];
+  const fileDomains = configFile.allowedDomains ?? [];
+  const mergedDomains = [...new Set([...fileDomains, ...cliDomains])];
+
+  const logLevel =
+    (parsed["log-level"] as LogLevel | undefined) ??
+    configFile.logLevel ??
+    "normal";
+
+  const port = parseInt(parsed.port as string, 10) || configFile.port || 8080;
+
+  return {
+    allowedDomains: mergedDomains,
+    port,
+    logLevel,
+  };
+}
+
+function printUsage(): void {
+  console.log(`claude-proxy - HTTP proxy server for Claude Code sandbox mode
+
+Usage: claude-proxy [options]
+
+Options:
+  -a, --allow <domain>    Add an allowed domain (can be repeated)
+  -c, --config <path>     Path to config file
+                          (default: ~/.config/claude-proxy/config.json)
+  -p, --port <port>       Port to listen on (default: 8080)
+      --log-level <level> Log level: quiet, normal, verbose (default: normal)
+  -h, --help              Show this help message
+
+Config file format (JSON):
+  {
+    "allowedDomains": ["registry.npmjs.org", "github.com", "*.deno.land"],
+    "port": 8080,
+    "logLevel": "normal"
+  }
+
+Domain patterns:
+  - Exact match: "github.com" matches only github.com
+  - Wildcard:    "*.github.com" matches any subdomain of github.com
+  - Both:        Use "github.com" and "*.github.com" to match both
+
+CLI --allow domains are merged with config file domains.
+
+Claude Code sandbox settings (settings.json):
+  {
+    "sandbox": {
+      "network": {
+        "httpProxyPort": 8080
+      }
+    }
+  }`);
+}
+
+// --- Domain matching ---
+
+function isDomainAllowed(hostname: string, allowedDomains: string[]): boolean {
+  if (allowedDomains.length === 0) {
+    return true; // no restrictions when no domains configured
+  }
+
+  const normalizedHost = hostname.toLowerCase();
+
+  for (const pattern of allowedDomains) {
+    const normalizedPattern = pattern.toLowerCase();
+
+    if (normalizedPattern === normalizedHost) {
+      return true;
+    }
+
+    // Wildcard: *.example.com matches sub.example.com
+    if (normalizedPattern.startsWith("*.")) {
+      const suffix = normalizedPattern.slice(1); // ".example.com"
+      if (normalizedHost.endsWith(suffix)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function extractHostPort(
+  authority: string,
+  defaultPort: number,
+): { hostname: string; port: number } {
+  // Handle [IPv6]:port
+  const bracketMatch = authority.match(/^\[(.+)\]:(\d+)$/);
+  if (bracketMatch) {
+    return { hostname: bracketMatch[1], port: parseInt(bracketMatch[2], 10) };
+  }
+
+  // Handle host:port
+  const colonIdx = authority.lastIndexOf(":");
+  if (colonIdx > 0) {
+    const maybePort = parseInt(authority.slice(colonIdx + 1), 10);
+    if (!isNaN(maybePort)) {
+      return { hostname: authority.slice(0, colonIdx), port: maybePort };
+    }
+  }
+
+  return { hostname: authority, port: defaultPort };
+}
+
+// --- HTTP CONNECT handling ---
+
+async function handleConnect(
+  conn: Deno.Conn,
+  connectLine: string,
+  allowedDomains: string[],
+): Promise<void> {
+  // CONNECT host:port HTTP/1.x
+  const parts = connectLine.split(" ");
+  if (parts.length < 2) {
+    await writeResponse(conn, 400, "Bad Request");
+    return;
+  }
+
+  const { hostname, port } = extractHostPort(parts[1], 443);
+
+  if (!isDomainAllowed(hostname, allowedDomains)) {
+    log("normal", `BLOCKED CONNECT ${hostname}:${port}`);
+    await writeResponse(conn, 403, "Forbidden");
+    return;
+  }
+
+  log("normal", `CONNECT ${hostname}:${port}`);
+
+  let upstream: Deno.Conn;
+  try {
+    upstream = await Deno.connect({ hostname, port });
+  } catch (err) {
+    log("normal", `Failed to connect to ${hostname}:${port}: ${err}`);
+    await writeResponse(conn, 502, "Bad Gateway");
+    return;
+  }
+
+  // Send 200 Connection Established
+  const established = new TextEncoder().encode(
+    "HTTP/1.1 200 Connection Established\r\n\r\n",
+  );
+  try {
+    await writeAll(conn, established);
+  } catch {
+    upstream.close();
+    return;
+  }
+
+  // Bidirectional piping
+  await Promise.allSettled([
+    pipe(conn, upstream),
+    pipe(upstream, conn),
+  ]);
+
+  try {
+    upstream.close();
+  } catch { /* already closed */ }
+}
+
+// --- Regular HTTP proxy handling ---
+
+async function handleHttpRequest(
+  conn: Deno.Conn,
+  requestLine: string,
+  headerLines: string[],
+  allowedDomains: string[],
+): Promise<void> {
+  const parts = requestLine.split(" ");
+  if (parts.length < 3) {
+    await writeResponse(conn, 400, "Bad Request");
+    return;
+  }
+
+  const [method, url, httpVersion] = parts;
+
+  let targetUrl: URL;
+  try {
+    targetUrl = new URL(url);
+  } catch {
+    await writeResponse(conn, 400, "Bad Request: invalid URL");
+    return;
+  }
+
+  if (!isDomainAllowed(targetUrl.hostname, allowedDomains)) {
+    log("normal", `BLOCKED ${method} ${targetUrl.hostname}`);
+    await writeResponse(conn, 403, "Forbidden");
+    return;
+  }
+
+  log("normal", `${method} ${targetUrl.href}`);
+
+  // Rebuild headers, removing proxy-specific ones
+  const filteredHeaders: string[] = [];
+  let contentLength = 0;
+
+  for (const line of headerLines) {
+    const lowerLine = line.toLowerCase();
+    if (
+      lowerLine.startsWith("proxy-authorization:") ||
+      lowerLine.startsWith("proxy-connection:")
+    ) {
+      continue;
+    }
+    if (lowerLine.startsWith("content-length:")) {
+      contentLength = parseInt(line.split(":")[1].trim(), 10);
+    }
+    filteredHeaders.push(line);
+  }
+
+  // Read request body if present
+  let body: Uint8Array | undefined;
+  if (contentLength > 0) {
+    body = new Uint8Array(contentLength);
+    let bytesRead = 0;
+    while (bytesRead < contentLength) {
+      const n = await conn.read(body.subarray(bytesRead));
+      if (n === null) break;
+      bytesRead += n;
+    }
+  }
+
+  // Build path-only request line
+  const pathAndQuery = targetUrl.pathname + targetUrl.search;
+  const { hostname, port } = extractHostPort(
+    targetUrl.host,
+    targetUrl.protocol === "https:" ? 443 : 80,
+  );
+
+  let upstream: Deno.Conn;
+  try {
+    upstream = await Deno.connect({ hostname, port });
+  } catch (err) {
+    log("normal", `Failed to connect to ${hostname}:${port}: ${err}`);
+    await writeResponse(conn, 502, "Bad Gateway");
+    return;
+  }
+
+  // Send request to upstream
+  const requestHead =
+    `${method} ${pathAndQuery} ${httpVersion}\r\n${filteredHeaders.join("\r\n")}\r\n\r\n`;
+  try {
+    await writeAll(upstream, new TextEncoder().encode(requestHead));
+    if (body) {
+      await writeAll(upstream, body);
+    }
+  } catch (err) {
+    log("normal", `Failed to send to upstream: ${err}`);
+    upstream.close();
+    await writeResponse(conn, 502, "Bad Gateway");
+    return;
+  }
+
+  // Pipe response back to client
+  await pipe(upstream, conn);
+
+  try {
+    upstream.close();
+  } catch { /* already closed */ }
+}
+
+// --- I/O utilities ---
+
+async function writeAll(conn: Deno.Conn, data: Uint8Array): Promise<void> {
+  let written = 0;
+  while (written < data.length) {
+    const n = await conn.write(data.subarray(written));
+    written += n;
+  }
+}
+
+async function writeResponse(
+  conn: Deno.Conn,
+  status: number,
+  statusText: string,
+): Promise<void> {
+  const body = `${status} ${statusText}\n`;
+  const response =
+    `HTTP/1.1 ${status} ${statusText}\r\nContent-Length: ${body.length}\r\nConnection: close\r\n\r\n${body}`;
+  try {
+    await writeAll(conn, new TextEncoder().encode(response));
+  } catch { /* client disconnected */ }
+}
+
+async function pipe(src: Deno.Conn, dst: Deno.Conn): Promise<void> {
+  const buf = new Uint8Array(16384);
+  try {
+    while (true) {
+      const n = await src.read(buf);
+      if (n === null) break;
+      await writeAll(dst, buf.subarray(0, n));
+    }
+  } catch {
+    // Connection closed or errored - expected during teardown
+  }
+}
+
+// --- Request parsing ---
+
+async function readRequestHead(
+  conn: Deno.Conn,
+): Promise<{ requestLine: string; headerLines: string[] } | null> {
+  const buf = new Uint8Array(8192);
+  let accumulated = new Uint8Array(0);
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const n = await conn.read(buf);
+    if (n === null) return null;
+
+    const combined = new Uint8Array(accumulated.length + n);
+    combined.set(accumulated);
+    combined.set(buf.subarray(0, n), accumulated.length);
+    accumulated = combined;
+
+    const text = decoder.decode(accumulated);
+    const headerEnd = text.indexOf("\r\n\r\n");
+    if (headerEnd !== -1) {
+      const headerSection = text.slice(0, headerEnd);
+      const lines = headerSection.split("\r\n");
+      return {
+        requestLine: lines[0],
+        headerLines: lines.slice(1),
+      };
+    }
+
+    if (accumulated.length > 65536) {
+      return null; // headers too large
+    }
+  }
+}
+
+// --- Connection handler ---
+
+async function handleConnection(
+  conn: Deno.Conn,
+  allowedDomains: string[],
+): Promise<void> {
+  try {
+    const head = await readRequestHead(conn);
+    if (!head) {
+      conn.close();
+      return;
+    }
+
+    const { requestLine, headerLines } = head;
+    log("verbose", `Request: ${requestLine}`);
+
+    if (requestLine.toUpperCase().startsWith("CONNECT ")) {
+      await handleConnect(conn, requestLine, allowedDomains);
+    } else {
+      await handleHttpRequest(conn, requestLine, headerLines, allowedDomains);
+    }
+  } catch (err) {
+    log("verbose", `Connection error: ${err}`);
+  } finally {
+    try {
+      conn.close();
+    } catch { /* already closed */ }
+  }
+}
+
+// --- Main ---
+
+async function main(): Promise<void> {
+  const config = buildConfig(Deno.args);
+  currentLogLevel = config.logLevel;
+
+  if (config.allowedDomains.length === 0) {
+    log(
+      "normal",
+      "WARNING: No allowed domains configured. All domains will be permitted.",
+    );
+    log("normal", "Use --allow <domain> or a config file to restrict access.");
+  } else {
+    log("normal", `Allowed domains: ${config.allowedDomains.join(", ")}`);
+  }
+
+  const listener = Deno.listen({ port: config.port });
+  log("normal", `Proxy server listening on port ${config.port}`);
+
+  for await (const conn of listener) {
+    handleConnection(conn, config.allowedDomains).catch((err) => {
+      log("verbose", `Unhandled connection error: ${err}`);
+    });
+  }
+}
+
+main();
