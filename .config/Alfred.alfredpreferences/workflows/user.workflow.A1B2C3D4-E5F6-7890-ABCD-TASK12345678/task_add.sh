@@ -1,17 +1,14 @@
 #!/bin/bash
-#
-# Alfred script: Add a new task
-#
 
-QUERY="$1"
+# Add a new task via task-manager
+# Delegates to task-manager; passes title through for Alfred notification
 
-if [[ -z "$QUERY" ]]; then
-    echo "No task title provided"
-    exit 1
-fi
+set -euo pipefail
 
-# Call the task-manager script
-~/bin/task-manager add "$QUERY" >/dev/null 2>&1
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-# Output the title for the notification
-echo "$QUERY"
+# Add the task (errors go to stderr, stdout silenced)
+~/bin/task-manager add "$1" >/dev/null
+
+# Pass through title for notification
+echo "$1"
