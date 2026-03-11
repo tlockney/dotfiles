@@ -63,6 +63,10 @@ Read these files when the situation applies:
 - **`.claude/technology.md`** - Read when working with JS/TS, Python, Deno, or AWS (language-specific preferences and tooling)
 - **`.claude/workflow.md`** - Read before commits, PRs, or starting issue-linked work (git workflow, issue tracking, worktree process)
 
+## Research Tasks
+
+When I ask to research, compare, or survey topics, ALWAYS use the `notebooklm-researcher` skill. Do not substitute WebSearch.
+
 ## Getting Help
 
 - Ask for clarification rather than making assumptions

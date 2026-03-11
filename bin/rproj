@@ -72,6 +72,14 @@ parent_label() {
     echo "📂 $(basename "$1")"
 }
 
+# Strip tree-drawing prefix from fzf selection
+strip_tree_prefix() {
+    local s="$1"
+    s="${s#  ├── }"
+    s="${s#  └── }"
+    echo "$s"
+}
+
 # Resolve selected project to full path
 resolve_project_path() {
     local selected="$1"
@@ -82,7 +90,9 @@ resolve_project_path() {
     if [[ "$selected" == "$plabel" ]]; then
         echo "$dir"
     else
-        echo "$dir/$selected"
+        local name
+        name=$(strip_tree_prefix "$selected")
+        echo "$dir/$name"
     fi
 }
 
@@ -152,6 +162,7 @@ cmd_preview() {
     if [[ "$item" == 📂* ]]; then
         path="$dir"
     else
+        item=$(strip_tree_prefix "$item")
         path="$dir/$item"
     fi
 
@@ -180,7 +191,28 @@ select_project() {
     local plabel
     plabel=$(parent_label "$dir")
 
-    echo "$projects" | sed "s|^${dir}$|${plabel}|; s|${dir}/||" | fzf \
+    echo "$projects" | awk -v dir="$dir" -v plabel="$plabel" '
+        { lines[NR] = $0; n = NR }
+        END {
+            children = 0
+            for (i = 1; i <= n; i++)
+                if (lines[i] != dir) children++
+            c = 0
+            for (i = 1; i <= n; i++) {
+                if (lines[i] == dir) {
+                    print plabel
+                } else {
+                    c++
+                    name = lines[i]
+                    sub(dir "/", "", name)
+                    if (c == children)
+                        print "  └── " name
+                    else
+                        print "  ├── " name
+                }
+            }
+        }
+    ' | fzf \
         --height=60% \
         --layout=reverse \
         --border \
@@ -210,7 +242,7 @@ get_project_selection() {
     if [[ -n "$project_name" ]]; then
         local plabel
         plabel=$(parent_label "$dir")
-        if [[ "$project_name" == "$plabel" ]]; then
+        if [[ "$project_name" == "$plabel" ]] || [[ "$project_name" == "$(basename "$dir")" ]]; then
             PROJECT_PATH="$dir"
         else
             PROJECT_PATH="$dir/$project_name"

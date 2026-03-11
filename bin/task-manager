@@ -16,6 +16,7 @@
 
 set -euo pipefail
 
+SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
@@ -29,40 +30,55 @@ NOTION_API_URL="https://api.notion.com/v1"
 NOTION_API_VERSION="2022-06-28"
 
 # Flags
-JSON_OUTPUT=false
+JSON_MODE=false
 SHOW_URLS=false
+
+# --- Logging (JSON-mode aware, overrides common.sh) ---
+info()    { [[ "$JSON_MODE" == "true" ]] && return; echo -e "${BLUE}$*${NC}"; }
+success() { [[ "$JSON_MODE" == "true" ]] && return; echo -e "${GREEN}$*${NC}"; }
+warn()    { [[ "$JSON_MODE" == "true" ]] && return; echo -e "${YELLOW}$*${NC}" >&2; }
+error() {
+    if [[ "$JSON_MODE" == "true" ]]; then
+        jq -n --arg m "$*" '{"items": [{"title": "Error", "subtitle": $m, "valid": false}]}'
+        exit 0
+    else
+        echo -e "${RED}Error: $*${NC}" >&2
+        exit 1
+    fi
+}
 
 #------------------------------------------------------------------------------
 # Helper functions
 #------------------------------------------------------------------------------
 
-die() {
-    error "$1"
-}
-
 usage() {
-    cat << 'EOF'
-task-manager - CLI for managing tasks in Notion
+    cat << EOF
+Usage: $SCRIPT_NAME [command] [options]
 
-Usage:
-  task-manager add <title>       Add a new task (lands in Triage)
-  task-manager list [filter]     List tasks (ready, focus, all)
-  task-manager complete <id>     Mark a task as complete
-  task-manager open              Open database (or print URL if in SSH)
-
-Aliases: a=add, ls/l=list, done/d=complete, o=open
+Commands:
+    add      (a)   Add a new task (lands in Triage)
+    list     (l)   List tasks (ready, focus, triage, active, all)
+    complete (d)   Mark a task as complete
+    open     (o)   Open database (or print URL if in SSH)
+    help           Show this help
 
 Options:
-  --json                         Output in Alfred-compatible JSON format
-  --urls                         Include URLs in list output
-  -h, --help                     Show this help message
+    --json         Output in Alfred-compatible JSON format
+    --urls         Include URLs in list output
+    -h, --help     Show this help message
+
+Examples:
+    $SCRIPT_NAME add "Fix the widget"
+    $SCRIPT_NAME list                  # Active tasks (ready + focus)
+    $SCRIPT_NAME l focus               # Only focus tasks
+    $SCRIPT_NAME complete <id>         # Mark task done
 EOF
     exit 0
 }
 
 load_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
-        die "Config file not found: $CONFIG_FILE"
+        error "Config file not found: $CONFIG_FILE"
     fi
 
     DATABASE_ID=$(jq -r '.database_id' "$CONFIG_FILE")
@@ -71,7 +87,7 @@ load_config() {
     DEFAULT_STATUS=$(jq -r '.defaults.status' "$CONFIG_FILE")
 
     if [[ -z "$DATABASE_ID" || "$DATABASE_ID" == "null" ]]; then
-        die "database_id not set in config"
+        error "database_id not set in config"
     fi
 }
 
@@ -83,12 +99,12 @@ get_notion_token() {
     fi
 
     if ! command -v op &>/dev/null; then
-        die "NOTION_TOKEN not set and 1Password CLI (op) not found"
+        error "NOTION_TOKEN not set and 1Password CLI (op) not found"
     fi
 
     local token
     token=$(op item get "$OP_TOKEN_ITEM" --fields label=credential --cache 2>/dev/null) || \
-        die "Failed to get Notion token from 1Password item: $OP_TOKEN_ITEM"
+        error "Failed to get Notion token from 1Password item: $OP_TOKEN_ITEM"
 
     echo "$token"
 }
@@ -124,7 +140,7 @@ cmd_add() {
     local title="$1"
 
     if [[ -z "$title" ]]; then
-        die "Task title is required"
+        error "Task title is required"
     fi
 
     local payload
@@ -151,14 +167,14 @@ cmd_add() {
     if echo "$response" | jq -e '.object == "error"' &>/dev/null; then
         local msg
         msg=$(echo "$response" | jq -r '.message')
-        die "Notion API error: $msg"
+        error "Notion API error: $msg"
     fi
 
     local page_id page_url
     page_id=$(echo "$response" | jq -r '.id')
     page_url=$(echo "$response" | jq -r '.url')
 
-    if $JSON_OUTPUT; then
+    if $JSON_MODE; then
         jq -n --arg id "$page_id" --arg url "$page_url" --arg title "$title" \
             '{ success: true, id: $id, url: $url, title: $title }'
     else
@@ -201,7 +217,7 @@ cmd_list() {
             }'
             ;;
         *)
-            die "Unknown filter: $filter (valid: ready, focus, triage, active, all)"
+            error "Unknown filter: $filter (valid: ready, focus, triage, active, all)"
             ;;
     esac
 
@@ -223,10 +239,10 @@ cmd_list() {
     if echo "$response" | jq -e '.object == "error"' &>/dev/null; then
         local msg
         msg=$(echo "$response" | jq -r '.message')
-        die "Notion API error: $msg"
+        error "Notion API error: $msg"
     fi
 
-    if $JSON_OUTPUT; then
+    if $JSON_MODE; then
         # Alfred-compatible JSON output
         echo "$response" | jq '{
             items: [.results[] | {
@@ -238,9 +254,12 @@ cmd_list() {
                     (if .properties["Time Estimate"].select.name then " " + .properties["Time Estimate"].select.name else "" end) +
                     (if .properties["Due Date"].date.start then " Due: " + .properties["Due Date"].date.start else "" end)
                 ),
+                match: (.properties.Title.title[0].text.content // "Untitled"),
+                autocomplete: (.properties.Title.title[0].text.content // "Untitled"),
                 arg: .id,
                 mods: {
                     cmd: {
+                        valid: true,
                         subtitle: "Open in Notion",
                         arg: .url
                     }
@@ -272,7 +291,7 @@ cmd_complete() {
     local page_id="$1"
 
     if [[ -z "$page_id" ]]; then
-        die "Task ID is required"
+        error "Task ID is required"
     fi
 
     local status_complete
@@ -299,13 +318,13 @@ cmd_complete() {
     if echo "$response" | jq -e '.object == "error"' &>/dev/null; then
         local msg
         msg=$(echo "$response" | jq -r '.message')
-        die "Notion API error: $msg"
+        error "Notion API error: $msg"
     fi
 
     local title
     title=$(echo "$response" | jq -r '.properties.Title.title[0].text.content // "Untitled"')
 
-    if $JSON_OUTPUT; then
+    if $JSON_MODE; then
         jq -n --arg id "$page_id" --arg title "$title" \
             '{ success: true, id: $id, title: $title, status: "complete" }'
     else
@@ -348,7 +367,7 @@ main() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --json)
-                JSON_OUTPUT=true
+                JSON_MODE=true
                 shift
                 ;;
             --urls)
@@ -359,7 +378,7 @@ main() {
                 usage
                 ;;
             -*)
-                die "Unknown option: $1"
+                error "Unknown option: $1"
                 ;;
             *)
                 break
@@ -389,8 +408,11 @@ main() {
         o|open)
             cmd_open
             ;;
+        help|--help)
+            usage
+            ;;
         *)
-            die "Unknown command: $command. Run with --help for usage."
+            error "Unknown command: $command. Use '$SCRIPT_NAME help' for usage."
             ;;
     esac
 }
