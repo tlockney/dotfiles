@@ -42,5 +42,6 @@
   "skipDangerousModePermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754111802128
-  }
+  },
+  "voiceEnabled": true
 }
