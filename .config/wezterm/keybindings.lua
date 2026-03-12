@@ -13,7 +13,6 @@ function module.apply_to_config(config)
     { key = 'Enter',      mods = 'ALT',       action = action.DisableDefaultAssignment },
     { key = "Enter",      mods = "SHIFT",     action = wezterm.action { SendString = "\x1b\r" } },
     { key = 'w',          mods = 'CMD',       action = action.CloseCurrentPane { confirm = false }},
-    { key = 'k',          mods = 'CMD',       action = wezterm.action { SendString = 'clear\n' }},
     { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
       cwd = wezterm.home_dir,
       args = { 'emacs', '-nw', wezterm.config_file },
