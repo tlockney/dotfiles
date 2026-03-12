@@ -33,15 +33,10 @@ function module.apply_to_config(config)
       },
     },
     -- Pane navigation
-    { key = 'LeftArrow', mods = 'CMD', action = action.ActivatePaneDirection('Left') },
-    { key = 'DownArrow', mods = 'CMD', action = action.ActivatePaneDirection('Down') },
-    { key = 'UpArrow', mods = 'CMD', action = action.ActivatePaneDirection('Up') },
-    { key = 'RightArrow', mods = 'CMD', action = action.ActivatePaneDirection('Right') },
-    -- Pane resizing
-    { key = 'LeftArrow',  mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Left', 5 }) },
-    { key = 'RightArrow', mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Right', 5 }) },
-    { key = 'UpArrow',    mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Up', 5 }) },
-    { key = 'DownArrow',  mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Down', 5 }) },
+    { key = 'LeftArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Left') },
+    { key = 'DownArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Down') },
+    { key = 'UpArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Up') },
+    { key = 'RightArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Right') },
     -- Pane zoom toggle
     { key = 'z', mods = 'CMD', action = action.TogglePaneZoomState },
     -- Detach pane to new window
