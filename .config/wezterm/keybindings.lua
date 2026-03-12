@@ -13,6 +13,7 @@ function module.apply_to_config(config)
     { key = 'Enter',      mods = 'ALT',       action = action.DisableDefaultAssignment },
     { key = "Enter",      mods = "SHIFT",     action = wezterm.action { SendString = "\x1b\r" } },
     { key = 'w',          mods = 'CMD',       action = action.CloseCurrentPane { confirm = false }},
+    { key = 'k',          mods = 'CMD',       action = wezterm.action { SendString = 'clear\n' }},
     { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
       cwd = wezterm.home_dir,
       args = { 'emacs', '-nw', wezterm.config_file },
@@ -32,10 +33,10 @@ function module.apply_to_config(config)
       },
     },
     -- Pane navigation
-    { key = 'h', mods = 'CMD', action = action.ActivatePaneDirection('Left') },
-    { key = 'j', mods = 'CMD', action = action.ActivatePaneDirection('Down') },
-    { key = 'k', mods = 'CMD', action = action.ActivatePaneDirection('Up') },
-    { key = 'l', mods = 'CMD', action = action.ActivatePaneDirection('Right') },
+    { key = 'LeftArrow', mods = 'CMD', action = action.ActivatePaneDirection('Left') },
+    { key = 'DownArrow', mods = 'CMD', action = action.ActivatePaneDirection('Down') },
+    { key = 'UpArrow', mods = 'CMD', action = action.ActivatePaneDirection('Up') },
+    { key = 'RightArrow', mods = 'CMD', action = action.ActivatePaneDirection('Right') },
     -- Pane resizing
     { key = 'LeftArrow',  mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Left', 5 }) },
     { key = 'RightArrow', mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Right', 5 }) },
