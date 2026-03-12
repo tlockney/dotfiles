@@ -12,7 +12,7 @@ function module.apply_to_config(config)
     { key = 'p',          mods = 'CMD|SHIFT', action = action.ActivateCommandPalette },
     { key = 'Enter',      mods = 'ALT',       action = action.DisableDefaultAssignment },
     { key = "Enter",      mods = "SHIFT",     action = wezterm.action { SendString = "\x1b\r" } },
-    { key = 'w',          mods = 'CMD',       action = action.CloseCurrentTab { confirm = false }},
+    { key = 'w',          mods = 'CMD',       action = action.CloseCurrentPane { confirm = false }},
     { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
       cwd = wezterm.home_dir,
       args = { 'emacs', '-nw', wezterm.config_file },
@@ -32,15 +32,10 @@ function module.apply_to_config(config)
       },
     },
     -- Pane navigation
-    { key = 'h', mods = 'CMD', action = action.ActivatePaneDirection('Left') },
-    { key = 'j', mods = 'CMD', action = action.ActivatePaneDirection('Down') },
-    { key = 'k', mods = 'CMD', action = action.ActivatePaneDirection('Up') },
-    { key = 'l', mods = 'CMD', action = action.ActivatePaneDirection('Right') },
-    -- Pane resizing
-    { key = 'LeftArrow',  mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Left', 5 }) },
-    { key = 'RightArrow', mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Right', 5 }) },
-    { key = 'UpArrow',    mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Up', 5 }) },
-    { key = 'DownArrow',  mods = 'CMD|SHIFT', action = action.AdjustPaneSize({ 'Down', 5 }) },
+    { key = 'LeftArrow', mods = 'CMD', action = action.ActivatePaneDirection('Left') },
+    { key = 'DownArrow', mods = 'CMD', action = action.ActivatePaneDirection('Down') },
+    { key = 'UpArrow', mods = 'CMD', action = action.ActivatePaneDirection('Up') },
+    { key = 'RightArrow', mods = 'CMD', action = action.ActivatePaneDirection('Right') },
     -- Pane zoom toggle
     { key = 'z', mods = 'CMD', action = action.TogglePaneZoomState },
     -- Detach pane to new window
