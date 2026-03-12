@@ -33,10 +33,10 @@ function module.apply_to_config(config)
       },
     },
     -- Pane navigation
-    { key = 'LeftArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Left') },
-    { key = 'DownArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Down') },
-    { key = 'UpArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Up') },
-    { key = 'RightArrow', mods = 'CMD|SHIFT', action = action.ActivatePaneDirection('Right') },
+    { key = 'LeftArrow', mods = 'CMD', action = action.ActivatePaneDirection('Left') },
+    { key = 'DownArrow', mods = 'CMD', action = action.ActivatePaneDirection('Down') },
+    { key = 'UpArrow', mods = 'CMD', action = action.ActivatePaneDirection('Up') },
+    { key = 'RightArrow', mods = 'CMD', action = action.ActivatePaneDirection('Right') },
     -- Pane zoom toggle
     { key = 'z', mods = 'CMD', action = action.TogglePaneZoomState },
     -- Detach pane to new window
