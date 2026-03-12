@@ -57,6 +57,7 @@ function module.apply_to_config(config)
   config.set_environment_variables = {
     PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
   }
+  config.term = "xterm-wezterm"
 
 end
 
