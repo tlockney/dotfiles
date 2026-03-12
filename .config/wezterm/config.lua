@@ -9,19 +9,20 @@ local module = {}
 function module.apply_to_config(config)
   -- Color scheme
   if appearance.is_dark() then
-      config.color_scheme = 'Tokyo Night'
+      config.color_scheme = 'tokyonight_night'
   else
-      config.color_scheme = 'Tokyo Night Day'
+      config.color_scheme = 'tokyonight_day'
   end
 
   -- General settings
   config.automatically_reload_config = true
-  config.hide_tab_bar_if_only_one_tab = false
+  config.hide_tab_bar_if_only_one_tab = true
   config.use_fancy_tab_bar = true
   config.native_macos_fullscreen_mode = true
 
   -- Font
   config.font = wezterm.font_with_fallback {
+    "BlexMono Nerd Font Mono",
     "JetBrainsMono Nerd Font Mono",
     "FiraCode Nerd Font Mono"
   }
@@ -57,15 +58,6 @@ function module.apply_to_config(config)
     PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
   }
 
-  -- Launch menu
-  config.launch_menu = {
-    {
-      args = { 'htop' }
-    },
-    {
-      args = { 'glances' }
-    }
-  }
 end
 
 return module

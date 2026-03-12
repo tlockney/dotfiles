@@ -12,7 +12,7 @@ function module.apply_to_config(config)
     { key = 'p',          mods = 'CMD|SHIFT', action = action.ActivateCommandPalette },
     { key = 'Enter',      mods = 'ALT',       action = action.DisableDefaultAssignment },
     { key = "Enter",      mods = "SHIFT",     action = wezterm.action { SendString = "\x1b\r" } },
-    { key = 'w',          mods = 'CMD',       action = action.CloseCurrentTab { confirm = false }},
+    { key = 'w',          mods = 'CMD',       action = action.CloseCurrentPane { confirm = false }},
     { key = ',',          mods = 'SUPER',     action = action.SpawnCommandInNewTab {
       cwd = wezterm.home_dir,
       args = { 'emacs', '-nw', wezterm.config_file },
