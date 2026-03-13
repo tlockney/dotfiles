@@ -10,7 +10,7 @@ HOST_ALIAS="${OPEN_AGENT_HOST:-workmbp}"
 
 usage() {
     cat <<'EOF'
-Usage: ropen [options] <path>
+Usage: ropen [options] <path|url>
 
 Options:
   -a <app>    Open with specific application (e.g., -a "Marked 2")
@@ -21,7 +21,7 @@ Examples:
   ropen README.md                    # Open with default app on local machine
   ropen -a "Marked 2" doc.md         # Open with specific app
   ropen -v ~/projects/myapp          # Open folder in local VS Code via remote-ssh
-  ropen -a "Visual Studio Code" .    # Also works for VS Code (detected automatically)
+  ropen https://github.com/foo/bar   # Open URL in local browser
 EOF
     exit 0
 }
@@ -51,11 +51,17 @@ done
 [[ $# -eq 0 ]] && die "No path specified. See ropen -h for usage."
 TARGET="$1"
 
-# Resolve to absolute path
-if [[ -e "$TARGET" ]]; then
-    TARGET=$(realpath "$TARGET")
-elif [[ "$TARGET" != /* ]]; then
-    TARGET="$(pwd)/$TARGET"
+# Detect URLs — open directly in local browser, no SSHFS needed
+if [[ "$TARGET" =~ ^https?:// ]]; then
+    IS_URL=true
+else
+    IS_URL=false
+    # Resolve to absolute path (only for file paths)
+    if [[ -e "$TARGET" ]]; then
+        TARGET=$(realpath "$TARGET")
+    elif [[ "$TARGET" != /* ]]; then
+        TARGET="$(pwd)/$TARGET"
+    fi
 fi
 
 # Detect VS Code by app name
@@ -93,16 +99,22 @@ json_escape() {
     printf '"%s"' "$s"
 }
 
-ESCAPED_PATH=$(json_escape "$TARGET")
-ESCAPED_HOME=$(json_escape "$HOME")
 ESCAPED_HOST=$(json_escape "$HOST_ALIAS")
 
-if $VSCODE; then
+if $IS_URL; then
+    ESCAPED_URL=$(json_escape "$TARGET")
+    MSG="{\"action\":\"open-url\",\"url\":${ESCAPED_URL}}"
+elif $VSCODE; then
+    ESCAPED_PATH=$(json_escape "$TARGET")
     MSG="{\"action\":\"open-vscode\",\"host\":${ESCAPED_HOST},\"path\":${ESCAPED_PATH}}"
 elif [[ -n "$APP" ]]; then
+    ESCAPED_PATH=$(json_escape "$TARGET")
+    ESCAPED_HOME=$(json_escape "$HOME")
     ESCAPED_APP=$(json_escape "$APP")
     MSG="{\"action\":\"open\",\"host\":${ESCAPED_HOST},\"remoteHome\":${ESCAPED_HOME},\"path\":${ESCAPED_PATH},\"app\":${ESCAPED_APP}}"
 else
+    ESCAPED_PATH=$(json_escape "$TARGET")
+    ESCAPED_HOME=$(json_escape "$HOME")
     MSG="{\"action\":\"open\",\"host\":${ESCAPED_HOST},\"remoteHome\":${ESCAPED_HOME},\"path\":${ESCAPED_PATH}}"
 fi
 
