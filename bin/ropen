@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
-HOST_ALIAS="${OPEN_AGENT_HOST:-work}"
+HOST_ALIAS="${OPEN_AGENT_HOST:-workmbp}"
 
 usage() {
     cat <<'EOF'
