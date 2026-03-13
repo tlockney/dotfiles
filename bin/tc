@@ -22,6 +22,30 @@ require_command "tmux" "brew install tmux"
 
 SESSION_NAME="${1:-$(basename "$(pwd)")}"
 
+# If already inside a tmux session, handle session switching
+if [[ -n "${TMUX:-}" ]]; then
+    CURRENT_SESSION="$(tmux display-message -p '#S')"
+
+    if [[ "$CURRENT_SESSION" == "$SESSION_NAME" ]]; then
+        info "Already in session '$SESSION_NAME'."
+        exit 0
+    fi
+
+    read -rp "Switch from session '$CURRENT_SESSION' to '$SESSION_NAME'? [y/N] " answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+            info "Creating session '$SESSION_NAME'..."
+            tmux new-session -d -s "$SESSION_NAME"
+        fi
+        info "Switching to session '$SESSION_NAME'..."
+        tmux switch-client -t "$SESSION_NAME"
+    else
+        info "Staying in session '$CURRENT_SESSION'."
+    fi
+    exit 0
+fi
+
+# Outside tmux: attach or create
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     info "Attaching to session '$SESSION_NAME'..."
     tmux attach-session -t "$SESSION_NAME"
