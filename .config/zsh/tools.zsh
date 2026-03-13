@@ -145,3 +145,6 @@ fi
 # Claude CLI alias
 # shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -x "$HOME/.claude/local/claude" ]] && alias claude="$HOME/.claude/local/claude"
+
+# open-agent hook for remote file opening via SSH-forwarded socket
+[[ -f "$HOME/.config/open-agent-hook.sh" ]] && source "$HOME/.config/open-agent-hook.sh"
