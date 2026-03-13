@@ -1,0 +1,37 @@
+#!/bin/bash
+# rpaste - paste from the local machine's clipboard via open-agent
+# Usage: rpaste
+#        rpaste | vim -
+
+set -euo pipefail
+
+SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+
+if [[ ! -S "$SOCK" ]]; then
+    echo "rpaste: agent socket not found at $SOCK" >&2
+    exit 1
+fi
+
+send_message() {
+    if command -v socat &>/dev/null; then
+        echo '{"action":"paste"}' | socat -t5 - UNIX-CONNECT:"$SOCK" 2>/dev/null
+    elif command -v nc &>/dev/null; then
+        echo '{"action":"paste"}' | nc -U -w5 "$SOCK" 2>/dev/null
+    else
+        echo "rpaste: neither socat nor nc available" >&2
+        return 1
+    fi
+}
+
+RESPONSE=$(send_message) || {
+    echo "rpaste: failed to connect to agent" >&2
+    exit 1
+}
+
+if echo "$RESPONSE" | grep -q '"ok":true'; then
+    # Extract the content field — handles embedded \n, \t etc. from JSON
+    echo "$RESPONSE" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.stdout.write(d.get("content",""))'
+else
+    echo "rpaste: $(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//' | sed 's/"$//')" >&2
+    exit 1
+fi

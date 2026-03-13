@@ -1,0 +1,51 @@
+#!/bin/bash
+# rcopy - copy stdin to the local machine's clipboard via open-agent
+# Usage: echo "text" | rcopy
+#        cat file.txt | rcopy
+
+set -euo pipefail
+
+SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+
+if [[ ! -S "$SOCK" ]]; then
+    echo "rcopy: agent socket not found at $SOCK" >&2
+    exit 1
+fi
+
+# Read all of stdin
+CONTENT=$(cat)
+
+# JSON-escape the content
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\t'/\\t}"
+    s="${s//$'\r'/\\r}"
+    printf '"%s"' "$s"
+}
+
+ESCAPED=$(json_escape "$CONTENT")
+MSG="{\"action\":\"copy\",\"content\":${ESCAPED}}"
+
+send_message() {
+    if command -v socat &>/dev/null; then
+        echo "$MSG" | socat -t5 - UNIX-CONNECT:"$SOCK" 2>/dev/null
+    elif command -v nc &>/dev/null; then
+        echo "$MSG" | nc -U -w5 "$SOCK" 2>/dev/null
+    else
+        echo "rcopy: neither socat nor nc available" >&2
+        return 1
+    fi
+}
+
+RESPONSE=$(send_message) || {
+    echo "rcopy: failed to connect to agent" >&2
+    exit 1
+}
+
+if ! echo "$RESPONSE" | grep -q '"ok":true'; then
+    echo "rcopy: $(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//' | sed 's/"$//')" >&2
+    exit 1
+fi
