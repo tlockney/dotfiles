@@ -1,3 +1,12 @@
 #!/usr/bin/env bash
-# Thin wrapper for backward compatibility - delegates to rproj code
-exec "$(dirname "$0")/rproj" code "$@"
+# rcode - open a project in VS Code via remote-ssh
+#
+# Local: delegates to rproj code (interactive project selection)
+# Remote (SSH session): sends open-vscode action through the agent socket
+
+if [[ -n "$SSH_CONNECTION" ]]; then
+    # On the remote machine — use the agent socket like ropen -v
+    exec "$(dirname "$0")/ropen" -v "${1:-.}"
+else
+    exec "$(dirname "$0")/rproj" code "$@"
+fi
