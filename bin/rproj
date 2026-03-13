@@ -5,10 +5,12 @@ set -euo pipefail
 # rproj - Unified Remote Project Tool
 #
 # Subcommands:
-#   list   List remote projects (optionally as JSON for Alfred)
-#   tmux   Open tmux session for a remote project
-#   code   Open VS Code for a remote project
-#   help   Show this help
+#   list     List remote projects (optionally as JSON for Alfred)
+#   tmux     Open tmux session for a remote project
+#   code     Open VS Code for a remote project
+#   finder   Open project in local Finder via SSHFS (requires open-agent)
+#   status   Show open-agent daemon status
+#   help     Show this help
 #
 # Run with no arguments for interactive mode.
 
@@ -21,6 +23,7 @@ CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/rproj/config"
 # Defaults (overridden by config file, then by command-line args)
 RPROJ_HOST="workmbp"
 RPROJ_DIR="/Users/thomas.lockney/src/metron"
+RPROJ_AGENT_SOCK="${HOME}/.local/share/open-agent/open-agent.sock"
 
 # Load config if it exists
 if [[ -f "$CONFIG_FILE" ]]; then
@@ -102,11 +105,13 @@ show_help() {
 Usage: $SCRIPT_NAME [command] [options] [project]
 
 Commands:
-    list  (l)   List remote projects
-    tmux  (t)   Open tmux session for a project
-    code  (c)   Open VS Code for a project
-    open  (o)   Open from Alfred (host|path format)
-    help        Show this help
+    list    (l)   List remote projects
+    tmux    (t)   Open tmux session for a project
+    code    (c)   Open VS Code for a project
+    finder  (f)   Open project in Finder via SSHFS (requires open-agent)
+    status  (s)   Show open-agent daemon status
+    open    (o)   Open from Alfred (host|path format)
+    help          Show this help
 
     If no command is given, interactively select a project and action.
 
@@ -126,6 +131,9 @@ Examples:
     $SCRIPT_NAME tmux myproject          # Direct to 'myproject' tmux
     $SCRIPT_NAME c -h otherhost          # VS Code on different host
     $SCRIPT_NAME code -p myproject       # Direct to 'myproject' in VS Code
+    $SCRIPT_NAME f                       # Interactive: open project in Finder
+    $SCRIPT_NAME finder myproject        # Open 'myproject' in Finder directly
+    $SCRIPT_NAME s                       # Check open-agent status
 
 Config file: $CONFIG_FILE
 EOF
@@ -441,8 +449,14 @@ cmd_default() {
     local project_display
     project_display=$(basename "$PROJECT_PATH")
 
+    local options="tmux\ncode"
+    # Only show finder option if open-agent is running
+    if [[ -S "$RPROJ_AGENT_SOCK" ]]; then
+        options="$options\nfinder"
+    fi
+
     local action
-    action=$(printf "tmux\ncode" | fzf \
+    action=$(printf "$options" | fzf \
         --height=30% \
         --layout=reverse \
         --border \
@@ -463,7 +477,84 @@ cmd_default() {
             success "Opening $PROJECT_PATH in VS Code..."
             code --remote "ssh-remote+$RPROJ_HOST" "$PROJECT_PATH"
             ;;
+        finder)
+            cmd_finder -p "$(basename "$PROJECT_PATH")"
+            ;;
     esac
+}
+
+# --- open-agent helpers ---
+
+_oa_json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    printf '"%s"' "$s"
+}
+
+_oa_send() {
+    if [[ ! -S "$RPROJ_AGENT_SOCK" ]]; then
+        error "Agent socket not found at $RPROJ_AGENT_SOCK\n  Is open-agent running? Check: launchctl list | grep open-agent"
+    fi
+    if command -v socat &>/dev/null; then
+        echo "$1" | socat -t5 - UNIX-CONNECT:"$RPROJ_AGENT_SOCK" 2>/dev/null
+    elif command -v nc &>/dev/null; then
+        echo "$1" | nc -U -w5 "$RPROJ_AGENT_SOCK" 2>/dev/null
+    else
+        error "Neither socat nor nc available"
+    fi
+}
+
+_oa_get_remote_home() {
+    local host="$1"
+    ssh -o BatchMode=yes -o ConnectTimeout=3 "$host" 'echo $HOME' 2>/dev/null
+}
+
+# Command: finder — open project in local Finder via SSHFS
+cmd_finder() {
+    parse_options "$@"
+    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
+    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
+
+    info "Resolving remote home directory..."
+    local remote_home
+    remote_home=$(_oa_get_remote_home "$RPROJ_HOST") || {
+        error "Could not determine remote home directory on $RPROJ_HOST"
+    }
+
+    local host_esc path_esc home_esc
+    host_esc=$(_oa_json_escape "$RPROJ_HOST")
+    path_esc=$(_oa_json_escape "$PROJECT_PATH")
+    home_esc=$(_oa_json_escape "$remote_home")
+
+    local msg="{\"action\":\"open\",\"host\":${host_esc},\"remoteHome\":${home_esc},\"path\":${path_esc}}"
+    success "Opening $PROJECT_PATH in Finder..."
+
+    local response
+    response=$(_oa_send "$msg") || {
+        error "Failed to communicate with open-agent"
+    }
+
+    if echo "$response" | grep -q '"ok":true'; then
+        local local_path
+        local_path=$(echo "$response" | grep -o '"localPath":"[^"]*"' | head -1 | sed 's/"localPath":"//' | sed 's/"$//')
+        if [[ -n "$local_path" ]]; then
+            success "Opened: $local_path"
+        fi
+    else
+        local err_msg
+        err_msg=$(echo "$response" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//' | sed 's/"$//')
+        error "${err_msg:-unknown error from agent}"
+    fi
+}
+
+# Command: agent-status — check open-agent daemon status
+cmd_agent_status() {
+    if [[ ! -S "$RPROJ_AGENT_SOCK" ]]; then
+        echo -e "${RED}Agent is not running${NC} (no socket at $RPROJ_AGENT_SOCK)"
+        exit 1
+    fi
+    _oa_send '{"action":"status"}'
 }
 
 # Command: open (for Alfred - opens with host|path format)
@@ -502,6 +593,12 @@ main() {
             ;;
         c|code)
             cmd_code "$@"
+            ;;
+        f|finder)
+            cmd_finder "$@"
+            ;;
+        s|status)
+            cmd_agent_status "$@"
             ;;
         o|open)
             cmd_open "$@"
