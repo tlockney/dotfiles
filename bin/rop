@@ -110,8 +110,9 @@ cmd_run() {
     cmd_args=("$@")
 
     # Collect op:// references from env files and current environment
-    # Format: VAR_NAME=op://vault/item/field
-    declare -A op_refs
+    # Use parallel arrays for Bash 3.x compatibility (no associative arrays)
+    local -a ref_keys=()
+    local -a ref_vals=()
 
     # Scan env files
     for file in "${env_files[@]}"; do
@@ -129,7 +130,8 @@ cmd_run() {
                 val="${val%\'}"
                 val="${val#\'}"
                 if [[ "$val" == op://* ]]; then
-                    op_refs["$key"]="$val"
+                    ref_keys+=("$key")
+                    ref_vals+=("$val")
                 else
                     # Non-op:// values — export directly
                     export "$key=$val"
@@ -141,22 +143,24 @@ cmd_run() {
     # Also scan current environment for op:// values
     while IFS='=' read -r key val; do
         if [[ "$val" == op://* ]]; then
-            op_refs["$key"]="$val"
+            ref_keys+=("$key")
+            ref_vals+=("$val")
         fi
     done < <(env)
 
     # If no op:// refs found, just run the command
-    if [[ ${#op_refs[@]} -eq 0 ]]; then
+    if [[ ${#ref_keys[@]} -eq 0 ]]; then
         exec "${cmd_args[@]}"
     fi
 
     # Build the resolve request
     local refs_json="{"
     local first=true
-    for key in "${!op_refs[@]}"; do
+    local i
+    for (( i=0; i<${#ref_keys[@]}; i++ )); do
         $first || refs_json="$refs_json,"
         first=false
-        refs_json="$refs_json$(json_escape "$key"):$(json_escape "${op_refs[$key]}")"
+        refs_json="$refs_json$(json_escape "${ref_keys[$i]}"):$(json_escape "${ref_vals[$i]}")"
     done
     refs_json="$refs_json}"
 
