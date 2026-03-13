@@ -1,0 +1,91 @@
+#!/bin/bash
+# rpush - push a remote file to the local machine via open-agent
+# Usage: rpush file.txt              # copies to local ~/Downloads
+#        rpush -d ~/Desktop file.txt # copies to specific local directory
+
+set -euo pipefail
+
+SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+HOST_ALIAS="${OPEN_AGENT_HOST:-workmbp}"
+
+usage() {
+    cat <<'EOF'
+Usage: rpush [options] <file>
+
+Push a file from this machine to the local Mac.
+
+Options:
+  -d <dir>    Local destination directory (default: ~/Downloads)
+  -h          Show this help
+
+Examples:
+  rpush build.tar.gz              # → local ~/Downloads/build.tar.gz
+  rpush -d ~/Desktop report.pdf   # → local ~/Desktop/report.pdf
+EOF
+    exit 0
+}
+
+if [[ ! -S "$SOCK" ]]; then
+    echo "rpush: agent socket not found at $SOCK" >&2
+    exit 1
+fi
+
+DEST=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d) DEST="$2"; shift 2 ;;
+        -h|--help) usage ;;
+        --) shift; break ;;
+        -*) echo "rpush: unknown option: $1" >&2; exit 1 ;;
+        *) break ;;
+    esac
+done
+
+[[ $# -eq 0 ]] && { echo "rpush: file required. See rpush -h" >&2; exit 1; }
+TARGET="$1"
+
+[[ -e "$TARGET" ]] || { echo "rpush: $TARGET: no such file" >&2; exit 1; }
+TARGET=$(realpath "$TARGET")
+
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\t'/\\t}"
+    printf '"%s"' "$s"
+}
+
+MSG="{\"action\":\"push\",\"host\":$(json_escape "$HOST_ALIAS"),\"remoteHome\":$(json_escape "$HOME"),\"path\":$(json_escape "$TARGET")"
+[[ -n "$DEST" ]] && MSG="$MSG,\"dest\":$(json_escape "$DEST")"
+MSG="$MSG}"
+
+send_message() {
+    if command -v socat &>/dev/null; then
+        echo "$MSG" | socat -t30 - UNIX-CONNECT:"$SOCK" 2>/dev/null
+    elif command -v nc &>/dev/null; then
+        echo "$MSG" | nc -U -w30 "$SOCK" 2>/dev/null
+    else
+        echo "rpush: neither socat nor nc available" >&2
+        return 1
+    fi
+}
+
+RESPONSE=$(send_message) || {
+    echo "rpush: failed to connect to agent" >&2
+    exit 1
+}
+
+json_value() {
+    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed "s/\"$2\":\"//" | sed 's/"$//'
+}
+
+if echo "$RESPONSE" | grep -q '"ok":true'; then
+    LOCAL=$(json_value "$RESPONSE" "localPath")
+    echo "Pushed to: $LOCAL"
+else
+    ERROR=$(json_value "$RESPONSE" "error")
+    echo "rpush: ${ERROR:-unknown error}" >&2
+    exit 1
+fi
