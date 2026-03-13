@@ -1,0 +1,145 @@
+#!/bin/bash
+# ropen - remote open wrapper
+# Sends open/vscode requests to the local open-agent via SSH-forwarded Unix socket.
+# Falls back to native open if the agent socket isn't available.
+
+set -euo pipefail
+
+SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+HOST_ALIAS="${OPEN_AGENT_HOST:-work}"
+
+usage() {
+    cat <<'EOF'
+Usage: ropen [options] <path>
+
+Options:
+  -a <app>    Open with specific application (e.g., -a "Marked 2")
+  -v          Open as VS Code remote project (uses code --remote)
+  -h          Show this help
+
+Examples:
+  ropen README.md                    # Open with default app on local machine
+  ropen -a "Marked 2" doc.md         # Open with specific app
+  ropen -v ~/projects/myapp          # Open folder in local VS Code via remote-ssh
+  ropen -a "Visual Studio Code" .    # Also works for VS Code (detected automatically)
+EOF
+    exit 0
+}
+
+die() { echo "ropen: $1" >&2; exit 1; }
+
+# --- Parse arguments ---
+
+APP=""
+VSCODE=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -a)
+            [[ $# -lt 2 ]] && die "-a requires an application name"
+            APP="$2"
+            shift 2
+            ;;
+        -v) VSCODE=true; shift ;;
+        -h|--help) usage ;;
+        --) shift; break ;;
+        -*) die "Unknown option: $1" ;;
+        *) break ;;
+    esac
+done
+
+[[ $# -eq 0 ]] && die "No path specified. See ropen -h for usage."
+TARGET="$1"
+
+# Resolve to absolute path
+if [[ -e "$TARGET" ]]; then
+    TARGET=$(realpath "$TARGET")
+elif [[ "$TARGET" != /* ]]; then
+    TARGET="$(pwd)/$TARGET"
+fi
+
+# Detect VS Code by app name
+if [[ "$APP" == *"Visual Studio Code"* ]] || [[ "$APP" == *"Code"* && "$APP" != *"Xcode"* ]]; then
+    VSCODE=true
+    APP=""  # VS Code uses --remote, not -a
+fi
+
+# --- Check socket availability ---
+
+if [[ ! -S "$SOCK" ]]; then
+    echo "ropen: agent socket not found at $SOCK" >&2
+    if command -v /usr/bin/open &>/dev/null; then
+        echo "ropen: falling back to native open" >&2
+        if [[ -n "$APP" ]]; then
+            /usr/bin/open -a "$APP" "$TARGET"
+        else
+            /usr/bin/open "$TARGET"
+        fi
+        exit $?
+    fi
+    die "No agent socket and no native open available"
+fi
+
+# --- Build JSON message ---
+
+# Produces a JSON-quoted string (with surrounding quotes).
+# Handles backslashes, double quotes, and control characters that could appear in paths.
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"    # \ -> \\
+    s="${s//\"/\\\"}"    # " -> \"
+    s="${s//$'\n'/\\n}"  # newline -> \n
+    s="${s//$'\t'/\\t}"  # tab -> \t
+    printf '"%s"' "$s"
+}
+
+ESCAPED_PATH=$(json_escape "$TARGET")
+ESCAPED_HOME=$(json_escape "$HOME")
+ESCAPED_HOST=$(json_escape "$HOST_ALIAS")
+
+if $VSCODE; then
+    MSG="{\"action\":\"open-vscode\",\"host\":${ESCAPED_HOST},\"path\":${ESCAPED_PATH}}"
+elif [[ -n "$APP" ]]; then
+    ESCAPED_APP=$(json_escape "$APP")
+    MSG="{\"action\":\"open\",\"host\":${ESCAPED_HOST},\"remoteHome\":${ESCAPED_HOME},\"path\":${ESCAPED_PATH},\"app\":${ESCAPED_APP}}"
+else
+    MSG="{\"action\":\"open\",\"host\":${ESCAPED_HOST},\"remoteHome\":${ESCAPED_HOME},\"path\":${ESCAPED_PATH}}"
+fi
+
+# --- Send to agent ---
+
+# Try socat first (more reliable), fall back to nc -U
+send_message() {
+    if command -v socat &>/dev/null; then
+        echo "$MSG" | socat -t5 - UNIX-CONNECT:"$SOCK" 2>/dev/null
+    elif command -v nc &>/dev/null; then
+        echo "$MSG" | nc -U -w5 "$SOCK" 2>/dev/null
+    else
+        die "Neither socat nor nc available"
+    fi
+}
+
+RESPONSE=$(send_message) || {
+    echo "ropen: failed to connect to agent socket" >&2
+    echo "ropen: the SSH tunnel may have died. Reconnect SSH to restore." >&2
+    exit 1
+}
+
+# --- Handle response ---
+
+# Simple JSON value extractor — avoids python3 dependency for response parsing.
+# Works for our agent's flat, unescaped string values.
+json_value() {
+    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed "s/\"$2\":\"//" | sed 's/"$//'
+}
+
+if echo "$RESPONSE" | grep -q '"ok":true'; then
+    LOCAL=$(json_value "$RESPONSE" "localPath")
+    if [[ -n "$LOCAL" ]]; then
+        echo "Opened: $LOCAL"
+    fi
+    exit 0
+else
+    ERROR=$(json_value "$RESPONSE" "error")
+    die "${ERROR:-unknown error}"
+fi
