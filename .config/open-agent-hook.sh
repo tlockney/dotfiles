@@ -7,7 +7,14 @@
 [[ -z "$SSH_CONNECTION" ]] && return 0
 
 _OA_SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
-_OA_HOST="${OPEN_AGENT_HOST:-workmbp}"
+_OA_IDENTITY_FILE="${HOME}/.config/open-agent/identity"
+
+# Resolve host identity: env var > identity file > short hostname
+_OA_HOST="${OPEN_AGENT_HOST:-}"
+if [[ -z "$_OA_HOST" ]] && [[ -f "$_OA_IDENTITY_FILE" ]]; then
+    _OA_HOST=$(<"$_OA_IDENTITY_FILE")
+fi
+_OA_HOST="${_OA_HOST:-$(hostname -s)}"
 _OA_SID="$$-$(date +%s)"
 
 _oa_send() {

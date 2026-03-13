@@ -10,6 +10,7 @@ set -euo pipefail
 #   code     Open VS Code for a remote project
 #   finder   Open project in local Finder via SSHFS (requires open-agent)
 #   status   Show open-agent daemon status
+#   setup    Print recommended SSH config for configured hosts
 #   help     Show this help
 #
 # Run with no arguments for interactive mode.
@@ -17,30 +18,31 @@ set -euo pipefail
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
-# Config file location
-CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/rproj/config"
+# Config file locations
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rproj"
+HOSTS_FILE="$CONFIG_DIR/hosts"
+CONFIG_FILE="$CONFIG_DIR/config"
 
-# Defaults (overridden by config file, then by command-line args)
-RPROJ_HOST="workmbp"
-RPROJ_DIR="/Users/thomas.lockney/src/metron"
 RPROJ_AGENT_SOCK="${HOME}/.local/share/open-agent/open-agent.sock"
-
-# Load config if it exists
-if [[ -f "$CONFIG_FILE" ]]; then
-    # shellcheck source=/dev/null
-    source "$CONFIG_FILE"
-fi
 
 # Colors (disabled in JSON mode)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
 # State
 JSON_MODE=false
 QUERY=""
 PROJECT_PATH=""
+SELECTED_HOST=""
+HOST_FILTER=""
+
+# Multi-host config: parallel arrays populated by load_hosts
+HOST_ALIASES=()
+HOST_DIRS=()
+HOST_LABELS=()
 
 # Logging (respects JSON mode)
 info() {
@@ -51,6 +53,11 @@ info() {
 success() {
     [[ "$JSON_MODE" == "true" ]] && return
     echo -e "${GREEN}$*${NC}"
+}
+
+warn() {
+    [[ "$JSON_MODE" == "true" ]] && return
+    echo -e "${YELLOW}$*${NC}" >&2
 }
 
 error() {
@@ -83,84 +90,217 @@ strip_tree_prefix() {
     echo "$s"
 }
 
-# Resolve selected project to full path
-resolve_project_path() {
-    local selected="$1"
-    local dir="$2"
-    local plabel
-    plabel=$(parent_label "$dir")
+# Load multi-host configuration from hosts file or legacy config
+load_hosts() {
+    if [[ -f "$HOSTS_FILE" ]]; then
+        while IFS='|' read -r alias dir label; do
+            # Skip empty lines and comments
+            [[ -z "$alias" || "$alias" == \#* ]] && continue
+            # Trim whitespace
+            alias="${alias## }" ; alias="${alias%% }"
+            dir="${dir## }" ; dir="${dir%% }"
+            label="${label## }" ; label="${label%% }"
 
-    if [[ "$selected" == "$plabel" ]]; then
-        echo "$dir"
+            HOST_ALIASES+=("$alias")
+            HOST_DIRS+=("$dir")
+            HOST_LABELS+=("${label:-$alias}")
+        done < "$HOSTS_FILE"
+    elif [[ -f "$CONFIG_FILE" ]]; then
+        # Legacy single-host fallback
+        local RPROJ_HOST="workmbp"
+        local RPROJ_DIR="/Users/thomas.lockney/src/metron"
+        # shellcheck source=/dev/null
+        source "$CONFIG_FILE"
+        HOST_ALIASES+=("$RPROJ_HOST")
+        HOST_DIRS+=("$RPROJ_DIR")
+        HOST_LABELS+=("$RPROJ_HOST")
     else
-        local name
-        name=$(strip_tree_prefix "$selected")
-        echo "$dir/$name"
+        error "No hosts file ($HOSTS_FILE) or legacy config ($CONFIG_FILE) found"
+    fi
+
+    if [[ ${#HOST_ALIASES[@]} -eq 0 ]]; then
+        error "No hosts configured"
+    fi
+
+    # Apply --host filter if set
+    if [[ -n "$HOST_FILTER" ]]; then
+        local filtered_aliases=() filtered_dirs=() filtered_labels=()
+        for i in "${!HOST_ALIASES[@]}"; do
+            if [[ "${HOST_ALIASES[$i]}" == "$HOST_FILTER" ]]; then
+                filtered_aliases+=("${HOST_ALIASES[$i]}")
+                filtered_dirs+=("${HOST_DIRS[$i]}")
+                filtered_labels+=("${HOST_LABELS[$i]}")
+            fi
+        done
+        if [[ ${#filtered_aliases[@]} -eq 0 ]]; then
+            error "No entries found for host: $HOST_FILTER"
+        fi
+        HOST_ALIASES=("${filtered_aliases[@]}")
+        HOST_DIRS=("${filtered_dirs[@]}")
+        HOST_LABELS=("${filtered_labels[@]}")
     fi
 }
 
-# Help message
-show_help() {
-    cat << EOF
-Usage: $SCRIPT_NAME [command] [options] [project]
+# Discover projects across all configured hosts in parallel
+# Output: lines of "host|base_dir|project_path|label"
+discover_all_projects() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
 
-Commands:
-    list    (l)   List remote projects
-    tmux    (t)   Open tmux session for a project
-    code    (c)   Open VS Code for a project
-    finder  (f)   Open project in Finder via SSHFS (requires open-agent)
-    status  (s)   Show open-agent daemon status
-    open    (o)   Open from Alfred (host|path format)
-    help          Show this help
+    # Launch SSH discovery in parallel for each host entry
+    for i in "${!HOST_ALIASES[@]}"; do
+        local host="${HOST_ALIASES[$i]}"
+        local dir="${HOST_DIRS[$i]}"
+        (
+            ssh -o BatchMode=yes -o ConnectTimeout=3 "$host" \
+                "find '$dir' -maxdepth 1 -mindepth 1 -type d -not -name '.*' | sort" \
+                2>/dev/null > "$tmpdir/${i}" || true
+        ) &
+    done
+    wait
 
-    If no command is given, interactively select a project and action.
+    # Merge results
+    for i in "${!HOST_ALIASES[@]}"; do
+        local host="${HOST_ALIASES[$i]}"
+        local dir="${HOST_DIRS[$i]}"
+        local label="${HOST_LABELS[$i]}"
 
-Options:
-    -h, --host HOST   Remote host (default: $RPROJ_HOST)
-    -d DIR            Remote directory (default: $RPROJ_DIR)
-    -p NAME           Project name (skip interactive selection)
-    --json            Output as Alfred-compatible JSON (list command only)
-    -q QUERY          Filter projects by query (list command with --json)
-    --help            Show this help
+        # Parent directory entry
+        echo "${host}|${dir}|${dir}|${label}"
 
-Examples:
-    $SCRIPT_NAME                         # Interactive: pick project & action
-    $SCRIPT_NAME l                       # List all projects (short form)
-    $SCRIPT_NAME list --json             # JSON output for Alfred
-    $SCRIPT_NAME t                       # Interactive tmux selection
-    $SCRIPT_NAME tmux myproject          # Direct to 'myproject' tmux
-    $SCRIPT_NAME c -h otherhost          # VS Code on different host
-    $SCRIPT_NAME code -p myproject       # Direct to 'myproject' in VS Code
-    $SCRIPT_NAME f                       # Interactive: open project in Finder
-    $SCRIPT_NAME finder myproject        # Open 'myproject' in Finder directly
-    $SCRIPT_NAME s                       # Check open-agent status
+        if [[ -s "$tmpdir/${i}" ]]; then
+            while IFS= read -r line; do
+                echo "${host}|${dir}|${line}|${label}"
+            done < "$tmpdir/${i}"
+        fi
+    done
 
-Config file: $CONFIG_FILE
-EOF
-    exit 0
+    rm -rf "$tmpdir"
 }
 
-# Test SSH connection and verify directory exists
-test_connection() {
-    local host="$1"
-    local dir="$2"
-    local timeout="${3:-5}"
+# Build fzf display lines from discovery results
+# Each line: "host|path\tLabel > display_text"
+# fzf shows only the part after \t; selection includes hidden prefix
+build_fzf_entries() {
+    local entries="$1"
+    local current_label="" child_count=0 child_idx=0
+    local -a group_lines=() group_metas=()
 
-    info "Connecting to $host..."
-    if ! ssh -o BatchMode=yes -o ConnectTimeout="$timeout" "$host" "test -d '$dir'" 2>/dev/null; then
-        error "Cannot connect to $host or directory $dir doesn't exist.\n  Check your SSH config or try: ssh -v $host"
+    # Process entries group by group (grouped by label)
+    while IFS='|' read -r host base_dir project_path label; do
+        [[ -z "$host" ]] && continue
+
+        if [[ "$label" != "$current_label" ]]; then
+            # Flush previous group
+            if [[ ${#group_lines[@]} -gt 0 ]]; then
+                _flush_group "$current_label"
+            fi
+            current_label="$label"
+            group_lines=()
+            group_metas=()
+        fi
+
+        group_metas+=("${host}|${project_path}")
+        if [[ "$project_path" == "$base_dir" ]]; then
+            group_lines+=("__PARENT__|$(basename "$base_dir")")
+        else
+            group_lines+=("__CHILD__|$(basename "$project_path")")
+        fi
+    done <<< "$entries"
+
+    # Flush last group
+    if [[ ${#group_lines[@]} -gt 0 ]]; then
+        _flush_group "$current_label"
     fi
 }
 
-# Discover projects on remote host
-discover_projects() {
-    local host="$1"
-    local dir="$2"
+_flush_group() {
+    local label="$1"
+    local children=0
 
-    ssh "$host" "find '$dir' -maxdepth 1 -mindepth 1 -type d -not -name '.*' | sort" 2>/dev/null
+    # Count children (non-parent entries)
+    for line in "${group_lines[@]}"; do
+        [[ "$line" == "__CHILD__|"* ]] && children=$((children + 1))
+    done
+
+    local child_idx=0
+    for i in "${!group_lines[@]}"; do
+        local type="${group_lines[$i]%%|*}"
+        local name="${group_lines[$i]#*|}"
+        local meta="${group_metas[$i]}"
+        local display
+
+        if [[ "$type" == "__PARENT__" ]]; then
+            display="${label} > 📂 ${name}"
+        else
+            child_idx=$((child_idx + 1))
+            if [[ $child_idx -eq $children ]]; then
+                display="${label} >   └── ${name}"
+            else
+                display="${label} >   ├── ${name}"
+            fi
+        fi
+
+        # Output: hidden metadata \t display string
+        printf '%s\t%s\n' "$meta" "$display"
+    done
 }
 
-# Preview a project (called internally by fzf --preview)
+# Interactive multi-host project selection with fzf
+# Sets SELECTED_HOST and PROJECT_PATH globals
+select_project_multi() {
+    local entries="$1"
+    local fzf_input
+    fzf_input=$(build_fzf_entries "$entries")
+
+    if [[ -z "$fzf_input" ]]; then
+        error "No projects found on any configured host"
+    fi
+
+    local selected
+    selected=$(echo "$fzf_input" | fzf \
+        --height=60% \
+        --layout=reverse \
+        --border \
+        --cycle \
+        --delimiter=$'\t' \
+        --with-nth=2 \
+        --prompt="Select project: " \
+        --header="Select a project to open" \
+        --preview "'$SCRIPT_PATH' _preview_multi {1}")
+
+    [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
+
+    # Extract host and path from the hidden metadata prefix
+    local meta
+    meta="${selected%%	*}"
+    IFS='|' read -r SELECTED_HOST PROJECT_PATH <<< "$meta"
+}
+
+# Preview for multi-host selection (called by fzf --preview)
+# Argument: "host|path"
+cmd_preview_multi() {
+    local meta="$1"
+    local host path
+    IFS='|' read -r host path <<< "$meta"
+
+    ssh -o ConnectTimeout=2 "$host" "
+        echo '$path'
+        echo
+        if git -C '$path' rev-parse --git-dir >/dev/null 2>&1; then
+            echo 'Branch:'
+            git -C '$path' branch --show-current 2>/dev/null
+            echo
+            echo 'Recent commits:'
+            git -C '$path' log --oneline -5 2>/dev/null
+            echo
+        fi
+        echo 'Contents:'
+        ls -1 '$path' 2>/dev/null | head -20
+    " 2>/dev/null
+}
+
+# Legacy single-host preview (called by fzf --preview)
 cmd_preview() {
     local host="$1"
     local dir="$2"
@@ -190,46 +330,6 @@ cmd_preview() {
     " 2>/dev/null
 }
 
-# Interactive project selection with fzf
-select_project() {
-    local projects="$1"
-    local dir="$2"
-    local host="$3"
-
-    local plabel
-    plabel=$(parent_label "$dir")
-
-    echo "$projects" | awk -v dir="$dir" -v plabel="$plabel" '
-        { lines[NR] = $0; n = NR }
-        END {
-            children = 0
-            for (i = 1; i <= n; i++)
-                if (lines[i] != dir) children++
-            c = 0
-            for (i = 1; i <= n; i++) {
-                if (lines[i] == dir) {
-                    print plabel
-                } else {
-                    c++
-                    name = lines[i]
-                    sub(dir "/", "", name)
-                    if (c == children)
-                        print "  └── " name
-                    else
-                        print "  ├── " name
-                }
-            }
-        }
-    ' | fzf \
-        --height=60% \
-        --layout=reverse \
-        --border \
-        --cycle \
-        --prompt="Select project: " \
-        --header="Select a project to open" \
-        --preview "'$SCRIPT_PATH' _preview '$host' '$dir' {}"
-}
-
 # Verify a specific project exists
 verify_project() {
     local host="$1"
@@ -241,99 +341,97 @@ verify_project() {
 }
 
 # Get project selection - interactive or by name
-# Sets global PROJECT_PATH
+# For multi-host: if PROJECT_NAME is set, requires SELECTED_HOST to be set too
+# Sets globals: SELECTED_HOST, PROJECT_PATH
 get_project_selection() {
-    local host="$1"
-    local dir="$2"
-    local project_name="$3"
+    local project_name="${1:-}"
 
     if [[ -n "$project_name" ]]; then
+        # Direct project name requires a single host context
+        if [[ -z "$SELECTED_HOST" ]]; then
+            if [[ ${#HOST_ALIASES[@]} -eq 1 ]]; then
+                SELECTED_HOST="${HOST_ALIASES[0]}"
+            else
+                error "Project name requires --host when multiple hosts are configured"
+            fi
+        fi
+        # Find the matching host entry's directory
+        local target_dir=""
+        for i in "${!HOST_ALIASES[@]}"; do
+            if [[ "${HOST_ALIASES[$i]}" == "$SELECTED_HOST" ]]; then
+                target_dir="${HOST_DIRS[$i]}"
+                break
+            fi
+        done
+        [[ -z "$target_dir" ]] && error "Host $SELECTED_HOST not found in config"
+
         local plabel
-        plabel=$(parent_label "$dir")
-        if [[ "$project_name" == "$plabel" ]] || [[ "$project_name" == "$(basename "$dir")" ]]; then
-            PROJECT_PATH="$dir"
+        plabel=$(parent_label "$target_dir")
+        if [[ "$project_name" == "$plabel" ]] || [[ "$project_name" == "$(basename "$target_dir")" ]]; then
+            PROJECT_PATH="$target_dir"
         else
-            PROJECT_PATH="$dir/$project_name"
-            verify_project "$host" "$PROJECT_PATH"
+            PROJECT_PATH="$target_dir/$project_name"
+            verify_project "$SELECTED_HOST" "$PROJECT_PATH"
         fi
-        info "Using project: $project_name"
+        info "Using project: $project_name on $SELECTED_HOST"
     else
-        info "Finding projects in $dir..."
-        local projects
-        projects=$(discover_projects "$host" "$dir")
+        info "Discovering projects..."
+        local entries
+        entries=$(discover_all_projects)
 
-        # Prepend parent directory as an option
-        if [[ -n "$projects" ]]; then
-            projects="$dir"$'\n'"$projects"
-        else
-            projects="$dir"
+        if [[ -z "$entries" ]]; then
+            error "No projects found"
         fi
 
-        local selected
-        selected=$(select_project "$projects" "$dir" "$host")
-        [[ -z "$selected" ]] && { echo "Cancelled."; exit 0; }
-
-        PROJECT_PATH=$(resolve_project_path "$selected" "$dir")
+        select_project_multi "$entries"
     fi
 }
 
-# Output projects as Alfred JSON
-output_alfred_json() {
-    local projects="$1"
-    local host="$2"
-    local query="$3"
+# Help message
+show_help() {
+    cat << EOF
+Usage: $SCRIPT_NAME [command] [options] [project]
 
-    if [[ -z "$projects" ]]; then
-        cat << EOF
-{"items": [{
-    "title": "No Projects Found",
-    "subtitle": "No projects found in $RPROJ_DIR on $host",
-    "valid": false,
-    "icon": {"path": "error.png"}
-}]}
+Commands:
+    list    (l)   List remote projects
+    tmux    (t)   Open tmux session for a project
+    code    (c)   Open VS Code for a project
+    finder  (f)   Open project in Finder via SSHFS (requires open-agent)
+    status  (s)   Show open-agent daemon status
+    setup         Print recommended SSH config for configured hosts
+    open    (o)   Open from Alfred (host|path format)
+    help          Show this help
+
+    If no command is given, interactively select a project and action.
+
+Options:
+    -h, --host HOST   Filter to a specific host alias
+    -p NAME           Project name (skip interactive selection)
+    --json            Output as Alfred-compatible JSON (list command only)
+    -q QUERY          Filter projects by query (list command with --json)
+    --help            Show this help
+
+Config:
+    Multi-host: $HOSTS_FILE
+    Legacy:     $CONFIG_FILE
+
+Examples:
+    $SCRIPT_NAME                         # Interactive: pick project & action
+    $SCRIPT_NAME l                       # List all projects from all hosts
+    $SCRIPT_NAME list -h workmbp         # List projects on workmbp only
+    $SCRIPT_NAME list --json             # JSON output for Alfred
+    $SCRIPT_NAME t                       # Interactive tmux selection
+    $SCRIPT_NAME tmux -h workmbp proj    # Direct tmux on specific host
+    $SCRIPT_NAME c                       # Interactive VS Code selection
+    $SCRIPT_NAME f                       # Interactive: open project in Finder
+    $SCRIPT_NAME setup                   # Print SSH config recommendations
+    $SCRIPT_NAME s                       # Check open-agent status
 EOF
-        return
-    fi
-
-    echo '{"items": ['
-
-    local first=true
-    while IFS= read -r project; do
-        local project_name display_name
-        project_name=$(basename "$project")
-        if [[ "$project" == "$RPROJ_DIR" ]]; then
-            display_name=$(parent_label "$RPROJ_DIR")
-        else
-            display_name="$project_name"
-        fi
-
-        # Filter by query if provided (case-insensitive)
-        if [[ -n "$query" ]] && [[ ! "${project_name,,}" =~ ${query,,} ]]; then
-            continue
-        fi
-
-        if [[ "$first" != "true" ]]; then
-            echo ","
-        fi
-        first=false
-
-        cat << EOF
-{
-    "uid": "$project_name",
-    "title": "$display_name",
-    "subtitle": "Open in VS Code: $project",
-    "arg": "$host|$project",
-    "autocomplete": "$project_name",
-    "icon": {"path": "vscode.png"}
-}
-EOF
-    done <<< "$projects"
-
-    echo ']}'
+    exit 0
 }
 
 # Parse common options for a subcommand
-# Sets: RPROJ_HOST, RPROJ_DIR, PROJECT_NAME
+# Sets: HOST_FILTER, SELECTED_HOST, PROJECT_NAME, JSON_MODE, QUERY
 parse_options() {
     PROJECT_NAME=""
 
@@ -346,14 +444,8 @@ parse_options() {
                 if [[ $# -lt 2 ]]; then
                     error "Option $1 requires a host argument"
                 fi
-                RPROJ_HOST="$2"
-                shift 2
-                ;;
-            -d)
-                if [[ $# -lt 2 ]]; then
-                    error "Option -d requires a directory argument"
-                fi
-                RPROJ_DIR="$2"
+                HOST_FILTER="$2"
+                SELECTED_HOST="$2"
                 shift 2
                 ;;
             -p)
@@ -386,65 +478,135 @@ parse_options() {
     done
 }
 
+# Output projects as Alfred JSON (multi-host aware)
+output_alfred_json() {
+    local entries="$1"
+    local query="$2"
+
+    if [[ -z "$entries" ]]; then
+        cat << EOF
+{"items": [{
+    "title": "No Projects Found",
+    "subtitle": "No projects found on configured hosts",
+    "valid": false,
+    "icon": {"path": "error.png"}
+}]}
+EOF
+        return
+    fi
+
+    echo '{"items": ['
+
+    local first=true
+    while IFS='|' read -r host base_dir project_path label; do
+        [[ -z "$host" ]] && continue
+
+        local project_name display_name subtitle
+        project_name=$(basename "$project_path")
+
+        if [[ "$project_path" == "$base_dir" ]]; then
+            display_name="$(parent_label "$base_dir")"
+        else
+            display_name="$project_name"
+        fi
+
+        # Prefix with label if multiple hosts
+        if [[ ${#HOST_ALIASES[@]} -gt 1 ]] || [[ $(printf '%s\n' "${HOST_ALIASES[@]}" | sort -u | wc -l) -gt 1 ]]; then
+            subtitle="[$label] Open in VS Code: $project_path"
+        else
+            subtitle="Open in VS Code: $project_path"
+        fi
+
+        # Filter by query if provided (case-insensitive)
+        if [[ -n "$query" ]] && [[ ! "${project_name,,}" =~ ${query,,} ]]; then
+            continue
+        fi
+
+        if [[ "$first" != "true" ]]; then
+            echo ","
+        fi
+        first=false
+
+        cat << EOF
+{
+    "uid": "${host}_${project_name}",
+    "title": "$display_name",
+    "subtitle": "$subtitle",
+    "arg": "$host|$project_path",
+    "autocomplete": "$project_name",
+    "icon": {"path": "vscode.png"}
+}
+EOF
+    done <<< "$entries"
+
+    echo ']}'
+}
+
 # Command: list
 cmd_list() {
     parse_options "$@"
+    load_hosts
 
-    # Use shorter timeout for JSON mode (Alfred)
-    local timeout=5
-    [[ "$JSON_MODE" == "true" ]] && timeout=2
-
-    test_connection "$RPROJ_HOST" "$RPROJ_DIR" "$timeout"
-
-    info "Finding projects in $RPROJ_DIR..."
-    local projects
-    projects=$(discover_projects "$RPROJ_HOST" "$RPROJ_DIR")
-
-    # Prepend parent directory as an option
-    if [[ -n "$projects" ]]; then
-        projects="$RPROJ_DIR"$'\n'"$projects"
-    else
-        projects="$RPROJ_DIR"
-    fi
+    info "Discovering projects..."
+    local entries
+    entries=$(discover_all_projects)
 
     if [[ "$JSON_MODE" == "true" ]]; then
-        output_alfred_json "$projects" "$RPROJ_HOST" "$QUERY"
+        output_alfred_json "$entries" "$QUERY"
     else
-        local plabel
-        plabel=$(parent_label "$RPROJ_DIR")
-        echo "$projects" | sed "s|^${RPROJ_DIR}$|${plabel}|; s|${RPROJ_DIR}/||"
+        if [[ -z "$entries" ]]; then
+            warn "No projects found on any configured host"
+            return
+        fi
+
+        local current_label=""
+        while IFS='|' read -r host base_dir project_path label; do
+            [[ -z "$host" ]] && continue
+
+            # Print label header when it changes
+            if [[ "$label" != "$current_label" ]]; then
+                [[ -n "$current_label" ]] && echo ""
+                echo -e "${GREEN}${label}${NC} ($host)"
+                current_label="$label"
+            fi
+
+            if [[ "$project_path" == "$base_dir" ]]; then
+                echo "  $(parent_label "$base_dir")"
+            else
+                echo "  $(basename "$project_path")"
+            fi
+        done <<< "$entries"
     fi
 }
 
 # Command: tmux
 cmd_tmux() {
     parse_options "$@"
-    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
-    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
+    load_hosts
+    get_project_selection "$PROJECT_NAME"
 
     local session_name
     session_name=$(basename "$PROJECT_PATH")
-    success "Opening tmux session '$session_name' at $PROJECT_PATH..."
+    success "Opening tmux session '$session_name' at $PROJECT_PATH on $SELECTED_HOST..."
 
-    # Connect and run tc to create/attach tmux session
-    ssh -A -t "$RPROJ_HOST" "cd '$PROJECT_PATH' && ~/bin/tc"
+    ssh -A -t "$SELECTED_HOST" "cd '$PROJECT_PATH' && ~/bin/tc"
 }
 
 # Command: code
 cmd_code() {
     parse_options "$@"
-    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
-    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
+    load_hosts
+    get_project_selection "$PROJECT_NAME"
 
-    success "Opening $PROJECT_PATH in VS Code..."
-    code --remote "ssh-remote+$RPROJ_HOST" "$PROJECT_PATH"
+    success "Opening $PROJECT_PATH in VS Code on $SELECTED_HOST..."
+    code --remote "ssh-remote+$SELECTED_HOST" "$PROJECT_PATH"
 }
 
 # Command: default (interactive project + action selection)
 cmd_default() {
     parse_options "$@"
-    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
-    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
+    load_hosts
+    get_project_selection "$PROJECT_NAME"
 
     local project_display
     project_display=$(basename "$PROJECT_PATH")
@@ -462,7 +624,7 @@ cmd_default() {
         --border \
         --no-preview \
         --prompt="Action: " \
-        --header="Open '$project_display' with:")
+        --header="Open '$project_display' ($SELECTED_HOST) with:")
 
     [[ -z "$action" ]] && { echo "Cancelled."; exit 0; }
 
@@ -471,14 +633,14 @@ cmd_default() {
             local session_name
             session_name=$(basename "$PROJECT_PATH")
             success "Opening tmux session '$session_name' at $PROJECT_PATH..."
-            ssh -A -t "$RPROJ_HOST" "cd '$PROJECT_PATH' && ~/bin/tc"
+            ssh -A -t "$SELECTED_HOST" "cd '$PROJECT_PATH' && ~/bin/tc"
             ;;
         code)
             success "Opening $PROJECT_PATH in VS Code..."
-            code --remote "ssh-remote+$RPROJ_HOST" "$PROJECT_PATH"
+            code --remote "ssh-remote+$SELECTED_HOST" "$PROJECT_PATH"
             ;;
         finder)
-            cmd_finder -p "$(basename "$PROJECT_PATH")"
+            _do_finder "$SELECTED_HOST" "$PROJECT_PATH"
             ;;
     esac
 }
@@ -510,25 +672,24 @@ _oa_get_remote_home() {
     ssh -o BatchMode=yes -o ConnectTimeout=3 "$host" 'echo $HOME' 2>/dev/null
 }
 
-# Command: finder — open project in local Finder via SSHFS
-cmd_finder() {
-    parse_options "$@"
-    test_connection "$RPROJ_HOST" "$RPROJ_DIR"
-    get_project_selection "$RPROJ_HOST" "$RPROJ_DIR" "$PROJECT_NAME"
+# Internal: perform finder open for a given host and project path
+_do_finder() {
+    local host="$1"
+    local path="$2"
 
     info "Resolving remote home directory..."
     local remote_home
-    remote_home=$(_oa_get_remote_home "$RPROJ_HOST") || {
-        error "Could not determine remote home directory on $RPROJ_HOST"
+    remote_home=$(_oa_get_remote_home "$host") || {
+        error "Could not determine remote home directory on $host"
     }
 
     local host_esc path_esc home_esc
-    host_esc=$(_oa_json_escape "$RPROJ_HOST")
-    path_esc=$(_oa_json_escape "$PROJECT_PATH")
+    host_esc=$(_oa_json_escape "$host")
+    path_esc=$(_oa_json_escape "$path")
     home_esc=$(_oa_json_escape "$remote_home")
 
     local msg="{\"action\":\"open\",\"host\":${host_esc},\"remoteHome\":${home_esc},\"path\":${path_esc}}"
-    success "Opening $PROJECT_PATH in Finder..."
+    success "Opening $path in Finder..."
 
     local response
     response=$(_oa_send "$msg") || {
@@ -546,6 +707,14 @@ cmd_finder() {
         err_msg=$(echo "$response" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//' | sed 's/"$//')
         error "${err_msg:-unknown error from agent}"
     fi
+}
+
+# Command: finder — open project in local Finder via SSHFS
+cmd_finder() {
+    parse_options "$@"
+    load_hosts
+    get_project_selection "$PROJECT_NAME"
+    _do_finder "$SELECTED_HOST" "$PROJECT_PATH"
 }
 
 # Command: agent-status — check open-agent daemon status
@@ -574,6 +743,50 @@ cmd_open() {
     code --remote "ssh-remote+$host" "$path"
 }
 
+# Command: setup — print recommended SSH config for configured hosts
+cmd_setup() {
+    parse_options "$@"
+    load_hosts
+
+    local -a seen_hosts=()
+    for i in "${!HOST_ALIASES[@]}"; do
+        local host="${HOST_ALIASES[$i]}"
+        # Skip duplicates
+        local already_seen=false
+        for seen in "${seen_hosts[@]+"${seen_hosts[@]}"}"; do
+            if [[ "$seen" == "$host" ]]; then
+                already_seen=true
+                break
+            fi
+        done
+        [[ "$already_seen" == "true" ]] && continue
+        seen_hosts+=("$host")
+
+        cat <<EOF
+
+Host $host
+    SetEnv OPEN_AGENT_HOST=$host
+    RemoteForward /tmp/open-agent.sock ~/.local/share/open-agent/open-agent.sock
+    StreamLocalBindUnlink yes
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+EOF
+    done
+
+    echo ""
+    echo "# Add the above to ~/.ssh/config (optional — SetEnv requires AcceptEnv on the remote sshd)."
+    echo ""
+    echo "# Alternatively, create an identity file on each remote host:"
+    for host in "${seen_hosts[@]}"; do
+        echo "#   ssh $host 'mkdir -p ~/.config/open-agent && echo $host > ~/.config/open-agent/identity'"
+    done
+    echo "#"
+    echo "# The hook resolves host identity in this order:"
+    echo "#   1. OPEN_AGENT_HOST env var (via SetEnv/AcceptEnv)"
+    echo "#   2. ~/.config/open-agent/identity file"
+    echo "#   3. \$(hostname -s) fallback"
+}
+
 # Main
 main() {
     if [[ $# -lt 1 ]]; then
@@ -600,11 +813,17 @@ main() {
         s|status)
             cmd_agent_status "$@"
             ;;
+        setup)
+            cmd_setup "$@"
+            ;;
         o|open)
             cmd_open "$@"
             ;;
         _preview)
             cmd_preview "$@"
+            ;;
+        _preview_multi)
+            cmd_preview_multi "$@"
             ;;
         help|--help)
             show_help
