@@ -1,0 +1,194 @@
+#!/bin/bash
+# rop - proxy 1Password CLI operations through open-agent to the local machine
+# Usage: rop read "op://vault/item/field"
+#        rop run --env-file .env -- command args...
+#        rop run -- command args...
+
+set -euo pipefail
+
+SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+
+usage() {
+    cat <<'EOF'
+Usage: rop <subcommand> [options]
+
+Proxy 1Password operations to your local machine where the GUI is accessible.
+
+Subcommands:
+  read <ref>                        Read a single op:// secret reference
+  run [--env-file <file>] -- <cmd>  Resolve op:// refs in env, then run command
+
+Examples:
+  rop read "op://dev/database/url"
+  rop run -- make deploy
+  rop run --env-file .env -- terraform apply
+  rop run --env-file .env --env-file .env.local -- make test
+EOF
+    exit 0
+}
+
+die() { echo "rop: $1" >&2; exit 1; }
+
+[[ $# -eq 0 ]] && usage
+
+if [[ ! -S "$SOCK" ]]; then
+    die "agent socket not found at $SOCK"
+fi
+
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\t'/\\t}"
+    s="${s//$'\r'/\\r}"
+    printf '"%s"' "$s"
+}
+
+send_message() {
+    local msg="$1"
+    if command -v socat &>/dev/null; then
+        echo "$msg" | socat -t30 - UNIX-CONNECT:"$SOCK" 2>/dev/null
+    elif command -v nc &>/dev/null; then
+        echo "$msg" | nc -U -w30 "$SOCK" 2>/dev/null
+    else
+        die "neither socat nor nc available"
+    fi
+}
+
+json_value() {
+    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed "s/\"$2\":\"//" | sed 's/"$//'
+}
+
+# --- Subcommand: read ---
+
+cmd_read() {
+    [[ $# -eq 0 ]] && die "read requires an op:// reference"
+    local ref="$1"
+    [[ "$ref" == op://* ]] || die "reference must start with op://"
+
+    local msg="{\"action\":\"op-read\",\"ref\":$(json_escape "$ref")}"
+    local response
+    response=$(send_message "$msg") || die "failed to connect to agent"
+
+    if echo "$response" | grep -q '"ok":true'; then
+        # Extract value — may contain special characters, use python3
+        echo "$response" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.stdout.write(d.get("value",""))'
+    else
+        die "$(json_value "$response" "error")"
+    fi
+}
+
+# --- Subcommand: run ---
+
+cmd_run() {
+    local -a env_files=()
+    local -a cmd_args=()
+    local found_separator=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --env-file)
+                [[ $# -lt 2 ]] && die "--env-file requires a filename"
+                env_files+=("$2")
+                shift 2
+                ;;
+            --)
+                found_separator=true
+                shift
+                break
+                ;;
+            *)
+                die "unexpected argument before --: $1"
+                ;;
+        esac
+    done
+
+    $found_separator || die "missing -- separator before command"
+    [[ $# -eq 0 ]] && die "no command specified after --"
+    cmd_args=("$@")
+
+    # Collect op:// references from env files and current environment
+    # Format: VAR_NAME=op://vault/item/field
+    declare -A op_refs
+
+    # Scan env files
+    for file in "${env_files[@]}"; do
+        [[ -f "$file" ]] || die "env file not found: $file"
+        while IFS= read -r line; do
+            # Skip comments and empty lines
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            # Extract KEY=VALUE, handle optional quotes
+            if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=[[:space:]]*(.*) ]]; then
+                local key="${BASH_REMATCH[1]}"
+                local val="${BASH_REMATCH[2]}"
+                # Strip surrounding quotes
+                val="${val%\"}"
+                val="${val#\"}"
+                val="${val%\'}"
+                val="${val#\'}"
+                if [[ "$val" == op://* ]]; then
+                    op_refs["$key"]="$val"
+                else
+                    # Non-op:// values — export directly
+                    export "$key=$val"
+                fi
+            fi
+        done < "$file"
+    done
+
+    # Also scan current environment for op:// values
+    while IFS='=' read -r key val; do
+        if [[ "$val" == op://* ]]; then
+            op_refs["$key"]="$val"
+        fi
+    done < <(env)
+
+    # If no op:// refs found, just run the command
+    if [[ ${#op_refs[@]} -eq 0 ]]; then
+        exec "${cmd_args[@]}"
+    fi
+
+    # Build the resolve request
+    local refs_json="{"
+    local first=true
+    for key in "${!op_refs[@]}"; do
+        $first || refs_json="$refs_json,"
+        first=false
+        refs_json="$refs_json$(json_escape "$key"):$(json_escape "${op_refs[$key]}")"
+    done
+    refs_json="$refs_json}"
+
+    local msg="{\"action\":\"op-resolve\",\"refs\":${refs_json}}"
+    local response
+    response=$(send_message "$msg") || die "failed to connect to agent"
+
+    if ! echo "$response" | grep -q '"ok":true'; then
+        die "$(json_value "$response" "error")"
+    fi
+
+    # Parse resolved values and export them
+    # Use python3 for reliable JSON parsing of potentially complex values
+    eval "$(echo "$response" | python3 -c '
+import json, sys, shlex
+d = json.load(sys.stdin)
+for key, val in d.get("resolved", {}).items():
+    print(f"export {key}={shlex.quote(val)}")
+')"
+
+    # Run the command with resolved environment
+    exec "${cmd_args[@]}"
+}
+
+# --- Main ---
+
+subcmd="$1"
+shift
+
+case "$subcmd" in
+    read) cmd_read "$@" ;;
+    run) cmd_run "$@" ;;
+    -h|--help|help) usage ;;
+    *) die "unknown subcommand: $subcmd. See rop --help" ;;
+esac
