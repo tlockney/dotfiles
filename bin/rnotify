@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+source "$(dirname "$0")/lib/open-agent.sh"
 
 usage() {
     cat <<'EOF'
@@ -26,10 +26,8 @@ EOF
     exit 0
 }
 
-if [[ ! -S "$SOCK" ]]; then
-    echo "rnotify: agent socket not found at $SOCK" >&2
-    exit 1
-fi
+oa_init
+oa_require_sock
 
 SOUND=""
 SUBTITLE=""
@@ -49,38 +47,15 @@ done
 TITLE="$1"
 MESSAGE="${2:-}"
 
-json_escape() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\t'/\\t}"
-    printf '"%s"' "$s"
-}
-
-MSG="{\"action\":\"notify\",\"title\":$(json_escape "$TITLE")"
-[[ -n "$MESSAGE" ]] && MSG="$MSG,\"message\":$(json_escape "$MESSAGE")"
-[[ -n "$SUBTITLE" ]] && MSG="$MSG,\"subtitle\":$(json_escape "$SUBTITLE")"
-[[ -n "$SOUND" ]] && MSG="$MSG,\"sound\":$(json_escape "$SOUND")"
+MSG="{\"action\":\"notify\",\"title\":$(oa_json_escape "$TITLE")"
+[[ -n "$MESSAGE" ]] && MSG="$MSG,\"message\":$(oa_json_escape "$MESSAGE")"
+[[ -n "$SUBTITLE" ]] && MSG="$MSG,\"subtitle\":$(oa_json_escape "$SUBTITLE")"
+[[ -n "$SOUND" ]] && MSG="$MSG,\"sound\":$(oa_json_escape "$SOUND")"
 MSG="$MSG}"
 
-send_message() {
-    if command -v socat &>/dev/null; then
-        echo "$MSG" | socat -t5 - UNIX-CONNECT:"$SOCK" 2>/dev/null
-    elif command -v nc &>/dev/null; then
-        echo "$MSG" | nc -U -w5 "$SOCK" 2>/dev/null
-    else
-        echo "rnotify: neither socat nor nc available" >&2
-        return 1
-    fi
-}
-
-RESPONSE=$(send_message) || {
-    echo "rnotify: failed to connect to agent" >&2
+RESPONSE=$(oa_send "$MSG") || {
+    echo "${OA_SCRIPT_NAME}: failed to connect to agent" >&2
     exit 1
 }
 
-if ! echo "$RESPONSE" | grep -q '"ok":true'; then
-    echo "rnotify: $(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//' | sed 's/"$//')" >&2
-    exit 1
-fi
+oa_check_response "$RESPONSE" || exit 1

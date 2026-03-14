@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+source "$(dirname "$0")/lib/open-agent.sh"
+
 HOST_ALIAS="${OPEN_AGENT_HOST:-workmbp}"
 
 usage() {
@@ -25,10 +26,8 @@ EOF
     exit 0
 }
 
-if [[ ! -S "$SOCK" ]]; then
-    echo "rpush: agent socket not found at $SOCK" >&2
-    exit 1
-fi
+oa_init
+oa_require_sock
 
 DEST=""
 
@@ -48,44 +47,15 @@ TARGET="$1"
 [[ -e "$TARGET" ]] || { echo "rpush: $TARGET: no such file" >&2; exit 1; }
 TARGET=$(realpath "$TARGET")
 
-json_escape() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\t'/\\t}"
-    printf '"%s"' "$s"
-}
-
-MSG="{\"action\":\"push\",\"host\":$(json_escape "$HOST_ALIAS"),\"remoteHome\":$(json_escape "$HOME"),\"path\":$(json_escape "$TARGET")"
-[[ -n "$DEST" ]] && MSG="$MSG,\"dest\":$(json_escape "$DEST")"
+MSG="{\"action\":\"push\",\"host\":$(oa_json_escape "$HOST_ALIAS"),\"remoteHome\":$(oa_json_escape "$HOME"),\"path\":$(oa_json_escape "$TARGET")"
+[[ -n "$DEST" ]] && MSG="$MSG,\"dest\":$(oa_json_escape "$DEST")"
 MSG="$MSG}"
 
-send_message() {
-    if command -v socat &>/dev/null; then
-        echo "$MSG" | socat -t30 - UNIX-CONNECT:"$SOCK" 2>/dev/null
-    elif command -v nc &>/dev/null; then
-        echo "$MSG" | nc -U -w30 "$SOCK" 2>/dev/null
-    else
-        echo "rpush: neither socat nor nc available" >&2
-        return 1
-    fi
-}
-
-RESPONSE=$(send_message) || {
-    echo "rpush: failed to connect to agent" >&2
+RESPONSE=$(oa_send "$MSG" 30) || {
+    echo "${OA_SCRIPT_NAME}: failed to connect to agent" >&2
     exit 1
 }
 
-json_value() {
-    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed "s/\"$2\":\"//" | sed 's/"$//'
-}
-
-if echo "$RESPONSE" | grep -q '"ok":true'; then
-    LOCAL=$(json_value "$RESPONSE" "localPath")
-    echo "Pushed to: $LOCAL"
-else
-    ERROR=$(json_value "$RESPONSE" "error")
-    echo "rpush: ${ERROR:-unknown error}" >&2
-    exit 1
-fi
+oa_check_response "$RESPONSE" || exit 1
+LOCAL=$(oa_json_value "$RESPONSE" "localPath")
+echo "Pushed to: $LOCAL"
