@@ -92,41 +92,6 @@ Desktop systems install full GUI apps (VS Code, 1Password). Server systems insta
 **Usage:** `tmux-session-menu`
 **Description:** Displays a tmux menu of all active sessions for quick switching between sessions.
 
-## Remote Development
-
-### `rproj`
-
-**Purpose:** Unified remote project tool for listing, opening in tmux, or opening in VS Code
-**Usage:** `rproj <command> [options] [project]`
-**Commands:**
-
-- `list`: List remote projects (supports `--json` for Alfred integration)
-- `tmux`: Open tmux session for a remote project
-- `code`: Open VS Code for a remote project
-- `open`: Open project from Alfred (uses `host|path` format)
-
-**Options:**
-
-- `-h, --host HOST`: Remote host (configurable via `~/.config/rproj/config`)
-- `-d DIR`: Remote base directory
-- `-p NAME`: Project name (skip interactive fzf selection)
-- `--json`: Output as Alfred-compatible JSON (list command)
-- `-q QUERY`: Filter projects by query (with --json)
-
-**Description:** Discovers projects on a remote host via SSH and provides interactive selection with fzf. Integrates with Alfred workflows for quick project access.
-
-### `rtmux`
-
-**Purpose:** Open tmux session for a remote project
-**Usage:** `rtmux [options] [project]`
-**Description:** Thin wrapper that delegates to `rproj tmux`. Maintained for backward compatibility.
-
-### `rcode`
-
-**Purpose:** Open VS Code for a remote project
-**Usage:** `rcode [options] [project]`
-**Description:** Thin wrapper that delegates to `rproj code`. Maintained for backward compatibility.
-
 ## Cloud and Security Tools
 
 ### `get-aws-creds`
