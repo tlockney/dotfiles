@@ -18,12 +18,15 @@ set -euo pipefail
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
+source "$(dirname "${BASH_SOURCE[0]}")/lib/open-agent.sh"
+
 # Config file locations
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rproj"
 HOSTS_FILE="$CONFIG_DIR/hosts"
 CONFIG_FILE="$CONFIG_DIR/config"
 
-RPROJ_AGENT_SOCK="${HOME}/.local/share/open-agent/open-agent.sock"
+# Initialize open-agent with the local daemon socket path
+oa_init "${HOME}/.local/share/open-agent/open-agent.sock"
 
 # Colors (disabled in JSON mode)
 RED='\033[0;31m'
@@ -613,7 +616,7 @@ cmd_default() {
 
     local options="tmux\ncode"
     # Only show finder option if open-agent is running
-    if [[ -S "$RPROJ_AGENT_SOCK" ]]; then
+    if [[ -S "$OA_SOCK" ]]; then
         options="$options\nfinder"
     fi
 
@@ -647,24 +650,12 @@ cmd_default() {
 
 # --- open-agent helpers ---
 
-_oa_json_escape() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    printf '"%s"' "$s"
-}
-
-_oa_send() {
-    if [[ ! -S "$RPROJ_AGENT_SOCK" ]]; then
-        error "Agent socket not found at $RPROJ_AGENT_SOCK\n  Is open-agent running? Check: launchctl list | grep open-agent"
+# Wrapper that checks socket with rproj's error() (supports JSON mode)
+_oa_checked_send() {
+    if [[ ! -S "$OA_SOCK" ]]; then
+        error "Agent socket not found at $OA_SOCK\n  Is open-agent running? Check: launchctl list | grep open-agent"
     fi
-    if command -v socat &>/dev/null; then
-        echo "$1" | socat -t5 - UNIX-CONNECT:"$RPROJ_AGENT_SOCK" 2>/dev/null
-    elif command -v nc &>/dev/null; then
-        echo "$1" | nc -U -w5 "$RPROJ_AGENT_SOCK" 2>/dev/null
-    else
-        error "Neither socat nor nc available"
-    fi
+    oa_send "$1"
 }
 
 _oa_get_remote_home() {
@@ -684,15 +675,15 @@ _do_finder() {
     }
 
     local host_esc path_esc home_esc
-    host_esc=$(_oa_json_escape "$host")
-    path_esc=$(_oa_json_escape "$path")
-    home_esc=$(_oa_json_escape "$remote_home")
+    host_esc=$(oa_json_escape "$host")
+    path_esc=$(oa_json_escape "$path")
+    home_esc=$(oa_json_escape "$remote_home")
 
     local msg="{\"action\":\"open\",\"host\":${host_esc},\"remoteHome\":${home_esc},\"path\":${path_esc}}"
     success "Opening $path in Finder..."
 
     local response
-    response=$(_oa_send "$msg") || {
+    response=$(_oa_checked_send "$msg") || {
         error "Failed to communicate with open-agent"
     }
 
@@ -719,11 +710,11 @@ cmd_finder() {
 
 # Command: agent-status — check open-agent daemon status
 cmd_agent_status() {
-    if [[ ! -S "$RPROJ_AGENT_SOCK" ]]; then
-        echo -e "${RED}Agent is not running${NC} (no socket at $RPROJ_AGENT_SOCK)"
+    if [[ ! -S "$OA_SOCK" ]]; then
+        echo -e "${RED}Agent is not running${NC} (no socket at $OA_SOCK)"
         exit 1
     fi
-    _oa_send '{"action":"status"}'
+    _oa_checked_send '{"action":"status"}'
 }
 
 # Command: open (for Alfred - opens with host|path format)

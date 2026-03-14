@@ -5,7 +5,8 @@
 
 set -euo pipefail
 
-SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+source "$(dirname "$0")/lib/open-agent.sh"
+
 HOST_ALIAS="${OPEN_AGENT_HOST:-workmbp}"
 
 usage() {
@@ -29,10 +30,8 @@ EOF
     exit 0
 }
 
-if [[ ! -S "$SOCK" ]]; then
-    echo "rpull: agent socket not found at $SOCK" >&2
-    exit 1
-fi
+oa_init
+oa_require_sock
 
 [[ "$1" == "-h" || "$1" == "--help" ]] && usage
 [[ $# -eq 0 ]] && { echo "rpull: local path required. See rpull -h" >&2; exit 1; }
@@ -47,42 +46,13 @@ elif [[ "$REMOTE_DEST" != /* ]]; then
     REMOTE_DEST="$(pwd)/$REMOTE_DEST"
 fi
 
-json_escape() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\t'/\\t}"
-    printf '"%s"' "$s"
-}
+MSG="{\"action\":\"pull\",\"host\":$(oa_json_escape "$HOST_ALIAS"),\"remoteHome\":$(oa_json_escape "$HOME"),\"localPath\":$(oa_json_escape "$LOCAL_PATH"),\"remoteDest\":$(oa_json_escape "$REMOTE_DEST")}"
 
-MSG="{\"action\":\"pull\",\"host\":$(json_escape "$HOST_ALIAS"),\"remoteHome\":$(json_escape "$HOME"),\"localPath\":$(json_escape "$LOCAL_PATH"),\"remoteDest\":$(json_escape "$REMOTE_DEST")}"
-
-send_message() {
-    if command -v socat &>/dev/null; then
-        echo "$MSG" | socat -t30 - UNIX-CONNECT:"$SOCK" 2>/dev/null
-    elif command -v nc &>/dev/null; then
-        echo "$MSG" | nc -U -w30 "$SOCK" 2>/dev/null
-    else
-        echo "rpull: neither socat nor nc available" >&2
-        return 1
-    fi
-}
-
-RESPONSE=$(send_message) || {
-    echo "rpull: failed to connect to agent" >&2
+RESPONSE=$(oa_send "$MSG" 30) || {
+    echo "${OA_SCRIPT_NAME}: failed to connect to agent" >&2
     exit 1
 }
 
-json_value() {
-    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed "s/\"$2\":\"//" | sed 's/"$//'
-}
-
-if echo "$RESPONSE" | grep -q '"ok":true'; then
-    REMOTE=$(json_value "$RESPONSE" "remotePath")
-    echo "Pulled to: $REMOTE"
-else
-    ERROR=$(json_value "$RESPONSE" "error")
-    echo "rpull: ${ERROR:-unknown error}" >&2
-    exit 1
-fi
+oa_check_response "$RESPONSE" || exit 1
+REMOTE=$(oa_json_value "$RESPONSE" "remotePath")
+echo "Pulled to: $REMOTE"

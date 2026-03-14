@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-SOCK="${OPEN_AGENT_SOCK:-/tmp/open-agent.sock}"
+source "$(dirname "$0")/lib/open-agent.sh"
 
 usage() {
     cat <<'EOF'
@@ -31,34 +31,8 @@ die() { echo "rop: $1" >&2; exit 1; }
 
 [[ $# -eq 0 ]] && usage
 
-if [[ ! -S "$SOCK" ]]; then
-    die "agent socket not found at $SOCK"
-fi
-
-json_escape() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\t'/\\t}"
-    s="${s//$'\r'/\\r}"
-    printf '"%s"' "$s"
-}
-
-send_message() {
-    local msg="$1"
-    if command -v socat &>/dev/null; then
-        echo "$msg" | socat -t30 - UNIX-CONNECT:"$SOCK" 2>/dev/null
-    elif command -v nc &>/dev/null; then
-        echo "$msg" | nc -U -w30 "$SOCK" 2>/dev/null
-    else
-        die "neither socat nor nc available"
-    fi
-}
-
-json_value() {
-    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -1 | sed "s/\"$2\":\"//" | sed 's/"$//'
-}
+oa_init
+oa_require_sock
 
 # --- Subcommand: read ---
 
@@ -67,15 +41,15 @@ cmd_read() {
     local ref="$1"
     [[ "$ref" == op://* ]] || die "reference must start with op://"
 
-    local msg="{\"action\":\"op-read\",\"ref\":$(json_escape "$ref")}"
+    local msg="{\"action\":\"op-read\",\"ref\":$(oa_json_escape "$ref")}"
     local response
-    response=$(send_message "$msg") || die "failed to connect to agent"
+    response=$(oa_send "$msg" 30) || die "failed to connect to agent"
 
-    if echo "$response" | grep -q '"ok":true'; then
+    if oa_check_response "$response" 2>/dev/null; then
         # Extract value — may contain special characters, use python3
         echo "$response" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.stdout.write(d.get("value",""))'
     else
-        die "$(json_value "$response" "error")"
+        die "$(oa_json_value "$response" "error")"
     fi
 }
 
@@ -160,16 +134,16 @@ cmd_run() {
     for (( i=0; i<${#ref_keys[@]}; i++ )); do
         $first || refs_json="$refs_json,"
         first=false
-        refs_json="$refs_json$(json_escape "${ref_keys[$i]}"):$(json_escape "${ref_vals[$i]}")"
+        refs_json="$refs_json$(oa_json_escape "${ref_keys[$i]}"):$(oa_json_escape "${ref_vals[$i]}")"
     done
     refs_json="$refs_json}"
 
     local msg="{\"action\":\"op-resolve\",\"refs\":${refs_json}}"
     local response
-    response=$(send_message "$msg") || die "failed to connect to agent"
+    response=$(oa_send "$msg" 30) || die "failed to connect to agent"
 
-    if ! echo "$response" | grep -q '"ok":true'; then
-        die "$(json_value "$response" "error")"
+    if ! oa_check_response "$response" 2>/dev/null; then
+        die "$(oa_json_value "$response" "error")"
     fi
 
     # Parse resolved values and export them
