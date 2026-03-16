@@ -21,6 +21,8 @@ PATH=/opt/homebrew/bin:$PATH
 require_command "tmux" "brew install tmux"
 
 SESSION_NAME="${1:-$(basename "$(pwd)")}"
+# Sanitize: tmux disallows '.' and ':' in session names
+SESSION_NAME="${SESSION_NAME//[.:]/-}"
 
 # If already inside a tmux session, handle session switching
 if [[ -n "${TMUX:-}" ]]; then
@@ -31,11 +33,14 @@ if [[ -n "${TMUX:-}" ]]; then
         exit 0
     fi
 
+    if [[ ! -t 0 ]]; then
+        error "Cannot prompt for session switch: stdin is not a terminal"
+    fi
     read -rp "Switch from session '$CURRENT_SESSION' to '$SESSION_NAME'? [y/N] " answer
     if [[ "$answer" =~ ^[Yy]$ ]]; then
         if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
             info "Creating session '$SESSION_NAME'..."
-            tmux new-session -d -s "$SESSION_NAME"
+            tmux new-session -d -s "$SESSION_NAME" -c "$(pwd)"
         fi
         info "Switching to session '$SESSION_NAME'..."
         tmux switch-client -t "$SESSION_NAME"
@@ -51,5 +56,5 @@ if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     tmux attach-session -t "$SESSION_NAME"
 else
     info "Creating session '$SESSION_NAME'..."
-    tmux new-session -s "$SESSION_NAME"
+    tmux new-session -s "$SESSION_NAME" -c "$(pwd)"
 fi
