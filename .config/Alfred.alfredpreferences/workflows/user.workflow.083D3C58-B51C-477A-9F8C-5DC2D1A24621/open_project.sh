@@ -6,4 +6,4 @@
 set -euo pipefail
 
 # rproj open expects 'host|path' format
-~/bin/rproj open "$1"
+~/.local/bin/rproj open "$1"
