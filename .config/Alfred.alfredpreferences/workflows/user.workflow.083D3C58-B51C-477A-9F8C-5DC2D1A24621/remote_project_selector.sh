@@ -11,7 +11,7 @@ REMOTE_HOST="${alfred_remote_host:-}"
 REMOTE_DIR="${alfred_remote_dir:-}"
 
 # Build rproj command
-RPROJ_CMD=(~/bin/rproj list --json)
+RPROJ_CMD=(~/.local/bin/rproj list --json)
 
 # Add host override if provided via Alfred variable or @host syntax
 if [[ -n "$QUERY" && "$QUERY" =~ ^@(.+) ]]; then
