@@ -11,7 +11,6 @@ export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
 # Get parameters from Alfred
 QUERY="${1:-}"
 REMOTE_HOST="${remote_host:-}"
-REMOTE_DIR="${remote_dir:-}"
 
 # Build rproj command
 RPROJ_CMD=(~/.local/bin/rproj list --json)
@@ -22,11 +21,6 @@ if [[ -n "$QUERY" && "$QUERY" =~ ^@(.+) ]]; then
     QUERY=""
 elif [[ -n "$REMOTE_HOST" ]]; then
     RPROJ_CMD+=(-h "$REMOTE_HOST")
-fi
-
-# Add directory override if provided
-if [[ -n "$REMOTE_DIR" ]]; then
-    RPROJ_CMD+=(-d "$REMOTE_DIR")
 fi
 
 # Add query filter if provided

@@ -117,8 +117,7 @@ This workflow allows you to quickly open remote projects in VS Code via SSH.
 
 ### Configuration:
 You can set custom defaults using workflow variables:
-- `remote_host`: Default SSH host (default: workmbp)
-- `remote_dir`: Default remote directory (default: /Users/thomas.lockney/src/metron)</string>
+- `remote_host`: Filter to a specific SSH host (default: all hosts from rproj config)</string>
 	<key>uidata</key>
 	<dict>
 		<key>7F1C3E8B-1234-5678-90AB-CDEF12345678</key>
@@ -158,27 +157,6 @@ You can set custom defaults using workflow variables:
 			<string>textfield</string>
 			<key>variable</key>
 			<string>remote_host</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>/Users/thomas.lockney/src/metron</string>
-				<key>placeholder</key>
-				<string>/Users/thomas.lockney/src/metron</string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string>Default directory to search for projects on remote host</string>
-			<key>label</key>
-			<string>Remote Directory</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>remote_dir</string>
 		</dict>
 	</array>
 	<key>variablesdontexport</key>
