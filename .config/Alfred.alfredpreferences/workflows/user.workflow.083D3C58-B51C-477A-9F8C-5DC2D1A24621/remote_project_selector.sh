@@ -5,10 +5,13 @@
 
 set -euo pipefail
 
+# Ensure tools installed via mise are available in Alfred's minimal environment
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
+
 # Get parameters from Alfred
 QUERY="${1:-}"
-REMOTE_HOST="${alfred_remote_host:-}"
-REMOTE_DIR="${alfred_remote_dir:-}"
+REMOTE_HOST="${remote_host:-}"
+REMOTE_DIR="${remote_dir:-}"
 
 # Build rproj command
 RPROJ_CMD=(~/.local/bin/rproj list --json)
