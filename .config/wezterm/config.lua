@@ -49,7 +49,7 @@ function module.apply_to_config(config)
     font = wezterm.font { family = 'Avenir', weight = 'Bold' },
     font_size = TAB_BAR_FONT_SIZE,
   }
-  config.window_background_opacity = 0.90
+  config.window_background_opacity = 0.95
   config.macos_window_background_blur = 30
 
   -- Terminal
