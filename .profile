@@ -18,3 +18,6 @@ export MANPATH
 if [ -n "$BASH_VERSION" ] && [ -f "$HOME/.bashrc" ]; then
   . "$HOME/.bashrc"
 fi
+
+. "$HOME/.local/bin/env"
+. "$HOME/.cargo/env"
