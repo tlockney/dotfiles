@@ -95,6 +95,14 @@ alias -s ts='$EDITOR'
 alias -s tsx='$EDITOR'
 alias -s jsx='$EDITOR'
 
+# Reset mouse tracking after SSH to prevent leaked escape sequences
+ssh() {
+  command ssh "$@"
+  local ret=$?
+  printf '\e[?1000l\e[?1002l\e[?1003l\e[?1006l'
+  return $ret
+}
+
 if command -v claude >/dev/null 2>&1; then
   alias obc='cd ~/Obsidian/Personal; claude'
 fi
