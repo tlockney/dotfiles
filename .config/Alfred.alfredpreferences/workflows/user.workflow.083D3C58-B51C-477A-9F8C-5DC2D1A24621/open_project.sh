@@ -5,5 +5,8 @@
 
 set -euo pipefail
 
+# Ensure tools installed via mise are available in Alfred's minimal environment
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
+
 # rproj open expects 'host|path' format
-~/bin/rproj open "$1"
+~/.local/bin/rproj open "$1"

@@ -1,14 +1,34 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# md2pdf - Convert Markdown to PDF via pandoc and docx2pdf.
+# Usage: md2pdf <input.md>
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <input.md>"
-    exit 1
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+if [[ $# -eq 0 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: md2pdf <input.md>"
+    echo ""
+    echo "Convert Markdown to PDF (via pandoc -> docx -> pdf)."
+    exit 0
 fi
 
+require_command "pandoc" "brew install pandoc"
+require_command "uvx" "brew install uv"
+
 input="$1"
+
+if [[ ! -f "$input" ]]; then
+    error "File not found: $input"
+fi
+
 basename="${input%.md}"
 docx="${basename}.docx"
 pdf="${basename}.pdf"
+
+info "Converting $input -> PDF..."
 
 # Convert markdown to Word
 pandoc -f gfm+hard_line_breaks "$input" -o "$docx"
@@ -16,4 +36,7 @@ pandoc -f gfm+hard_line_breaks "$input" -o "$docx"
 # Convert Word to PDF
 uvx docx2pdf "$docx" "$pdf"
 
-echo "Created: $pdf"
+# Clean up intermediate file
+rm -f "$docx"
+
+success "Created: $pdf"

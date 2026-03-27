@@ -28,6 +28,11 @@ if command -v mise >/dev/null 2>&1; then
     mise completions zsh > ~/.zsh/completions/_mise
 fi
 
+if command -v op >/dev/null 2>&1; then
+    echo "  - Updating 1Password (op) completions"
+    op completion zsh > ~/.zsh/completions/_op
+fi
+
 if command -v docker >/dev/null 2>&1; then
     echo "  - Updating docker completions"
     docker completion zsh > ~/.zsh/completions/_docker

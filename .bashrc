@@ -57,3 +57,11 @@ fi
 alias ll="ls -la"
 alias la="ls -A"
 alias grep="grep --color=auto"
+
+# tc: complete with existing tmux session names
+_tc_completions() {
+    local sessions
+    sessions="$(tmux list-sessions -F '#S' 2>/dev/null)"
+    COMPREPLY=($(compgen -W "$sessions" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+complete -F _tc_completions tc

@@ -4,11 +4,11 @@
   email = thomas@lockney.net
   github = tlockney
 
-[includeIf "gitdir:~/src/personal"]
-  path = ~/.gitconfig-personal
-
 [includeIf "gitdir:~/src/metron"]
   path = ~/.gitconfig-metron
+
+[includeIf "gitdir:~/src/personal"]
+  path = ~/.gitconfig-personal
 
 [core]
   editor = emacs -nw

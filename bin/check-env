@@ -1,31 +1,50 @@
 #!/usr/bin/env bash
+# check-env - Run environment sanity checks.
 
 set -euo pipefail
 
-printf "Running environment sanity checks...\n"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: check-env"
+    echo ""
+    echo "Run environment sanity checks: lint .zshrc and verify essential CLI tools."
+    exit 0
+fi
+
+info "Running environment sanity checks..."
 
 # Lint .zshrc for syntax errors
 if [ -f "$HOME/.zshrc" ]; then
-  printf "Linting .zshrc...\n"
+  info "Linting .zshrc..."
   if zsh -n "$HOME/.zshrc"; then
-    printf ".zshrc syntax is OK.\n"
+    success ".zshrc syntax is OK."
   else
-    printf ".zshrc syntax error!\n"
-    exit 1
+    error ".zshrc syntax error!"
   fi
 else
-  printf "Skipping .zshrc lint, file not found.\n"
+  warn "Skipping .zshrc lint, file not found."
 fi
 
-printf "\nChecking for essential commands...\n"
+echo ""
+info "Checking for essential commands..."
 commands_to_check="eza bat fd rg atuin mise"
+missing=0
 for cmd in $commands_to_check; do
-  if command -v "$cmd" >/dev/null 2>&1; then
-    printf "- %s: found\n" "$cmd"
+  if has_command "$cmd"; then
+    echo -e "  ${GREEN}✓${NC} $cmd"
   else
-    printf "- %s: NOT FOUND\n" "$cmd"
+    echo -e "  ${RED}✗${NC} $cmd ${RED}NOT FOUND${NC}"
+    missing=$((missing + 1))
   fi
 done
 
-printf "\nEnvironment check complete.\n"
-
+echo ""
+if [[ $missing -gt 0 ]]; then
+    warn "$missing command(s) not found."
+    exit 1
+else
+    success "All essential commands found."
+fi

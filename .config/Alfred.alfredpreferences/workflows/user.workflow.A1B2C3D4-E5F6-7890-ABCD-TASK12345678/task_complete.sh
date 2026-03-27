@@ -1,16 +1,11 @@
 #!/bin/bash
-#
-# Alfred script: Complete a task
-#
 
-TASK_ID="$1"
+# Complete a task via task-manager
+# Uses --json to extract the title for Alfred notification
 
-if [[ -z "$TASK_ID" ]]; then
-    echo "No task ID provided"
-    exit 1
-fi
+set -euo pipefail
 
-# Call the task-manager script
-~/bin/task-manager complete "$TASK_ID" >/dev/null 2>&1
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-exit 0
+RESULT=$(~/bin/task-manager --json complete "$1")
+echo "$RESULT" | jq -r '.title // "Task"'

@@ -1,0 +1,48 @@
+{
+  "skill_name": "notebooklm-researcher",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I just watched this talk by Rich Hickey on Simple Made Easy — can you summarize the key ideas and make a study guide? https://www.youtube.com/watch?v=SxdOUGdseq4",
+      "expected_output": "Creates a notebook, adds the YouTube video as a source, asks analytical questions, generates a study guide report, and downloads it to an organized directory structure.",
+      "files": [],
+      "assertions": [
+        {"name": "creates-notebook", "description": "Creates a dedicated notebook for this research task"},
+        {"name": "adds-youtube-source", "description": "Adds the YouTube URL as a source using 'source add'"},
+        {"name": "waits-for-processing", "description": "Waits for source processing before chat or generation"},
+        {"name": "generates-study-guide", "description": "Generates a report with --format study-guide (not just chat)"},
+        {"name": "organizes-output", "description": "Downloads output to a structured directory (~/Documents/notebooklm/... or similar)"},
+        {"name": "analytical-questions", "description": "Asks targeted analytical questions before generating the study guide"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "I need to understand the current landscape of WebAssembly runtimes — what's out there, how they compare, what's mature vs experimental. Give me a comprehensive overview.",
+      "expected_output": "Creates a research notebook, runs deep web research with targeted queries, waits for sources, asks cross-referencing analytical questions, generates a briefing doc and mind map, downloads outputs to organized directories.",
+      "files": [],
+      "assertions": [
+        {"name": "creates-notebook", "description": "Creates a dedicated research notebook"},
+        {"name": "uses-deep-research", "description": "Uses --mode deep for comprehensive source gathering"},
+        {"name": "multiple-queries", "description": "Runs more than one research query to cover different angles"},
+        {"name": "waits-for-sources", "description": "Waits for all sources to be ready before analysis"},
+        {"name": "cross-referencing-questions", "description": "Asks analytical questions that compare/contrast across sources"},
+        {"name": "multiple-output-types", "description": "Generates more than one output type (e.g., report + mind map)"},
+        {"name": "organizes-output", "description": "Downloads outputs to structured directories"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Help me create a quick-start tutorial for someone learning Deno. They know Node.js already. I want something I can share with my team.",
+      "expected_output": "Creates a notebook, adds official Deno docs and tutorials as sources, generates a custom report with tutorial-focused instructions targeting Node.js developers, downloads to an organized directory.",
+      "files": [],
+      "assertions": [
+        {"name": "creates-notebook", "description": "Creates a dedicated notebook"},
+        {"name": "curated-sources", "description": "Adds specific relevant sources (official docs, tutorials) rather than only research"},
+        {"name": "custom-report-instructions", "description": "Uses --format custom or --append to tailor report for the audience"},
+        {"name": "audience-targeting", "description": "Report instructions mention target audience (Node.js developers)"},
+        {"name": "organizes-output", "description": "Downloads to structured directory"},
+        {"name": "shareable-output", "description": "Produces a downloadable artifact the user can share (not just chat)"}
+      ]
+    }
+  ]
+}

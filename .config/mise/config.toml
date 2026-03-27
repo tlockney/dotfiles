@@ -24,13 +24,13 @@ python.uv_venv_auto = true
 
 [tools]
 # Node.js - locked to v22.x for stability (notorious for breaking changes between majors)
-node = "22"
+node = "25"
 
 # Deno - locked to v2.x
 deno = "2"
 
 # Python - locked to 3.12.x series
-python = "3.13.7"
+python = "3.14.3"
 
 # Go - always use latest stable
 go = "latest"

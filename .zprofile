@@ -7,3 +7,6 @@
 export MANPAGER="less -R --use-color -Dd+r -Du+b" # colored man pages
 
 export FZF_DEFAULT_OPTS="--style minimal --color 16 --layout=reverse --height 30% --preview='bat -p --color=always {}'"
+
+# Added by Obsidian
+export PATH="$PATH:/Applications/Obsidian.app/Contents/MacOS"

@@ -5,13 +5,15 @@
 
 set -euo pipefail
 
+# Ensure tools installed via mise are available in Alfred's minimal environment
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
+
 # Get parameters from Alfred
 QUERY="${1:-}"
-REMOTE_HOST="${alfred_remote_host:-}"
-REMOTE_DIR="${alfred_remote_dir:-}"
+REMOTE_HOST="${remote_host:-}"
 
 # Build rproj command
-RPROJ_CMD=(~/bin/rproj list --json)
+RPROJ_CMD=(~/.local/bin/rproj list --json)
 
 # Add host override if provided via Alfred variable or @host syntax
 if [[ -n "$QUERY" && "$QUERY" =~ ^@(.+) ]]; then
@@ -19,11 +21,6 @@ if [[ -n "$QUERY" && "$QUERY" =~ ^@(.+) ]]; then
     QUERY=""
 elif [[ -n "$REMOTE_HOST" ]]; then
     RPROJ_CMD+=(-h "$REMOTE_HOST")
-fi
-
-# Add directory override if provided
-if [[ -n "$REMOTE_DIR" ]]; then
-    RPROJ_CMD+=(-d "$REMOTE_DIR")
 fi
 
 # Add query filter if provided

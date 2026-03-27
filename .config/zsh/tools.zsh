@@ -109,10 +109,7 @@ export JAVA_OPTIONS="-Djava.awt.headless=true"
 [[ -r ~/.opam/opam-init/init.zsh ]] && source ~/.opam/opam-init/init.zsh > /dev/null 2> /dev/null
 
 # 1Password integration
-if command -v op >/dev/null 2>&1; then
-  eval "$(op completion zsh)"
-  compdef _op op
-fi
+# Note: op completions are managed by update-completions.sh (fpath-based)
 [[ -f ~/.config/op/plugins.sh ]] && source ~/.config/op/plugins.sh
 
 # Atuin shell history (PATH for standalone install set in common.sh)
@@ -148,3 +145,6 @@ fi
 # Claude CLI alias
 # shellcheck disable=SC2139  # intentional expansion at definition time
 [[ -x "$HOME/.claude/local/claude" ]] && alias claude="$HOME/.claude/local/claude"
+
+# open-agent hook for remote file opening via SSH-forwarded socket
+[[ -f "$HOME/.config/open-agent-hook.sh" ]] && source "$HOME/.config/open-agent-hook.sh"
