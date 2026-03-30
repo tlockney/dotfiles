@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='none' stroke='%23d0d6e0' stroke-width='4'/><circle cx='50' cy='50' r='40' fill='none' stroke='%2380a0c0' stroke-width='2'/><polygon points='50,8 56,44 50,38 44,44' fill='%23ff5070'/><polygon points='50,92 56,56 50,62 44,56' fill='%23d0d6e0'/><polygon points='8,50 44,44 38,50 44,56' fill='%23d0d6e0'/><polygon points='92,50 56,44 62,50 56,56' fill='%23d0d6e0'/><circle cx='50' cy='50' r='5' fill='white'/></svg>">
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface-hover: #1a2745;
+    --border: #0f3460;
+    --text: #e0e0e0;
+    --text-dim: #8892a4;
+    --accent: #e94560;
+    --accent-dim: #c73e55;
+    --link: #53a8d8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2rem;
+    transition: background 2s ease;
+  }
+
+  .dashboard {
+    max-width: 960px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: background 0.15s;
+  }
+  .card:hover { background: var(--surface-hover); }
+
+  .card-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+  .hidden { display: none; }
+
+  /* Greeting + Clock */
+  .greeting-card {
+    text-align: center;
+    padding: 2rem 1.5rem;
+  }
+  .greeting {
+    font-size: 1.75rem;
+    font-weight: 300;
+    margin-bottom: 0.5rem;
+  }
+  .clock {
+    font-size: 4rem;
+    font-weight: 200;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .date {
+    font-size: 1rem;
+    color: var(--text-dim);
+    margin-top: 0.25rem;
+  }
+  .moon {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 0.35rem;
+  }
+
+  /* Weather */
+  .weather-current {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .weather-temp {
+    font-size: 2.5rem;
+    font-weight: 200;
+    line-height: 1;
+  }
+  .weather-icon { font-size: 2rem; }
+  .weather-desc {
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    text-transform: capitalize;
+    margin-bottom: 0.25rem;
+  }
+  .weather-detail {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  .weather-hilo {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .weather-sun {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.15rem;
+  }
+  .forecast {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .forecast-day {
+    flex: 1;
+    text-align: center;
+    font-size: 0.8rem;
+  }
+  .forecast-day .day-name {
+    color: var(--text-dim);
+    margin-bottom: 0.25rem;
+  }
+  .forecast-day .day-icon { font-size: 1.25rem; margin: 0.25rem 0; }
+  .forecast-day .day-temps { color: var(--text-dim); }
+  .forecast-day .day-high { color: var(--text); }
+
+  /* Word of the day */
+  .word-word {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+  }
+  .word-word a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .word-word a:hover { text-decoration: underline; }
+  .word-pos {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+  }
+  .word-def {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  /* Wikipedia */
+  .wiki-content {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+  }
+  .wiki-thumb {
+    width: 140px;
+    min-width: 140px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  .wiki-text { flex: 1; }
+  .wiki-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+  .wiki-title a {
+    color: var(--link);
+    text-decoration: none;
+  }
+  .wiki-title a:hover { text-decoration: underline; }
+  .wiki-extract {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* On this day */
+  .onthisday-text {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .onthisday-year {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .unavailable {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .dashboard { grid-template-columns: 1fr; }
+    .full-width { grid-column: 1; }
+    .clock { font-size: 2.75rem; }
+    .greeting { font-size: 1.25rem; }
+    .wiki-thumb { width: 100px; min-width: 100px; height: 75px; }
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <!-- Greeting & Clock -->
+  <div class="card greeting-card full-width">
+    <div class="greeting" id="greeting"></div>
+    <div class="clock" id="clock"></div>
+    <div class="date" id="date"></div>
+    <div class="moon" id="moon"></div>
+  </div>
+
+  <!-- Weather -->
+  <div class="card" id="weather-card">
+    <div class="card-label" id="weather-label"></div>
+    <div id="weather-content" class="unavailable">Loading&hellip;</div>
+  </div>
+
+  <!-- Word of the Day -->
+  <div class="card" id="word-card">
+    <div class="card-label">Word of the Day</div>
+    <div id="word-content" class="unavailable">Loading&hellip;</div>
+  </div>
+
+  <!-- Wikipedia -->
+  <div class="card full-width" id="wiki-card">
+    <div class="card-label">Featured on Wikipedia</div>
+    <div id="wiki-content" class="unavailable">Loading&hellip;</div>
+  </div>
+
+  <!-- On This Day -->
+  <div class="card full-width hidden" id="onthisday-card">
+    <div class="card-label">On This Day</div>
+    <div id="onthisday-content"></div>
+  </div>
+
+</div>
+
+<script>
+// -------------------------------------------------------------------------
+// Configuration
+// -------------------------------------------------------------------------
+
+const LAT = "44.5646";
+const LON = "-123.2620";
+const LOCATION = "Corvallis, OR";
+
+const FIVE_MIN = 5 * 60 * 1000;
+const ONE_HOUR = 60 * 60 * 1000;
+
+// -------------------------------------------------------------------------
+// localStorage cache
+// -------------------------------------------------------------------------
+
+function cached(key, ttlMs, fn) {
+  const raw = localStorage.getItem("dash:" + key);
+  if (raw) {
+    try {
+      const entry = JSON.parse(raw);
+      if (Date.now() < entry.expires) return Promise.resolve(entry.data);
+    } catch { /* ignore corrupt cache */ }
+  }
+  return fn().then(function(data) {
+    localStorage.setItem("dash:" + key, JSON.stringify({ data: data, expires: Date.now() + ttlMs }));
+    return data;
+  });
+}
+
+// -------------------------------------------------------------------------
+// DOM helpers
+// -------------------------------------------------------------------------
+
+function esc(s) {
+  var el = document.createElement("span");
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+function $(id) { return document.getElementById(id); }
+
+// -------------------------------------------------------------------------
+// Clock, greeting, moon, background
+// -------------------------------------------------------------------------
+
+function getMoonPhase(date) {
+  var knownNewMoon = new Date(2000, 0, 6, 18, 14).getTime();
+  var lunarCycle = 29.53058770576;
+  var daysSince = (date.getTime() - knownNewMoon) / (1000 * 60 * 60 * 24);
+  var phase = ((daysSince % lunarCycle) + lunarCycle) % lunarCycle;
+  var n = phase / lunarCycle;
+  if (n < 0.0625) return "\u{1F311} New Moon";
+  if (n < 0.1875) return "\u{1F312} Waxing Crescent";
+  if (n < 0.3125) return "\u{1F313} First Quarter";
+  if (n < 0.4375) return "\u{1F314} Waxing Gibbous";
+  if (n < 0.5625) return "\u{1F315} Full Moon";
+  if (n < 0.6875) return "\u{1F316} Waning Gibbous";
+  if (n < 0.8125) return "\u{1F317} Last Quarter";
+  if (n < 0.9375) return "\u{1F318} Waning Crescent";
+  return "\u{1F311} New Moon";
+}
+
+function tick() {
+  var now = new Date();
+  var h = now.getHours();
+  var greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  $("greeting").textContent = greeting;
+  $("clock").textContent = now.toLocaleTimeString("en-US", {
+    hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+  $("date").textContent = now.toLocaleDateString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+  $("moon").textContent = getMoonPhase(now);
+
+  // Subtle background color shift based on time of day
+  var t = (h * 60 + now.getMinutes()) / 1440;
+  var r, g, b;
+  if (t < 0.25) {
+    r = 20; g = 20; b = 40;
+  } else if (t < 0.35) {
+    var p = (t - 0.25) / 0.10;
+    r = 20 + Math.round(12 * p); g = 20 + Math.round(6 * p); b = 40 - Math.round(4 * p);
+  } else if (t < 0.75) {
+    r = 26; g = 26; b = 46;
+  } else if (t < 0.85) {
+    var p2 = (t - 0.75) / 0.10;
+    r = 26 + Math.round(8 * p2); g = 26 - Math.round(4 * p2); b = 46 + Math.round(6 * p2);
+  } else {
+    r = 22; g = 18; b = 42;
+  }
+  document.body.style.background = "rgb(" + r + "," + g + "," + b + ")";
+}
+
+tick();
+setInterval(tick, 1000);
+
+// -------------------------------------------------------------------------
+// Weather via Open-Meteo
+// -------------------------------------------------------------------------
+
+var WMO_DESCRIPTIONS = {
+  0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+  45: "Foggy", 48: "Depositing rime fog",
+  51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+  61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+  71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+  77: "Snow grains", 80: "Slight rain showers", 81: "Moderate rain showers",
+  82: "Violent rain showers", 85: "Slight snow showers", 86: "Heavy snow showers",
+  95: "Thunderstorm", 96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail"
+};
+
+var WMO_ICONS = {
+  0: "\u2600\uFE0F", 1: "\uD83C\uDF24\uFE0F", 2: "\u26C5", 3: "\u2601\uFE0F",
+  45: "\uD83C\uDF2B\uFE0F", 48: "\uD83C\uDF2B\uFE0F",
+  51: "\uD83C\uDF26\uFE0F", 53: "\uD83C\uDF26\uFE0F", 55: "\uD83C\uDF27\uFE0F",
+  61: "\uD83C\uDF27\uFE0F", 63: "\uD83C\uDF27\uFE0F", 65: "\uD83C\uDF27\uFE0F",
+  71: "\uD83C\uDF28\uFE0F", 73: "\uD83C\uDF28\uFE0F", 75: "\u2744\uFE0F",
+  77: "\u2744\uFE0F", 80: "\uD83C\uDF26\uFE0F", 81: "\uD83C\uDF27\uFE0F", 82: "\u26C8\uFE0F",
+  85: "\uD83C\uDF28\uFE0F", 86: "\u2744\uFE0F", 95: "\u26C8\uFE0F", 96: "\u26C8\uFE0F", 99: "\u26C8\uFE0F"
+};
+
+function formatSunTime(iso) {
+  if (!iso) return "";
+  try {
+    var d = new Date(iso.indexOf("T") >= 0 ? iso : iso + ":00");
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  } catch(e) { return iso; }
+}
+
+function fetchWeather() {
+  return cached("weather", FIVE_MIN, function() {
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
+      "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset" +
+      "&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles&forecast_days=5";
+
+    return fetch(url).then(function(res) {
+      if (!res.ok) throw new Error("Open-Meteo: " + res.status);
+      return res.json();
+    }).then(function(d) {
+      var code = d.current.weather_code;
+      var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      return {
+        temp: Math.round(d.current.temperature_2m),
+        high: Math.round(d.daily.temperature_2m_max[0]),
+        low: Math.round(d.daily.temperature_2m_min[0]),
+        description: WMO_DESCRIPTIONS[code] || "Unknown",
+        icon: WMO_ICONS[code] || "\uD83C\uDF21\uFE0F",
+        humidity: d.current.relative_humidity_2m,
+        windSpeed: Math.round(d.current.wind_speed_10m),
+        sunrise: d.daily.sunrise ? d.daily.sunrise[0] : null,
+        sunset: d.daily.sunset ? d.daily.sunset[0] : null,
+        forecast: d.daily.time.slice(1).map(function(date, i) {
+          var fc = d.daily.weather_code[i + 1];
+          var dt = new Date(date + "T12:00:00");
+          return {
+            day: days[dt.getDay()],
+            high: Math.round(d.daily.temperature_2m_max[i + 1]),
+            low: Math.round(d.daily.temperature_2m_min[i + 1]),
+            icon: WMO_ICONS[fc] || "\uD83C\uDF21\uFE0F"
+          };
+        })
+      };
+    });
+  });
+}
+
+function renderWeather(w) {
+  var sunHtml = "";
+  if (w.sunrise || w.sunset) {
+    sunHtml = '<div class="weather-sun">\u2600\uFE0F ' + formatSunTime(w.sunrise) +
+      ' &nbsp; \uD83C\uDF19 ' + formatSunTime(w.sunset) + '</div>';
+  }
+
+  var forecastHtml = "";
+  if (w.forecast.length) {
+    forecastHtml = '<div class="forecast">' + w.forecast.map(function(f) {
+      return '<div class="forecast-day">' +
+        '<div class="day-name">' + esc(f.day) + '</div>' +
+        '<div class="day-icon">' + f.icon + '</div>' +
+        '<div class="day-temps"><span class="day-high">' + f.high + '\u00B0</span> ' + f.low + '\u00B0</div>' +
+        '</div>';
+    }).join("") + '</div>';
+  }
+
+  $("weather-label").textContent = LOCATION;
+  $("weather-content").className = "";
+  $("weather-content").innerHTML =
+    '<div class="weather-current">' +
+      '<span class="weather-icon">' + w.icon + '</span>' +
+      '<span class="weather-temp">' + w.temp + '\u00B0F</span>' +
+    '</div>' +
+    '<div class="weather-desc">' + esc(w.description) + '</div>' +
+    '<div class="weather-hilo">H: ' + w.high + '\u00B0 &nbsp; L: ' + w.low + '\u00B0</div>' +
+    '<div class="weather-detail">Humidity ' + w.humidity + '% &middot; Wind ' + w.windSpeed + ' mph</div>' +
+    sunHtml + forecastHtml;
+}
+
+// -------------------------------------------------------------------------
+// Wikipedia featured article
+// -------------------------------------------------------------------------
+
+function todayKey(prefix) {
+  var d = new Date();
+  return prefix + ":" + d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function fetchWikiArticle() {
+  return cached(todayKey("wiki"), ONE_HOUR, function() {
+    var now = new Date();
+    var mm = String(now.getMonth() + 1).padStart(2, "0");
+    var dd = String(now.getDate()).padStart(2, "0");
+    var url = "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/" +
+      now.getFullYear() + "/" + mm + "/" + dd;
+
+    return fetch(url).then(function(res) {
+      if (!res.ok) throw new Error("Wiki featured: " + res.status);
+      return res.json();
+    }).then(function(data) {
+      var tfa = data.tfa;
+      if (tfa) {
+        return {
+          title: (tfa.titles && tfa.titles.normalized) || (tfa.title && tfa.title.replace(/_/g, " ")) || "Unknown",
+          extract: tfa.extract || "",
+          url: (tfa.content_urls && tfa.content_urls.desktop && tfa.content_urls.desktop.page) ||
+               ("https://en.wikipedia.org/wiki/" + tfa.title),
+          thumbnail: tfa.thumbnail ? tfa.thumbnail.source : null
+        };
+      }
+      throw new Error("No featured article");
+    }).catch(function() {
+      // Fallback: random article
+      return fetch("https://en.wikipedia.org/api/rest_v1/page/random/summary").then(function(res) {
+        if (!res.ok) throw new Error("Wiki random: " + res.status);
+        return res.json();
+      }).then(function(r) {
+        return {
+          title: (r.titles && r.titles.normalized) || (r.title && r.title.replace(/_/g, " ")),
+          extract: r.extract || "",
+          url: (r.content_urls && r.content_urls.desktop && r.content_urls.desktop.page) ||
+               ("https://en.wikipedia.org/wiki/" + r.title),
+          thumbnail: r.thumbnail ? r.thumbnail.source : null
+        };
+      });
+    });
+  });
+}
+
+function renderWiki(a) {
+  var thumbHtml = a.thumbnail
+    ? '<img class="wiki-thumb" src="' + esc(a.thumbnail) + '" alt="">'
+    : "";
+  $("wiki-content").className = "";
+  $("wiki-content").innerHTML =
+    '<div class="wiki-content">' +
+      thumbHtml +
+      '<div class="wiki-text">' +
+        '<div class="wiki-title"><a href="' + esc(a.url) + '" target="_blank">' + esc(a.title) + '</a></div>' +
+        '<div class="wiki-extract">' + esc(a.extract) + '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+// -------------------------------------------------------------------------
+// Wiktionary word of the day
+// -------------------------------------------------------------------------
+
+function fetchWordOfDay() {
+  return cached(todayKey("word"), ONE_HOUR, function() {
+    var now = new Date();
+    var monthName = now.toLocaleString("en-US", { month: "long" });
+    var pageName = "Wiktionary:Word_of_the_day/" + now.getFullYear() + "/" + monthName + "_" + now.getDate();
+    var url = "https://en.wiktionary.org/w/api.php?action=parse&page=" +
+      encodeURIComponent(pageName) + "&prop=text&format=json&formatversion=2&origin=*";
+
+    return fetch(url).then(function(res) {
+      if (!res.ok) throw new Error("Wiktionary WOTD: " + res.status);
+      return res.json();
+    }).then(function(data) {
+      var html = data.parse && data.parse.text;
+      if (!html) throw new Error("No WOTD content");
+
+      var wordMatch = html.match(/id="WOTD-rss-title">([^<]+)</) ||
+                      html.match(/<b[^>]*><a[^>]*>([^<]+)<\/a><\/b>/) ||
+                      html.match(/<b[^>]*>([^<]+)<\/b>/);
+      var word = wordMatch ? wordMatch[1] : "serendipity";
+
+      var posMatch = html.match(/<i[^>]*>\s*\(?\s*<a[^>]*>([^<]+)<\/a>/) ||
+                     html.match(/<i[^>]*>([^<]+)<\/i>/);
+      var partOfSpeech = posMatch ? posMatch[1].replace(/[()]/g, "").trim() : "noun";
+
+      var olMatch = html.match(/<ol[^>]*>([\s\S]*?)<\/ol>/);
+      var definition = "No definition available.";
+      if (olMatch) {
+        var liMatch = olMatch[1].match(/<li[^>]*>([\s\S]*?)<\/li>/);
+        if (liMatch) {
+          definition = liMatch[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+        }
+      }
+
+      var wotdUrl = "https://en.wiktionary.org/wiki/" + pageName;
+      return { word: word, partOfSpeech: partOfSpeech, definition: definition, url: wotdUrl };
+    }).catch(function() {
+      var now2 = new Date();
+      var fallbackMonth = now2.toLocaleString("en-US", { month: "long" });
+      var fallbackPage = "Wiktionary:Word_of_the_day/" + now2.getFullYear() + "/" + fallbackMonth + "_" + now2.getDate();
+      return {
+        word: "aplomb", partOfSpeech: "noun", definition: "Self-confidence; assurance; poise.",
+        url: "https://en.wiktionary.org/wiki/" + fallbackPage
+      };
+    });
+  });
+}
+
+function renderWord(w) {
+  $("word-content").className = "";
+  $("word-content").innerHTML =
+    '<div class="word-word"><a href="' + esc(w.url) + '" target="_blank">' + esc(w.word) + '</a></div>' +
+    '<div class="word-pos">' + esc(w.partOfSpeech) + '</div>' +
+    '<div class="word-def">' + esc(w.definition) + '</div>';
+}
+
+// -------------------------------------------------------------------------
+// Wikipedia "on this day"
+// -------------------------------------------------------------------------
+
+function fetchOnThisDay() {
+  return cached(todayKey("onthisday"), ONE_HOUR, function() {
+    var now = new Date();
+    var mm = String(now.getMonth() + 1).padStart(2, "0");
+    var dd = String(now.getDate()).padStart(2, "0");
+    var url = "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/" +
+      now.getFullYear() + "/" + mm + "/" + dd;
+
+    return fetch(url).then(function(res) {
+      if (!res.ok) throw new Error("Wiki onthisday: " + res.status);
+      return res.json();
+    }).then(function(data) {
+      var events = data.onthisday;
+      if (!events || events.length === 0) return null;
+      var event = events[Math.floor(Math.random() * events.length)];
+      return { text: event.text || "", year: event.year || 0 };
+    });
+  });
+}
+
+function renderOnThisDay(otd) {
+  if (!otd) return;
+  var card = $("onthisday-card");
+  card.classList.remove("hidden");
+  $("onthisday-content").innerHTML =
+    '<div class="onthisday-text">' +
+      '<span class="onthisday-year">' + otd.year + '</span> &mdash; ' + esc(otd.text) +
+    '</div>';
+}
+
+// -------------------------------------------------------------------------
+// Load all data
+// -------------------------------------------------------------------------
+
+$("weather-label").textContent = LOCATION;
+
+Promise.allSettled([
+  fetchWeather().then(renderWeather),
+  fetchWikiArticle().then(renderWiki),
+  fetchWordOfDay().then(renderWord),
+  fetchOnThisDay().then(renderOnThisDay)
+]).then(function(results) {
+  results.forEach(function(r) {
+    if (r.status === "rejected") console.error("Dashboard fetch failed:", r.reason);
+  });
+  // On failure, cards keep their "Loading..." text which is fine
+});
+</script>
+</body>
+</html>
