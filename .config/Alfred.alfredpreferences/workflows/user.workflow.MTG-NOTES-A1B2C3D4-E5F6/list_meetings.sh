@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Ensure tools installed via mise are available in Alfred's minimal environment
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
+
 QUERY="${1:-}"
 
 # Build mtg command
