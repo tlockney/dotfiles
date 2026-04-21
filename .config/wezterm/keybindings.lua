@@ -89,6 +89,18 @@ function module.apply_to_config(config)
     },
   }
 
+  -- Open OSC 8 hyperlinks on plain left-click, bypassing tmux mouse capture.
+  -- `mouse_reporting = false` makes this binding win even when tmux has
+  -- grabbed the mouse.
+  config.mouse_bindings = {
+    {
+      event = { Up = { streak = 1, button = 'Left' } },
+      mods = 'NONE',
+      mouse_reporting = false,
+      action = action.CompleteSelectionOrOpenLinkAtMouseCursor 'PrimarySelection',
+    },
+  }
+
   -- Numeric tab switching
   for i = 1, 9 do
     table.insert(config.keys, {
