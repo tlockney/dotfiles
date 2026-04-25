@@ -46,7 +46,7 @@
 				<key>hotkey</key>
 				<integer>2</integer>
 				<key>hotmod</key>
-				<integer>655360</integer>
+				<integer>393216</integer>
 				<key>hotstring</key>
 				<string>D</string>
 				<key>leftcursor</key>
@@ -71,22 +71,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>script</key>
-				<string>FRONT=$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true')
-if [ "$FRONT" = "Obsidian" ]; then
-    osascript -e 'tell application "System Events" to set visible of process "Obsidian" to false'
-else
-    open "obsidian://daily"
-	sleep 0.5
-	osascript -e 'tell application "System Events" to tell process "Obsidian"
-		set position of front window to {400, 100}
-		set size of front window to {800, 900}
-	end tell'
-	# Move cursor to end of note
-    osascript -e 'tell application "System Events" to key code 125 using {command down}'
-    sleep 0.1
-    # Add a newline so dictation appends cleanly
-    osascript -e 'tell application "System Events" to key code 36'
-fi</string>
+				<string>/opt/homebrew/bin/obsidian daily paneType=window</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
