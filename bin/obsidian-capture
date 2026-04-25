@@ -1,0 +1,47 @@
+#!/usr/bin/env -S deno run --allow-env=HOME --allow-run
+// Quick capture to Obsidian daily note
+// Shows a floating multiline text dialog, appends via Obsidian CLI
+
+const HOME = Deno.env.get("HOME")!;
+const DIALOG_BIN = `${HOME}/.local/bin/obsidian-capture-dialog`;
+
+async function showCaptureDialog(): Promise<string> {
+  const cmd = new Deno.Command(DIALOG_BIN, {
+    stdout: "piped",
+    stderr: "piped",
+  });
+  const result = await cmd.output();
+  if (!result.success) return "";
+  return new TextDecoder().decode(result.stdout);
+}
+
+function formatEntry(text: string, timestamp: string): string {
+  const lines = text.split("\n");
+  const first = `- ${timestamp} ${lines[0]}`;
+  const rest = lines.slice(1).map((line) => `  ${line}`);
+  return [first, ...rest].join("\n");
+}
+
+// --- main ---
+
+const captured = await showCaptureDialog();
+if (!captured) Deno.exit(0);
+
+const now = new Date();
+const timestamp = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+const entry = formatEntry(captured, timestamp);
+
+// Escape newlines for the Obsidian CLI content parameter
+const escaped = entry.replaceAll("\n", "\\n");
+
+const append = new Deno.Command("obsidian", {
+  args: [`daily:append`, `content=${escaped}`],
+  stdout: "piped",
+  stderr: "piped",
+});
+const result = await append.output();
+if (!result.success) {
+  const stderr = new TextDecoder().decode(result.stderr).trim();
+  console.error("obsidian daily:append failed:", stderr);
+  Deno.exit(1);
+}
