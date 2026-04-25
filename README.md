@@ -109,6 +109,17 @@ done
 - Use standard `git status`, `git add`, `git commit` commands
 - YADM commands will NOT work here
 
+### Development Workflow
+
+This repo uses a staging workflow to safely iterate on dotfiles before applying them to the home directory.
+
+1. **Edit on `working-branch`** — All changes are made in this checkout (e.g., `~/src/personal/dotfiles`) on the `working-branch` branch.
+2. **Commit and push** — Use standard `git` CLI commands to commit and push changes, keeping a history of iterations.
+3. **Merge into home directory** — When ready, switch to the home directory and run `yadm merge working-branch` to apply changes to the live dotfiles.
+4. **Revert if needed** — If something breaks, yadm's git history makes it straightforward to revert to a known good state (e.g., `yadm revert` or `yadm checkout` specific files).
+
+This keeps experimental changes isolated until they're validated, while still tracking everything in version control.
+
 ### Tool Management
 
 The repository includes automated tool management via Ansible:
@@ -185,14 +196,10 @@ Scripts should handle both macOS and Linux:
 
 ## Using Claude Code (or similar tools) to work on these files
 
-Since yadm places all the files in situ, it's unlikely going to be a good idea to
-run `claude` in your home directory. Here's how to make this manageable.
+Since yadm places all the files in situ, it's unlikely going to be a good idea to run `claude` in your home directory. Instead, run it in this checkout and follow the standard development workflow:
 
-1. Run `yadm worktree add -b claude-updates ~/src/personal/yadm-dotfiles`
-2. `cd ~/src/personal/yadm-dotfiles`
-3. Run `claude` and ask it to make whatever changes you deem appropriate.
-4. `git commit -a -m "claude made some changes"`
-5. yadm merge claude-updates
-
-If you want to keep the `claude-updates` directory around, just be sure to run
-`git merge main` before doing anything so it has the latest version of the code.
+1. `cd ~/src/personal/dotfiles` (or wherever this repo is checked out)
+2. Make sure you're on `working-branch`: `git checkout working-branch`
+3. Run `claude` and make whatever changes you need.
+4. Commit and push with standard `git` commands.
+5. When ready, apply to your home directory: `yadm merge working-branch`

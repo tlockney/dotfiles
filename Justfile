@@ -68,3 +68,9 @@ git-status:
 # Provision without dev tools (minimal setup)
 minimal:
     ~/bin/provision --no-dev
+
+# Build the Obsidian quick capture dialog (macOS only)
+build-capture-dialog:
+    @mkdir -p ~/.local/bin
+    xcrun swiftc -o ~/.local/bin/obsidian-capture-dialog ~/.config/obsidian-capture/dialog.swift -framework Cocoa
+    @echo "Built ~/.local/bin/obsidian-capture-dialog"
