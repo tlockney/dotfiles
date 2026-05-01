@@ -2,13 +2,15 @@
 
 import { parseArgs } from "jsr:@std/cli@1/parse-args";
 import { existsSync } from "jsr:@std/fs@1/exists";
+import { dirname } from "jsr:@std/path@1/dirname";
 import { join } from "jsr:@std/path@1/join";
 
 // --- Configuration ---
 const CAL_FILE = join(Deno.env.get("HOME")!, ".local/var/cal_agenda.json");
 const VAULT_PATH = join(Deno.env.get("HOME")!, "Obsidian/Personal");
 const MEETINGS_DIR = join(VAULT_PATH, "Active/Metron/Meetings");
-const CALENDAR_FILTER = "Work Calendar";
+const DAILY_CONFIG_FILE = join(VAULT_PATH, ".obsidian/daily-notes.json");
+const DEFAULT_CALENDAR = "Work Calendar";
 const SELF_NAME = "Thomas Lockney";
 
 // --- Types ---
@@ -43,6 +45,11 @@ interface CalendarData {
   calendars: string[];
   event_count: number;
   events: CalendarEvent[];
+}
+
+interface DailyNotesConfig {
+  folder: string;
+  format: string;
 }
 
 // --- Colors ---
@@ -120,9 +127,10 @@ function getInvitees(event: CalendarEvent): string[] {
 function getEventsForDate(
   data: CalendarData,
   targetDate: string,
+  calendars: string[],
 ): CalendarEvent[] {
   return data.events
-    .filter((e) => e.calendar === CALENDAR_FILTER && !e.all_day)
+    .filter((e) => calendars.includes(e.calendar) && !e.all_day)
     .filter((e) => formatDate(toLocalDate(e.start)) === targetDate)
     .sort((a, b) => a.start.localeCompare(b.start));
 }
@@ -154,15 +162,142 @@ function openInObsidian(filename: string): void {
   cmd.outputSync();
 }
 
+// --- Daily note integration ---
+
+function loadDailyNotesConfig(): DailyNotesConfig {
+  if (!existsSync(DAILY_CONFIG_FILE)) {
+    throw new Error(`Daily notes config not found: ${DAILY_CONFIG_FILE}`);
+  }
+  const raw = JSON.parse(Deno.readTextFileSync(DAILY_CONFIG_FILE));
+  const folder = typeof raw.folder === "string" ? raw.folder : "";
+  const format = typeof raw.format === "string" ? raw.format : "YYYY-MM-DD";
+  return { folder, format };
+}
+
+function formatMomentDate(date: Date, format: string): string {
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const tokens: Record<string, string> = {
+    YYYY: String(date.getFullYear()),
+    YY: String(date.getFullYear()).slice(-2),
+    MMMM: monthNames[date.getMonth()],
+    MMM: monthNames[date.getMonth()].slice(0, 3),
+    MM: String(date.getMonth() + 1).padStart(2, "0"),
+    M: String(date.getMonth() + 1),
+    DD: String(date.getDate()).padStart(2, "0"),
+    D: String(date.getDate()),
+  };
+  return format.replace(/YYYY|YY|MMMM|MMM|MM|M|DD|D/g, (t) => tokens[t]);
+}
+
+function dailyNoteRelativePath(date: Date, cfg: DailyNotesConfig): string {
+  return join(cfg.folder, formatMomentDate(date, cfg.format) + ".md");
+}
+
+function dailyNoteTemplate(date: Date, cfg: DailyNotesConfig): string {
+  const yesterday = new Date(date);
+  yesterday.setDate(date.getDate() - 1);
+  const tomorrow = new Date(date);
+  tomorrow.setDate(date.getDate() + 1);
+  const title = formatMomentDate(date, "YYYY-MM-DD");
+  const yLink = join(cfg.folder, formatMomentDate(yesterday, cfg.format));
+  const tLink = join(cfg.folder, formatMomentDate(tomorrow, cfg.format));
+  const yTitle = formatMomentDate(yesterday, "YYYY-MM-DD");
+  const tTitle = formatMomentDate(tomorrow, "YYYY-MM-DD");
+  return `# [[${title}]]\n\n<< [[${yLink}|${yTitle}]] | [[${tLink}|${tTitle}]] >>\n# Journal\n`;
+}
+
+async function ensureDailyNote(
+  date: Date,
+  absolutePath: string,
+  cfg: DailyNotesConfig,
+): Promise<void> {
+  if (existsSync(absolutePath)) return;
+  await Deno.mkdir(dirname(absolutePath), { recursive: true });
+  Deno.writeTextFileSync(absolutePath, dailyNoteTemplate(date, cfg));
+}
+
+function appendMeetingToJournal(opts: {
+  dailyNotePath: string;
+  meetingLink: string;
+  startTime: string;
+  endTime: string;
+}): "added" | "skipped" {
+  const content = Deno.readTextFileSync(opts.dailyNotePath);
+  const linkMarker = `[[${opts.meetingLink}]]`;
+  if (content.includes(linkMarker)) return "skipped";
+
+  const entry = `- ${opts.startTime}–${opts.endTime} ${linkMarker}`;
+  const journalMatch = content.match(/(^|\n)# Journal(\r?\n|$)/);
+  if (!journalMatch || journalMatch.index === undefined) {
+    throw new Error(`No "# Journal" heading found in ${opts.dailyNotePath}`);
+  }
+  const journalIdx = journalMatch.index + (journalMatch[1] ? 1 : 0);
+
+  const meetingsMatch = content.match(/(^|\n)# Meetings(\r?\n|$)/);
+  let updated: string;
+  if (!meetingsMatch) {
+    const before = content.slice(0, journalIdx);
+    const after = content.slice(journalIdx);
+    updated = `${before}# Meetings\n\n${entry}\n\n${after}`;
+  } else {
+    const before = content.slice(0, journalIdx).trimEnd();
+    const after = content.slice(journalIdx);
+    updated = `${before}\n${entry}\n\n${after}`;
+  }
+
+  Deno.writeTextFileSync(opts.dailyNotePath, updated);
+  return "added";
+}
+
+async function linkMeetingToDailyNote(opts: {
+  date: Date;
+  meetingLink: string;
+  startTime: string;
+  endTime: string;
+}): Promise<void> {
+  try {
+    const cfg = loadDailyNotesConfig();
+    const relPath = dailyNoteRelativePath(opts.date, cfg);
+    const absPath = join(VAULT_PATH, relPath);
+    await ensureDailyNote(opts.date, absPath, cfg);
+    const result = appendMeetingToJournal({
+      dailyNotePath: absPath,
+      meetingLink: opts.meetingLink,
+      startTime: opts.startTime,
+      endTime: opts.endTime,
+    });
+    if (result === "added") {
+      console.log(color.green(`Linked in daily note: ${relPath}`));
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(color.yellow(`Warning: could not update daily note: ${msg}`));
+  }
+}
+
 // --- Commands ---
 
 function cmdList(
   targetDate: string,
   jsonMode: boolean,
   query: string,
+  calendars: string[],
 ): void {
   const data = loadCalendar();
-  const events = getEventsForDate(data, targetDate);
+  const events = getEventsForDate(data, targetDate, calendars);
 
   if (events.length === 0) {
     if (jsonMode) {
@@ -219,6 +354,28 @@ function cmdList(
   }
 }
 
+function cmdCalendars(): void {
+  const data = loadCalendar();
+  const counts: Record<string, number> = {};
+  for (const e of data.events) {
+    counts[e.calendar] = (counts[e.calendar] ?? 0) + 1;
+  }
+  const list = [...new Set(data.calendars)].sort();
+  if (list.length === 0) {
+    console.log(color.blue("No calendars found in agenda export."));
+    return;
+  }
+  console.log(color.blue("Available calendars:"));
+  console.log();
+  const maxLen = Math.max(...list.map((c) => c.length));
+  for (const cal of list) {
+    const n = counts[cal] ?? 0;
+    const pad = " ".repeat(maxLen - cal.length);
+    const label = n === 1 ? "event" : "events";
+    console.log(`  ${cal}${pad}  (${n} ${label})`);
+  }
+}
+
 function cmdPreview(uid: string): void {
   const data = loadCalendar();
   const event = getEventByUid(data, uid);
@@ -263,7 +420,11 @@ function cmdPreview(uid: string): void {
 function cmdFzfData(datefile: string): void {
   const targetDate = Deno.readTextFileSync(datefile).trim();
   const data = loadCalendar();
-  const events = getEventsForDate(data, targetDate);
+  const calendars = (Deno.env.get("MTG_CALENDARS") ?? DEFAULT_CALENDAR)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const events = getEventsForDate(data, targetDate, calendars);
 
   for (const event of events) {
     const start = toLocalDate(event.start);
@@ -300,6 +461,8 @@ async function cmdCreate(
   targetDate: string,
   eventUid: string,
   jsonMode: boolean,
+  noJournal: boolean,
+  calendars: string[],
 ): Promise<void> {
   const data = loadCalendar();
   let event: CalendarEvent | undefined;
@@ -333,6 +496,7 @@ async function cmdCreate(
       const initialEvents = getEventsForDate(
         data2,
         Deno.readTextFileSync(datefile).trim(),
+        calendars,
       );
       const fzfInput = initialEvents
         .map((e) => {
@@ -373,6 +537,7 @@ async function cmdCreate(
           "--prompt=Select meeting: ",
           `--header=${initialHeader}`,
         ],
+        env: { MTG_CALENDARS: calendars.join(",") },
         stdin: "piped",
         stdout: "piped",
         stderr: "inherit",
@@ -419,8 +584,18 @@ async function cmdCreate(
   const filename = `${safeTitle} - ${localDate}.md`;
   const filepath = join(MEETINGS_DIR, filename);
 
+  const meetingLink = `${safeTitle} - ${localDate}`;
+
   // Check for existing note
   if (existsSync(filepath)) {
+    if (!noJournal) {
+      await linkMeetingToDailyNote({
+        date: start,
+        meetingLink,
+        startTime,
+        endTime,
+      });
+    }
     if (jsonMode) {
       console.error(color.yellow(`Note already exists: ${filename}`));
       return;
@@ -463,7 +638,7 @@ end-time: "${endTime}"`;
     frontmatter += `\norganizer: ${event.organizer.name}`;
   }
   if (event.location) frontmatter += `\nlocation: "${event.location}"`;
-  frontmatter += `\ncalendar: ${CALENDAR_FILTER}`;
+  frontmatter += `\ncalendar: ${event.calendar}`;
   frontmatter += `\n---`;
 
   const noteContent = `${frontmatter}
@@ -482,6 +657,14 @@ ${inviteeLinks}
 
   Deno.writeTextFileSync(filepath, noteContent);
   console.log(color.green(`Created: ${filename}`));
+  if (!noJournal) {
+    await linkMeetingToDailyNote({
+      date: start,
+      meetingLink,
+      startTime,
+      endTime,
+    });
+  }
   openInObsidian(filename);
 }
 
@@ -492,9 +675,10 @@ function showHelp(): void {
   console.log(`Usage: ${name} [command] [options]
 
 Commands:
-    list   (l)   List meetings for today (or specified date)
-    create (c)   Create a meeting note
-    help         Show this help
+    list      (l)     List meetings for today (or specified date)
+    calendars (cals)  List calendars available in the agenda export
+    create    (c)     Create a meeting note
+    help              Show this help
 
     If no command is given, interactively select a meeting and create a note.
 
@@ -503,6 +687,9 @@ Options:
     --json        Output as Alfred-compatible JSON (list command only)
     -q QUERY      Filter meetings by query (with --json)
     --uid UID     Specify meeting by calendar UID (create command)
+    --calendar C  Calendar(s) to filter — comma-separated for multiple
+                  (default: "${DEFAULT_CALENDAR}")
+    --no-journal  Skip linking the meeting from the daily note (create command)
     --help        Show this help
 
 Examples:
@@ -512,7 +699,9 @@ Examples:
     ${name} list --json               # JSON output for Alfred
     ${name} list --json -q standup    # Alfred JSON filtered by query
     ${name} c                         # Interactively create a meeting note
-    ${name} create --uid ABC-123      # Create note for a specific meeting UID`);
+    ${name} create --uid ABC-123      # Create note for a specific meeting UID
+    ${name} l --calendar "Personal Calendar"
+    ${name} l --calendar "Work Calendar,Personal Calendar"`);
 }
 
 // --- Main ---
@@ -539,18 +728,27 @@ if (command === "_fzf-header") {
 }
 
 // Parse remaining args after the command
-const isCommand = ["l", "list", "c", "create", "help", "--help"].includes(
-  command,
-);
+const isCommand = [
+  "l",
+  "list",
+  "c",
+  "create",
+  "calendars",
+  "cals",
+  "help",
+  "--help",
+].includes(command);
 const restArgs = isCommand ? args.slice(1) : args;
 const parsed = parseArgs(restArgs, {
-  string: ["date", "q", "uid"],
-  boolean: ["json", "help"],
+  string: ["date", "q", "uid", "calendar"],
+  boolean: ["json", "help", "no-journal"],
   default: {
     date: formatDate(new Date()),
     json: false,
     q: "",
     uid: "",
+    "no-journal": false,
+    calendar: DEFAULT_CALENDAR,
   },
 });
 
@@ -563,15 +761,24 @@ const targetDate = parsed.date as string;
 const jsonMode = parsed.json as boolean;
 const query = parsed.q as string;
 const eventUid = parsed.uid as string;
+const noJournal = parsed["no-journal"] as boolean;
+const calendars = (parsed.calendar as string)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 switch (command) {
   case "l":
   case "list":
-    cmdList(targetDate, jsonMode, query);
+    cmdList(targetDate, jsonMode, query, calendars);
+    break;
+  case "calendars":
+  case "cals":
+    cmdCalendars();
     break;
   case "c":
   case "create":
-    await cmdCreate(targetDate, eventUid, jsonMode);
+    await cmdCreate(targetDate, eventUid, jsonMode, noJournal, calendars);
     break;
   default:
     // No command or unknown flag — default to create
@@ -583,6 +790,6 @@ switch (command) {
       );
       Deno.exit(1);
     }
-    await cmdCreate(targetDate, eventUid, jsonMode);
+    await cmdCreate(targetDate, eventUid, jsonMode, noJournal, calendars);
     break;
 }
