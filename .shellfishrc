@@ -214,7 +214,7 @@ EOF
 Usage: setbarcolor <css-style color>
 
 Set color of terminal toolbar color with values such as
-   red, #f00, #ff0000, rgb(255,0,0), color(p3 1.0 0.0 0.0)
+   red, '#f00', '#ff0000', rgb(255,0,0), color(p3 1.0 0.0 0.0)
 EOF
     else
       OUTPUT=$(
@@ -377,44 +377,72 @@ fi
 widget() {
   if [[ $# -eq 0 ]]; then
     cat <<EOF
-Usage: widget [target] <data> ...
+Usage: widget [--image path/to/image] [target] <data> ...
 
-Update widget on device from which this function was installed with a number of content parameters that can be string, progress, icon, target, color, url or shortcut.
-
-Each argument type is derived from input, where the first argument is assumed to be a target if it matches a target configured on the widget.
+Update widget on device from which this function was installed with a number of content parameters that can be string, progress, icon, target, image, color, url or shortcut.
 
 Progress has the form: 50% or 110/220
 
 Icon must match valid SF Symbol name such as globe or terminal.fill
 
-Colors must be hex colours such as #000 #ff00ff where the color is used for later content and 'foreground' switches back to default colour
+Colors must be hex colours such as #000 #ff00ff where the color is used for later content and 'foreground' switches back to default colour.
 
-Target is used to send different content to different widgets after configuring the widgets with different target identifiers which requires the pro unlock. The target parameter is never assumed unless --target is used and is effective until next --target parameter allowing updates of several widgets with a single command
+Target is used to send different content to different widgets after configuring the widgets with different target identifiers which requires the pro unlock. The target parameter is never assumed unless --target is used and is effective until next --target parameter.
 
 URL is used when tapping the widget and is assumed for arguments starting with https:// and other schemes are supported by using --url
 
 Shortcut works like URL running the Shortcut with the given name and is never assumed without --shortcut
 
-String is the fallback type if nothing else matches, but content type can be forced for next parameter with --progress, --icon, --color, --text or --target with something like:
+Image displays an image from a local file path inline in the widget.
+
+Text is the fallback type if nothing else matches, but content type can be forced for next parameter with --progress, --icon, --color, --image, --text or --target with something like:
   widget --text "50/100"
 
-You can update several widgets at once by using --target to send all parameters until the next --target to a particular widget. Updating several widgets at once allows more total updates per day.
+Layout depends on the widget type where inline widgets arrange content horizontally, circular widgets show progress as rings with other content in the center, rectangular widgets stack content vertically, and regular widgets use floating layout that wraps text and automatically scales font size to fit available space.
+
+Frequent widget updates are throttled by the system with stats and additional information in the Shell Integration log inside the app. Update several widgets at once by using --target to send all parameters until the next --target to a particular widget for additional total updates per day.
+
 
 EOF
     return 0
   fi
-  
+
   local key=92f3529c297678e9e8d1a889ee79c6ec63cfc447a09df15e70e3f3072f3aa3de
   local user=QNQyb9PeVEqTfeCDq37s1UYV2PEJkWhNeI6xHRnU
-  local iv=ab5bbeb426015da7eedcee8bee3dffb7
+  local iv=$(openssl rand -hex 16)
+  local image_iv=$(echo -n "$iv" | xxd -r -p | openssl dgst -sha256 -binary | head -c 16 | xxd -p)
+  local attach_id=""
+  local image_path=""
+  local args=()
+
+  # extract --image argument
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "--image" ]]; then
+      image_path="$2"; shift 2
+    else
+      args+=("$1"); shift
+    fi
+  done
+
+  # upload encrypted image if specified
+  if [[ -n "$image_path" ]]; then
+    attach_id=$(openssl enc -aes-256-cbc -K $key -iv $image_iv -in "$image_path" | \
+      curl -sS -X POST -H "Content-Type: application/octet-stream" \
+      --data-binary @- "https://secureshellfish.app/push/?attach=$user")
+  fi
 
   local plain=$(
-  echo Secure ShellFish Widget 2.0
-  for var in "$@"
+  echo Secure ShellFish Widget 3.0
+  date +%s
+  if [[ -n "$attach_id" ]]; then
+    echo -n "--image" | base64
+    echo -n "$attach_id" | base64
+  fi
+  for var in "${args[@]}"
   do
     echo -ne "$var" | base64
   done)
-  local base64=$(echo "$plain" | openssl enc -aes-256-cbc -base64 -K $key -iv $iv)
+  local base64=$( (echo -n "$iv" | xxd -r -p; echo "$plain" | openssl enc -aes-256-cbc -K $key -iv $iv) | base64 | tr -d '\n')
   curl -sS -X POST -H "Content-Type: text/plain" --data "$base64" "https://secureshellfish.app/push/?user=$user"
 }
 
@@ -428,22 +456,47 @@ EOF
 notify() {
   if [[ $# -eq 0 ]]; then
     cat <<EOF
-Usage: notify [--shortcut NameOfShortcut] [--url https://url.to.open/] [title] <body> ...
+Usage: notify [--image path/to/image] [--shortcut NameOfShortcut] [--url https://url.to.open/] [title] <body> ...
 
 EOF
     return 0
   fi
-  
+
   local key=92f3529c297678e9e8d1a889ee79c6ec63cfc447a09df15e70e3f3072f3aa3de
   local user=QNQyb9PeVEqTfeCDq37s1UYV2PEJkWhNeI6xHRnU
-  local iv=ab5bbeb426015da7eedcee8bee3dffb7
+  local iv=$(openssl rand -hex 16)
+  local image_iv=$(echo -n "$iv" | xxd -r -p | openssl dgst -sha256 -binary | head -c 16 | xxd -p)
+  local attach_id=""
+  local image_path=""
+  local args=()
+
+  # extract --image argument
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "--image" ]]; then
+      image_path="$2"; shift 2
+    else
+      args+=("$1"); shift
+    fi
+  done
+
+  # upload encrypted image if specified
+  if [[ -n "$image_path" ]]; then
+    attach_id=$(openssl enc -aes-256-cbc -K $key -iv $image_iv -in "$image_path" | \
+      curl -sS -X POST -H "Content-Type: application/octet-stream" \
+      --data-binary @- "https://secureshellfish.app/push/?attach=$user")
+  fi
 
   local plain=$(
-  echo Secure ShellFish Notify 2.0
-  for var in "$@"
+  echo Secure ShellFish Notify 3.0
+  date +%s
+  if [[ -n "$attach_id" ]]; then
+    echo -n "--image" | base64
+    echo -n "$attach_id" | base64
+  fi
+  for var in "${args[@]}"
   do
     echo -ne "$var" | base64
   done)
-  local base64=$(echo "$plain" | openssl enc -aes-256-cbc -base64 -K $key -iv $iv)
+  local base64=$( (echo -n "$iv" | xxd -r -p; echo "$plain" | openssl enc -aes-256-cbc -K $key -iv $iv) | base64 | tr -d '\n')
   curl -sS -X POST -H "Content-Type: text/plain" --data "$base64" "https://secureshellfish.app/push/?user=$user&mutable"
 }
