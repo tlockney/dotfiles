@@ -113,6 +113,9 @@ Quickly create meeting notes from your calendar.
 ### Usage:
 - Type `mtg` to list today's meetings
 - Type `mtg [filter]` to filter by meeting name
+- Type `mtg +1` for tomorrow, `mtg -1` for yesterday, or `mtg YYYY-MM-DD` for a specific date
+- Combine: `mtg +1 standup` filters tomorrow's meetings
+- Tab on the "← Previous day" / "→ Next day" items to jump between days
 - Select a meeting to create a note and open it in Obsidian
 
 ### Requirements:
