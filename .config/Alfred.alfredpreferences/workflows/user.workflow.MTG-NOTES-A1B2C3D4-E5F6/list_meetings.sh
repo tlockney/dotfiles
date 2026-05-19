@@ -10,13 +10,10 @@ export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
 
 QUERY="${1:-}"
 
-# Build mtg command
-MTG_CMD=(~/bin/mtg list --json)
-
-# Add query filter if provided
-if [[ -n "$QUERY" ]]; then
-    MTG_CMD+=(-q "$QUERY")
-fi
-
-# Execute mtg and return its JSON output
-"${MTG_CMD[@]}"
+# mtg --alfred parses the query for a leading date token (+N, -N, YYYY-MM-DD)
+# and emits day-navigation items at the top of the list. Treats the rest as
+# a meeting-title filter.
+#
+# -q="..." (rather than -q "...") is required so queries starting with `-`
+# (e.g. "-1") aren't misread as a flag by parseArgs.
+~/bin/mtg list --json --alfred -q="$QUERY"
