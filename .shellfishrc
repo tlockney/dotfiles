@@ -12,7 +12,6 @@
 #  setbarcolor to change toolbar color
 #  sharesheet to invoke iOS share sheet
 #  snip to add new snippets
-#  textastic to edit files with Textastic
 #
 # In any terminal use:
 #  thumbnail to write exif thumbnails
@@ -27,6 +26,13 @@ if [[ "$LC_TERMINAL" = "ShellFish" ]]; then
     awk 'BEGIN {while (y++ < 125) z[sprintf("%c", y)] = y
     while (y = substr(ARGV[1], ++j, 1))
     q = y ~ /[a-zA-Z0-9]/ ? q y : q sprintf("%%%02X", z[y])
+    printf("%s", q)}' "$1"
+  }
+
+  ios_printURIPath() {
+    awk 'BEGIN {while (y++ < 125) z[sprintf("%c", y)] = y
+    while (y = substr(ARGV[1], ++j, 1))
+    q = y ~ /[a-zA-Z0-9\/]/ ? q y : q sprintf("%%%02X", z[y])
     printf("%s", q)}' "$1"
   }
   
@@ -184,30 +190,6 @@ EOF
     ios_handleResult "$FIFO"
   }
 
-  textastic() {
-    if [[ $# -eq 0 ]]; then
-      cat <<EOF
-Usage: textastic <text-file>
-
-Open in Textastic 9.5 or later.
-File must be in directory represented in the Files app to allow writing back edits.
-EOF
-    else
-      if [ ! -e "$1" ]; then
-        touch "$1"
-      fi
-      OUTPUT=$(
-        awk 'BEGIN {printf "6;textastic://?ver=2&pwd="}'
-        ios_printBase64Component "$PWD"
-        awk 'BEGIN {printf "&home="}'
-        ios_printBase64Component "$HOME"
-        awk 'BEGIN {printf "&path="}'
-        ios_printBase64Component "$1"
-      )
-      ios_sequence "$OUTPUT"
-    fi
-  }
-  
   setbarcolor() {
     if [[ $# -eq 0 ]]; then
       cat <<EOF
@@ -313,11 +295,11 @@ EOF
 
   # Secure ShellFish supports 24-bit colors
   export COLORTERM=truecolor
-  
-  # We need to pass through escape sequences through tmux
+
+  # Pass shell escape sequences through tmux and refresh $LC_TERMINAL on reattach
   if [[ -n "$TMUX" ]]; then
-    # ignore error from old versions of tmux without this command
     tmux 2> /dev/null set -g allow-passthrough on || true
+    tmux 2> /dev/null set -ag update-environment 'LC_TERMINAL' || true
   fi
   
   if [[ -z "$INSIDE_EMACS" && $- = *i* ]]; then
@@ -332,7 +314,7 @@ EOF
     update_terminal_cwd() {
       ios_sequence $(
         awk "BEGIN {printf \"7;%s\", \"file://$HOSTNAME\"}"
-        ios_printURIComponent "$PWD"
+        ios_printURIPath "$PWD"
       )
     }
     if [ -n "$ZSH_VERSION" ]; then

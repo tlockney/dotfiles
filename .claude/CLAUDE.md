@@ -24,6 +24,10 @@ If you're about to break one of these, stop and ask.
 - Don't remove comments unless you can prove they're false.
 - Don't name things 'improved', 'new', 'enhanced' — names should be evergreen.
 
+## Superpowers plugin
+
+- Spec and plan paths must NOT include a `superpowers/` segment. Write specs to `docs/specs/YYYY-MM-DD-<topic>-design.md` and plans to `docs/plans/YYYY-MM-DD-<topic>-plan.md`. If the project has its own non-superpowers convention (e.g. `docs/design/`, `docs/rfcs/`), follow that instead. Existing files under `docs/superpowers/...` are legacy — do not add new files there, but don't move existing ones unless asked.
+
 ## Situational context (read when relevant)
 
 - **`.claude/testing.md`** — test strategy, TDD, tooling

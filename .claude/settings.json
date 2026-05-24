@@ -10,6 +10,10 @@
     "commit": "",
     "pr": ""
   },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "opus[1m]",
   "hooks": {
     "PreCompact": [
       {
@@ -20,12 +24,28 @@
     "SessionStart": [
       {
         "matcher": "",
-        "hooks": []
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/inject-project-context.ts"
+          }
+        ]
       }
     ],
     "PermissionRequest": [
       {
         "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/capture-plan.ts"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
         "hooks": [
           {
             "type": "command",
@@ -55,7 +75,8 @@
     "context7@claude-plugins-official": true,
     "linear@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true
+    "claude-code-setup@claude-plugins-official": true,
+    "metron-tools@metron-plugins": true
   },
   "extraKnownMarketplaces": {
     "obsidian-skills": {
@@ -63,13 +84,22 @@
         "source": "github",
         "repo": "kepano/obsidian-skills"
       }
+    },
+    "metron-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "Metron-SWEng/claude-resources"
+      }
     }
   },
   "alwaysThinkingEnabled": true,
-  "voiceEnabled": true,
+  "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754111802128
-  },
-  "skipAutoPermissionPrompt": true
+  }
 }
