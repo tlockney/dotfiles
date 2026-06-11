@@ -89,6 +89,19 @@ function toLocalDate(utcIso: string): Date {
   return new Date(utcIso);
 }
 
+// Days between two dates, counted in local calendar days (negative if `date` is before `today`).
+function daysBetween(date: Date, today: Date): number {
+  const a = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const b = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((a - b) / 86_400_000);
+}
+
+// Render a day offset back into the query-string form the Alfred filter understands.
+function offsetToken(n: number): string {
+  if (n === 0) return "";
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
 function sanitizeFilename(title: string): string {
   return title
     .replace(/1:1/g, "1-1")
@@ -352,6 +365,122 @@ function cmdList(
       );
     }
   }
+}
+
+// Parse an Alfred query into a target date + meeting filter.
+// Recognized leading tokens: "+N", "-N", or "YYYY-MM-DD". Anything else is
+// treated entirely as a filter against today.
+function parseAlfredQuery(
+  query: string,
+  today: Date,
+): { date: Date; filter: string } {
+  const trimmed = query.trim();
+  if (!trimmed) return { date: today, filter: "" };
+
+  const match = trimmed.match(/^(\S+)(?:\s+(.*))?$/);
+  if (!match) return { date: today, filter: "" };
+  const [, head, rest = ""] = match;
+  const filterRest = rest.trim();
+
+  const offsetMatch = head.match(/^([+-])(\d+)$/);
+  if (offsetMatch) {
+    const sign = offsetMatch[1] === "-" ? -1 : 1;
+    const n = parseInt(offsetMatch[2], 10);
+    const d = new Date(today);
+    d.setDate(today.getDate() + sign * n);
+    return { date: d, filter: filterRest };
+  }
+
+  const absMatch = head.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (absMatch) {
+    const [, y, m, day] = absMatch;
+    const d = new Date(Number(y), Number(m) - 1, Number(day));
+    return { date: d, filter: filterRest };
+  }
+
+  return { date: today, filter: trimmed };
+}
+
+function cmdListAlfred(rawQuery: string, calendars: string[]): void {
+  const today = new Date();
+  const { date, filter } = parseAlfredQuery(rawQuery, today);
+  const targetDate = formatDate(date);
+  const offset = daysBetween(date, today);
+
+  const data = loadCalendar();
+  const events = getEventsForDate(data, targetDate, calendars);
+
+  const prevDate = new Date(date);
+  prevDate.setDate(date.getDate() - 1);
+  const nextDate = new Date(date);
+  nextDate.setDate(date.getDate() + 1);
+
+  const navAutocomplete = (newOffset: number): string => {
+    const tok = offsetToken(newOffset);
+    if (!filter) return tok;
+    return tok ? `${tok} ${filter}` : filter;
+  };
+
+  const navLabel = (d: Date): string => {
+    const day = d.toLocaleDateString("en-US", { weekday: "short" });
+    return `${day} ${formatDate(d)}`;
+  };
+
+  const items: Array<Record<string, unknown>> = [];
+
+  items.push({
+    title: `← Previous day  (${navLabel(prevDate)})`,
+    subtitle: "Tab to navigate",
+    valid: false,
+    autocomplete: navAutocomplete(offset - 1),
+  });
+
+  if (offset !== 0) {
+    items.push({
+      title: `↩ Today  (${navLabel(today)})`,
+      subtitle: "Tab to navigate",
+      valid: false,
+      autocomplete: navAutocomplete(0),
+    });
+  }
+
+  items.push({
+    title: `→ Next day  (${navLabel(nextDate)})`,
+    subtitle: "Tab to navigate",
+    valid: false,
+    autocomplete: navAutocomplete(offset + 1),
+  });
+
+  const filtered = filter
+    ? events.filter((e) => e.title.toLowerCase().includes(filter.toLowerCase()))
+    : events;
+
+  if (filtered.length === 0) {
+    items.push({
+      title: "No meetings",
+      subtitle: filter
+        ? `No meetings on ${targetDate} matching "${filter}"`
+        : `No meetings on ${targetDate}`,
+      valid: false,
+    });
+  } else {
+    for (const event of filtered) {
+      const start = toLocalDate(event.start);
+      const end = toLocalDate(event.end);
+      const inviteeCount = getInvitees(event).length;
+      items.push({
+        uid: event.uid,
+        title: event.title,
+        subtitle: `${formatTime(start)} - ${
+          formatTime(end)
+        } • ${inviteeCount} invitees`,
+        arg: event.uid,
+        autocomplete: event.title,
+      });
+    }
+  }
+
+  console.log(JSON.stringify({ items }));
 }
 
 function cmdCalendars(): void {
@@ -685,6 +814,8 @@ Commands:
 Options:
     --date DATE   Target date in YYYY-MM-DD format (default: today)
     --json        Output as Alfred-compatible JSON (list command only)
+    --alfred      Alfred mode for list: parses -q as "[+N|-N|YYYY-MM-DD] filter"
+                  and prepends day-navigation items (implies --json)
     -q QUERY      Filter meetings by query (with --json)
     --uid UID     Specify meeting by calendar UID (create command)
     --calendar C  Calendar(s) to filter — comma-separated for multiple
@@ -741,13 +872,14 @@ const isCommand = [
 const restArgs = isCommand ? args.slice(1) : args;
 const parsed = parseArgs(restArgs, {
   string: ["date", "q", "uid", "calendar"],
-  boolean: ["json", "help", "no-journal"],
+  boolean: ["json", "help", "no-journal", "alfred"],
   default: {
     date: formatDate(new Date()),
     json: false,
     q: "",
     uid: "",
     "no-journal": false,
+    alfred: false,
     calendar: DEFAULT_CALENDAR,
   },
 });
@@ -762,6 +894,7 @@ const jsonMode = parsed.json as boolean;
 const query = parsed.q as string;
 const eventUid = parsed.uid as string;
 const noJournal = parsed["no-journal"] as boolean;
+const alfredMode = parsed.alfred as boolean;
 const calendars = (parsed.calendar as string)
   .split(",")
   .map((s) => s.trim())
@@ -770,7 +903,11 @@ const calendars = (parsed.calendar as string)
 switch (command) {
   case "l":
   case "list":
-    cmdList(targetDate, jsonMode, query, calendars);
+    if (alfredMode) {
+      cmdListAlfred(query, calendars);
+    } else {
+      cmdList(targetDate, jsonMode, query, calendars);
+    }
     break;
   case "calendars":
   case "cals":
