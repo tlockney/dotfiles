@@ -39,7 +39,7 @@ sync_frequency = "10m"
 ## which search mode to use
 ## possible values: prefix, fulltext, fuzzy, skim
 ## skim provides fast fuzzy matching
-search_mode = "skim"
+search_mode = "daemon-fuzzy"
 
 ## which filter mode to use
 ## possible values: global, host, session, directory
@@ -218,7 +218,10 @@ records = true
 # strategy = "auto"
 
 [daemon]
-## Enables using the daemon to sync. Requires the daemon to be running in the background. Start it with `atuin daemon`
+enabled = true
+autostart = true
+
+[ai]
 # enabled = false
 
 ## How often the daemon should sync in seconds
