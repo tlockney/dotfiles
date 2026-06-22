@@ -14,9 +14,18 @@ prepend_path() {
   esac
 }
 
+# PATH helper function - appends to PATH if directory exists and not already in PATH
+append_path() {
+  case ":$PATH:" in
+    *":$1:"*) ;;  # Already in PATH
+    *) [ -d "$1" ] && PATH="$PATH:$1" ;;
+  esac
+}
+
 # User binary directories
 prepend_path "$HOME/.local/bin"
 prepend_path "$HOME/bin"
+prepend_path "$HOME/.deno/bin" # deno-installed global tools (e.g. reading-room)
 
 # Rust/Cargo environment
 if [ -f "$HOME/.cargo/env" ]; then
@@ -34,5 +43,14 @@ if [ -d "$HOME/go" ]; then
   export GOPATH
   prepend_path "$GOPATH/bin"
 fi
+
+# Deno environment - keep `deno install -g` global tools in ~/.deno/bin
+# consistently across machines (matches the prepend_path above), rather than
+# alongside the active mise-managed runtime.
+export DENO_INSTALL_ROOT="$HOME/.deno"
+
+# System-local binaries (e.g. tailscale, manually-installed tools). Appended so
+# it sits behind Homebrew/mise rather than shadowing them.
+append_path "/usr/local/bin"
 
 export PATH
