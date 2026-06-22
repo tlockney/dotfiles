@@ -15,5 +15,6 @@ source_if_exists "$HOME/.config/zsh/completions.zsh"
 source_if_exists "$HOME/.config/zsh/tools.zsh"
 source_if_exists "$HOME/.config/zsh/prompt.zsh"
 source_if_exists "$HOME/.config/zsh/aliases.zsh"
+source_if_exists "$HOME/.config/zsh/open-agent.zsh"
 
 . "$HOME/.local/bin/env"
