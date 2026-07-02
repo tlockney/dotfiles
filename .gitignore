@@ -9,10 +9,12 @@
 .rustup/
 .npm/
 .local/
-src/
+/src/
 
 **/.claude/settings.local.json
 
 # Materialized per-machine Claude context — only the class alt-files
 # (local.md##class.work, local.md##class.personal) should be tracked.
 .claude/local.md
+
+.config/raycast-extensions/*/node_modules/
