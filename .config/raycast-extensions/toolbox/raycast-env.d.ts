@@ -24,10 +24,14 @@ declare type Preferences = ExtensionPreferences
 declare namespace Preferences {
   /** Preferences accessible in the `browse-meetings` command */
   export type BrowseMeetings = ExtensionPreferences & {}
+  /** Preferences accessible in the `quick-capture` command */
+  export type QuickCapture = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
   /** Arguments passed to the `browse-meetings` command */
   export type BrowseMeetings = {}
+  /** Arguments passed to the `quick-capture` command */
+  export type QuickCapture = {}
 }
 
