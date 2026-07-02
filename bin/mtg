@@ -165,14 +165,58 @@ function isRecurring(data: CalendarData, event: CalendarEvent): boolean {
   return false;
 }
 
-function openInObsidian(filename: string): void {
+function obsidianUriForNote(filename: string): string {
   const noteName = filename.replace(/\.md$/, "");
   const encoded = encodeURIComponent(`Active/Metron/Meetings/${noteName}`);
+  return `obsidian://open?vault=Personal&file=${encoded}`;
+}
+
+function openInObsidian(filename: string): void {
   const cmd = new Deno.Command("open", {
-    args: [`obsidian://open?vault=Personal&file=${encoded}`],
+    args: [obsidianUriForNote(filename)],
     stderr: "null",
   });
   cmd.outputSync();
+}
+
+function noteInfoForEvent(event: CalendarEvent): {
+  filename: string;
+  filepath: string;
+  meetingLink: string;
+} {
+  const localDate = formatDate(toLocalDate(event.start));
+  const safeTitle = sanitizeFilename(event.title);
+  const filename = `${safeTitle} - ${localDate}.md`;
+  return {
+    filename,
+    filepath: join(MEETINGS_DIR, filename),
+    meetingLink: `${safeTitle} - ${localDate}`,
+  };
+}
+
+function eventJsonItem(event: CalendarEvent): Record<string, unknown> {
+  const start = toLocalDate(event.start);
+  const end = toLocalDate(event.end);
+  const inviteeCount = getInvitees(event).length;
+  const note = noteInfoForEvent(event);
+  return {
+    uid: event.uid,
+    title: event.title,
+    subtitle: `${formatTime(start)} - ${formatTime(end)} • ${inviteeCount} invitees`,
+    arg: event.uid,
+    autocomplete: event.title,
+    start: event.start,
+    end: event.end,
+    location: event.location ?? "",
+    notes: event.notes ?? "",
+    attendees: (event.attendees ?? [])
+      .filter((a) => a.name && a.name !== SELF_NAME)
+      .map((a) => ({ name: a.name, status: a.status })),
+    organizer: event.organizer?.name ?? "",
+    notePath: note.filepath,
+    noteExists: existsSync(note.filepath),
+    obsidianUri: obsidianUriForNote(note.filename),
+  };
 }
 
 // --- Daily note integration ---
@@ -333,20 +377,7 @@ function cmdList(
         if (!query) return true;
         return event.title.toLowerCase().includes(query.toLowerCase());
       })
-      .map((event) => {
-        const start = toLocalDate(event.start);
-        const end = toLocalDate(event.end);
-        const inviteeCount = getInvitees(event).length;
-        return {
-          uid: event.uid,
-          title: event.title,
-          subtitle: `${formatTime(start)} - ${
-            formatTime(end)
-          } • ${inviteeCount} invitees`,
-          arg: event.uid,
-          autocomplete: event.title,
-        };
-      });
+      .map(eventJsonItem);
     console.log(JSON.stringify({ items }));
   } else {
     console.log(color.blue(`Meetings for ${targetDate}:`));
@@ -465,18 +496,7 @@ function cmdListAlfred(rawQuery: string, calendars: string[]): void {
     });
   } else {
     for (const event of filtered) {
-      const start = toLocalDate(event.start);
-      const end = toLocalDate(event.end);
-      const inviteeCount = getInvitees(event).length;
-      items.push({
-        uid: event.uid,
-        title: event.title,
-        subtitle: `${formatTime(start)} - ${
-          formatTime(end)
-        } • ${inviteeCount} invitees`,
-        arg: event.uid,
-        autocomplete: event.title,
-      });
+      items.push(eventJsonItem(event));
     }
   }
 
@@ -709,11 +729,7 @@ async function cmdCreate(
   const series = recurring ? event.title : undefined;
 
   // Build file path
-  const safeTitle = sanitizeFilename(event.title);
-  const filename = `${safeTitle} - ${localDate}.md`;
-  const filepath = join(MEETINGS_DIR, filename);
-
-  const meetingLink = `${safeTitle} - ${localDate}`;
+  const { filename, filepath, meetingLink } = noteInfoForEvent(event);
 
   // Check for existing note
   if (existsSync(filepath)) {
