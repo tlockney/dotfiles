@@ -26,6 +26,8 @@ declare namespace Preferences {
   export type BrowseMeetings = ExtensionPreferences & {}
   /** Preferences accessible in the `quick-capture` command */
   export type QuickCapture = ExtensionPreferences & {}
+  /** Preferences accessible in the `daily-note` command */
+  export type DailyNote = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -33,5 +35,7 @@ declare namespace Arguments {
   export type BrowseMeetings = {}
   /** Arguments passed to the `quick-capture` command */
   export type QuickCapture = {}
+  /** Arguments passed to the `daily-note` command */
+  export type DailyNote = {}
 }
 

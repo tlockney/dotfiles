@@ -21,6 +21,13 @@
       "subtitle": "Toolbox",
       "description": "Append a timestamped entry to today's Obsidian daily note.",
       "mode": "view"
+    },
+    {
+      "name": "daily-note",
+      "title": "Daily Note Window",
+      "subtitle": "Toolbox",
+      "description": "Open today's daily note in a dedicated Obsidian window.",
+      "mode": "no-view"
     }
   ],
   "preferences": [
