@@ -28,6 +28,8 @@ declare namespace Preferences {
   export type QuickCapture = ExtensionPreferences & {}
   /** Preferences accessible in the `daily-note` command */
   export type DailyNote = ExtensionPreferences & {}
+  /** Preferences accessible in the `remote-projects` command */
+  export type RemoteProjects = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -37,5 +39,7 @@ declare namespace Arguments {
   export type QuickCapture = {}
   /** Arguments passed to the `daily-note` command */
   export type DailyNote = {}
+  /** Arguments passed to the `remote-projects` command */
+  export type RemoteProjects = {}
 }
 

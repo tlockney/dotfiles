@@ -28,6 +28,13 @@
       "subtitle": "Toolbox",
       "description": "Open today's daily note in a dedicated Obsidian window.",
       "mode": "no-view"
+    },
+    {
+      "name": "remote-projects",
+      "title": "Open Remote Project",
+      "subtitle": "Toolbox",
+      "description": "Browse and open remote projects in VS Code via rproj.",
+      "mode": "view"
     }
   ],
   "preferences": [
