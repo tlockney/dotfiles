@@ -116,6 +116,10 @@ export JAVA_OPTIONS="-Djava.awt.headless=true"
 # Works for both Homebrew and standalone installations
 command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
 
+# Run autosuggestions asynchronously so typing never blocks on atuin subprocess forks
+ZSH_AUTOSUGGEST_USE_ASYNC=1
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=50
+
 # Set up PNPM if installed
 (command -v pnpm >/dev/null 2>&1 || [[ -d "$HOME/Library/pnpm" ]] || [[ -d "$HOME/.local/share/pnpm" ]]) && {
   # Set PNPM_HOME based on platform
