@@ -1,16 +1,30 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "DISABLE_AUTOUPDATER": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "cleanupPeriodDays": "365",
-    "CLAUDE_CODE_NO_FLICKER": "1"
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "cleanupPeriodDays": "365"
   },
   "attribution": {
     "commit": "",
     "pr": ""
   },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "fable",
   "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/capture-plan.ts"
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "matcher": "",
@@ -19,17 +33,12 @@
     ],
     "SessionStart": [
       {
-        "matcher": "",
-        "hooks": []
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "ExitPlanMode",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/capture-plan.ts"
+            "command": "bash '/Users/tlockney/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
           }
         ]
       }
@@ -41,23 +50,30 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "obsidian@obsidian-skills": true,
-    "lua-lsp@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "slack@claude-plugins-official": true,
-    "pr-review-toolkit@claude-plugins-official": true,
-    "learning-output-style@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "linear@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true
+    "gopls-lsp@claude-plugins-official": true,
+    "learning-output-style@claude-plugins-official": true,
+    "linear@claude-plugins-official": true,
+    "lua-lsp@claude-plugins-official": true,
+    "obsidian@obsidian-skills": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "slack@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "watch@claude-video": true
   },
   "extraKnownMarketplaces": {
+    "claude-video": {
+      "source": {
+        "source": "github",
+        "repo": "bradautomates/claude-video"
+      }
+    },
     "obsidian-skills": {
       "source": {
         "source": "github",
@@ -66,10 +82,16 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "voiceEnabled": true,
+  "tui": "default",
   "skipDangerousModePermissionPrompt": true,
+  "preferredNotifChannel": "terminal_bell",
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754111802128
   },
-  "skipAutoPermissionPrompt": true
+  "effortLevel": "medium"
 }
