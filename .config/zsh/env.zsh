@@ -21,3 +21,7 @@ if command -v brew &>/dev/null; then
   # shellcheck disable=SC2206  # fpath is a zsh array
   [[ -d "$BREW_PREFIX/share/zsh-completions" ]] && fpath=("$BREW_PREFIX/share/zsh-completions" $fpath)
 fi
+
+# Dev caches relocated to external SSD (macmini storage optimization)
+export HOMEBREW_CACHE=/Volumes/Secondary/home/dev-caches/homebrew-cache
+export UV_CACHE_DIR=/Volumes/Secondary/home/dev-caches/uv-cache
