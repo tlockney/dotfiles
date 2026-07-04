@@ -27,10 +27,16 @@ prepend_path "$HOME/.local/bin"
 prepend_path "$HOME/bin"
 prepend_path "$HOME/.deno/bin" # deno-installed global tools (e.g. reading-room)
 
-# Rust/Cargo environment
-if [ -f "$HOME/.cargo/env" ]; then
-  . "$HOME/.cargo/env"
-fi
+# Cargo environment
+# ~/.cargo is a symlink to /Volumes/Secondary which can hang in uninterruptible
+# D-state I/O wait if the volume is unresponsive. Any filesystem operation on
+# the symlink (stat, test, source) will block indefinitely — perl alarm() cannot
+# interrupt kernel I/O wait. So we add the path directly without touching the
+# filesystem. A non-existent path on PATH is harmless.
+case ":$PATH:" in
+  *":$HOME/.cargo/bin:"*) ;;  # already in PATH
+  *) PATH="$HOME/.cargo/bin:$PATH" ;;
+esac
 
 # Atuin shell history
 if [ -d "$HOME/.atuin/bin" ]; then
