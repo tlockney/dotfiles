@@ -29,7 +29,7 @@ async function run(
     await writer.close();
     const [stdout, { success }] = await Promise.all([
       new Response(proc.stdout).text(),
-      proc.status(),
+      proc.status,
     ]);
     return { stdout, success };
   }
@@ -49,15 +49,9 @@ try {
   Deno.exit(0);
 }
 
-if ((parsed.tool_name as string) !== "ExitPlanMode") Deno.exit(0);
-
+const toolName = (parsed.tool_name as string) ?? "";
 const hookEvent = (parsed.hook_event_name as string) ?? "";
 const sessionId = (parsed.session_id as string) ?? "unknown";
-
-// --- Extract plan content (4 fallbacks) ---
-let planContent = "";
-let planFile = "";
-let planSource = "unknown";
 
 const toolResponse = parsed.tool_response as Record<string, unknown> | undefined;
 const toolInput = parsed.tool_input as Record<string, unknown> | undefined;
@@ -72,7 +66,41 @@ const tryFile = async (path: unknown): Promise<string> => {
 const tryInline = (val: unknown): string =>
   typeof val === "string" && val && val !== "null" ? val : "";
 
-if ((planContent = tryInline(toolResponse?.plan))) {
+// Superpowers plans are written via `Write` and skip ExitPlanMode entirely.
+// Canonical location is docs/superpowers/plans/*.md, but the skill explicitly
+// defers to user-preferred locations — so we also accept any .md under a
+// docs/ subtree whose content carries a superpowers plan marker.
+const SUPERPOWERS_PLAN_MARKER = /^>\s*\*\*For agentic workers:\*\*/m;
+
+function isSuperpowersPlanWrite(): boolean {
+  if (toolName !== "Write") return false;
+  const fp = String(toolInput?.file_path ?? "");
+  if (!fp.endsWith(".md")) return false;
+  if (/\/superpowers\/plans\/[^/]+\.md$/.test(fp)) return true;
+  if (!/\/docs\//.test(fp)) return false;
+  const content = tryInline(toolInput?.content);
+  return !!content && SUPERPOWERS_PLAN_MARKER.test(content);
+}
+
+const isExitPlan = toolName === "ExitPlanMode";
+const isSpPlan = isSuperpowersPlanWrite();
+
+if (!isExitPlan && !isSpPlan) Deno.exit(0);
+
+// --- Extract plan content ---
+let planContent = "";
+let planFile = "";
+let planSource = "unknown";
+let preferredFilename = ""; // Non-empty when we want to bypass slug derivation.
+
+if (isSpPlan) {
+  planFile = String(toolInput?.file_path ?? "");
+  planContent = tryInline(toolInput?.content) || await tryFile(planFile);
+  planSource = "superpowers.write";
+  // Plan basename already carries a date + feature-name slug, reuse it verbatim
+  // so re-writes overwrite the same Obsidian note instead of spawning duplicates.
+  preferredFilename = planFile.split("/").pop()?.replace(/\.md$/i, "") ?? "";
+} else if ((planContent = tryInline(toolResponse?.plan))) {
   planSource = "tool_response.plan";
 } else if ((planContent = await tryFile((planFile = String(toolResponse?.filePath ?? ""))))) {
   planSource = "tool_response.filePath";
@@ -83,7 +111,7 @@ if ((planContent = tryInline(toolResponse?.plan))) {
 }
 
 if (!planContent || planContent.length < 20) {
-  await log("No valid plan content found", `HOOK_EVENT=${hookEvent}`, `PLAN_SOURCE=${planSource}`, `PLAN_FILE=${planFile}`);
+  await log("No valid plan content found", `HOOK_EVENT=${hookEvent}`, `TOOL=${toolName}`, `PLAN_SOURCE=${planSource}`, `PLAN_FILE=${planFile}`);
   Deno.exit(0);
 }
 
@@ -142,10 +170,17 @@ function extractMeta(content: string) {
   };
 }
 
-const { planTitle, planSlug, datePrefix, year, monthDir } = extractMeta(planContent);
-const planFilename = `${datePrefix}-${planSlug}`;
-const planPath = `20 Projects/Engineering/Plans/${planFilename}`;
-const journalPath = `Journal/${year}/${monthDir}/${datePrefix}`;
+const { planTitle, planSlug, datePrefix } = extractMeta(planContent);
+// Superpowers plan basenames already include the date + slug; reuse them so
+// that re-writing a plan during the review loop updates the same note.
+const planFilename = preferredFilename || `${datePrefix}-${planSlug}`;
+const planPath = `Active/Metron/Plans/${planFilename}`;
+
+// Ask Obsidian where today's daily note actually lives — the vault's daily-note
+// template owns the date format, so we can't safely hardcode one here.
+const { stdout: rawDailyPath, success: gotDailyPath } = await run("obsidian", ["daily:path"]);
+const dailyPath = gotDailyPath ? rawDailyPath.trim() : "";
+const journalLink = dailyPath.replace(/\.md$/i, "");
 
 await log(
   `HOOK_EVENT=${hookEvent}`, `PLAN_SOURCE=${planSource}`, `PLAN_FILE=${planFile}`,
@@ -216,7 +251,7 @@ source_file: ${planFile}
 # ${planTitle}
 
 ## Logged In
-[[${journalPath}]]
+[[${journalLink}]]
 
 ## Plan
 
@@ -232,15 +267,11 @@ if (!created.success) {
 
 const journalEntry = `- [[${planPath}|${planTitle}]] (planned)\n  - ${summary}`;
 
-const appended = await run("obsidian", ["append", `path=${journalPath}.md`, `content=${journalEntry}`]);
-if (!appended.success) {
-  await run("obsidian", ["daily:append", `content=${journalEntry}`]);
-}
+await run("obsidian", ["daily:append", `content=${journalEntry}`]);
 
 // Merge tags onto daily note
-const { stdout: dailyPath, success: gotDaily } = await run("obsidian", ["daily:path"]);
-if (gotDaily && dailyPath.trim()) {
-  const path = dailyPath.trim();
+if (dailyPath) {
+  const path = dailyPath;
   const { stdout: existingRaw, success: gotTags } = await run("obsidian", ["property:read", "name=tags", `path=${path}`]);
   if (gotTags) {
     const existing = existingRaw.split("\n").map((t) => t.trim()).filter(Boolean);

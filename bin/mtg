@@ -155,6 +155,21 @@ function getEventByUid(
   return data.events.find((e) => e.uid === uid);
 }
 
+// Route a meeting note into a subfolder of MEETINGS_DIR so the flat dir doesn't
+// grow without bound. Mirrors the rule the granola sync + one-time migration use:
+//   1-1  -> Series/1-1s        (all one-on-ones together)
+//   recurring series -> Series/<series>
+//   else -> <YYYY-MM>          (one-offs bucketed by month)
+function meetingSubdir(
+  series: string | undefined,
+  meetingType: string | undefined,
+  localDate: string,
+): string {
+  if (meetingType === "1-1") return join("Series", "1-1s");
+  if (series) return join("Series", sanitizeFilename(series));
+  return localDate.slice(0, 7);
+}
+
 function isRecurring(data: CalendarData, event: CalendarEvent): boolean {
   if (event.recurring) return true;
   if (event.uid.includes("/RID=")) {
@@ -557,9 +572,10 @@ function cmdPreview(uid: string): void {
   }
 
   // Check if note already exists
+  const series = recurring ? event.title : undefined;
   const safeTitle = sanitizeFilename(event.title);
   const filename = `${safeTitle} - ${localDate}.md`;
-  const filepath = join(MEETINGS_DIR, filename);
+  const filepath = join(MEETINGS_DIR, meetingSubdir(series, meetingType, localDate), filename);
   if (existsSync(filepath)) {
     console.log();
     console.log(color.yellow("Note already exists"));
@@ -728,8 +744,10 @@ async function cmdCreate(
   const recurring = isRecurring(data, event);
   const series = recurring ? event.title : undefined;
 
-  // Build file path
-  const { filename, filepath, meetingLink } = noteInfoForEvent(event);
+  // Build file path (routed into a subfolder; see meetingSubdir)
+  const { filename, meetingLink } = noteInfoForEvent(event);
+  const subdir = meetingSubdir(series, meetingType, localDate);
+  const filepath = join(MEETINGS_DIR, subdir, filename);
 
   // Check for existing note
   if (existsSync(filepath)) {
@@ -756,14 +774,14 @@ async function cmdCreate(
         ? new TextDecoder().decode(buf.subarray(0, n)).trim()
         : "Y";
       if (/^[Yy]?$/.test(answer)) {
-        openInObsidian(filename);
+        openInObsidian(join(subdir, filename));
       }
     }
     return;
   }
 
   // Ensure directory exists
-  await Deno.mkdir(MEETINGS_DIR, { recursive: true });
+  await Deno.mkdir(join(MEETINGS_DIR, subdir), { recursive: true });
 
   // Build note content
   const inviteeYaml = invitees.map((name) => `  - ${name}`).join("\n");
@@ -810,7 +828,7 @@ ${inviteeLinks}
       endTime,
     });
   }
-  openInObsidian(filename);
+  openInObsidian(join(subdir, filename));
 }
 
 // --- Help ---
