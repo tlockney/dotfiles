@@ -1,0 +1,93 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "toolbox",
+  "title": "Toolbox",
+  "description": "Personal commands: meetings, Obsidian capture, remote projects.",
+  "icon": "icon.png",
+  "author": "tlockney",
+  "categories": ["Productivity"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "browse-meetings",
+      "title": "Browse Meetings",
+      "subtitle": "Meeting Notes",
+      "description": "Browse meetings by day and create notes in Obsidian.",
+      "mode": "view"
+    },
+    {
+      "name": "quick-capture",
+      "title": "Quick Capture",
+      "subtitle": "Toolbox",
+      "description": "Append a timestamped entry to today's Obsidian daily note.",
+      "mode": "view"
+    },
+    {
+      "name": "daily-note",
+      "title": "Daily Note Window",
+      "subtitle": "Toolbox",
+      "description": "Open today's daily note in a dedicated Obsidian window.",
+      "mode": "no-view"
+    },
+    {
+      "name": "remote-projects",
+      "title": "Open Remote Project",
+      "subtitle": "Toolbox",
+      "description": "Browse and open remote projects in VS Code via rproj.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "mtgPath",
+      "title": "mtg binary",
+      "description": "Absolute path to the mtg CLI. Defaults to ~/bin/mtg.",
+      "type": "textfield",
+      "default": "~/bin/mtg",
+      "required": false
+    },
+    {
+      "name": "calendar",
+      "title": "Calendar",
+      "description": "Calendar to filter (passed to mtg --calendar). Comma-separated for multiple.",
+      "type": "textfield",
+      "default": "Work Calendar",
+      "required": false
+    },
+    {
+      "name": "obsidianPath",
+      "title": "Obsidian CLI",
+      "description": "Absolute path to the obsidian CLI.",
+      "type": "textfield",
+      "default": "/opt/homebrew/bin/obsidian",
+      "required": false
+    },
+    {
+      "name": "rprojPath",
+      "title": "rproj binary",
+      "description": "Absolute path to the rproj CLI.",
+      "type": "textfield",
+      "default": "~/.local/bin/rproj",
+      "required": false
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.83.1",
+    "@raycast/utils": "^1.17.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "^20.10.0",
+    "@types/react": "^19.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}

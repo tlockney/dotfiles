@@ -9,7 +9,7 @@
 .rustup/
 .npm/
 .local/
-src/
+/src/
 
 **/.claude/settings.local.json
 
@@ -18,3 +18,4 @@ src/
 .claude/local.md
 
 .config/zsh/local.zsh
+.config/raycast-extensions/*/node_modules/

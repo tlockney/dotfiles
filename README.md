@@ -186,6 +186,14 @@ All scripts in `bin/` should follow these conventions:
 - Check for command existence using `command -v` (POSIX-compliant)
 - Include comments for complex operations
 
+### Raycast
+
+Custom Raycast extension source lives in `~/.config/raycast-extensions/`
+(see [toolbox/README.md](.config/raycast-extensions/toolbox/README.md)).
+Raycast's own directory (`~/.config/raycast/`) contains credentials and
+build artifacts and is intentionally untracked; app settings travel via
+Raycast's Export/Import or Cloud Sync, not this repo.
+
 ### Cross-Platform Support
 
 Scripts should handle both macOS and Linux:
