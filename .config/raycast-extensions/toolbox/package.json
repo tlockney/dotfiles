@@ -84,9 +84,9 @@
     "typescript": "^5.5.4"
   },
   "overrides": {
-    "js-yaml": ">=4.2.0",
+    "js-yaml": "4.2.0",
     "@typescript-eslint/typescript-estree": {
-      "minimatch": ">=9.0.7"
+      "minimatch": "9.0.7"
     }
   },
   "scripts": {
