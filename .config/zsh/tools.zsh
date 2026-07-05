@@ -35,6 +35,15 @@ elif [[ -x $HOME/.local/bin/mise ]]; then
   eval "$("$HOME"/.local/bin/mise activate --shims zsh)"
 fi
 
+# mise's deno backend re-exports DENO_INSTALL_ROOT to its version-pinned
+# installs dir (…/mise/installs/deno/<ver>/.deno, symlinked onto Secondary),
+# clobbering the stable ~/.deno set in common.sh. That makes `deno install -g`
+# global tools vanish on a deno upgrade and land off the internal drive.
+# Re-assert the stable root and put its bin on PATH here, after mise — the same
+# post-mise fixup pattern path.zsh documents for user PATH entries.
+export DENO_INSTALL_ROOT="$HOME/.deno"
+prepend_to_path "$HOME/.deno/bin"
+
 # Zsh autosuggestions (BREW_PREFIX set in env.zsh)
 ZSH_AUTO_SCRIPT="zsh-autosuggestions/zsh-autosuggestions.zsh"
 [[ -e "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT" ]] && source "$BREW_PREFIX/share/$ZSH_AUTO_SCRIPT"
