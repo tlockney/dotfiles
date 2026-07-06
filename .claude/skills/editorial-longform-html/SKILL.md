@@ -70,7 +70,7 @@ The zoom + theme + mobile bundle inside the template (the
 `EDITORIAL-HEAD` / `EDITORIAL-BODY` blocks) is the **canonical copy
 from the Reading Room engine's `assets/editorial/{head,body}.html`**
 (the `@tlockney/reading-room` engine repo, `tlockney/reading-room` on
-GitHub; locally cloned at `~/src/personal/reading-room-lib`), inlined
+GitHub; locally cloned at `~/src/personal/reading-room`), inlined
 here so standalone docs are self-contained. A drift test in the engine
 repo keeps the two in sync — when changing zoom/theme behavior, edit
 the partials there and re-sync this template, don't fork it here.
