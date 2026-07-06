@@ -10,3 +10,6 @@ export FZF_DEFAULT_OPTS="--style minimal --color 16 --layout=reverse --height 30
 
 # Added by Obsidian
 export PATH="$PATH:/Applications/Obsidian.app/Contents/MacOS"
+
+# Hermes Agent — ensure ~/.local/bin is on PATH
+export PATH="$HOME/.local/bin:$PATH"

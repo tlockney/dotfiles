@@ -745,9 +745,13 @@ async function cmdCreate(
   const series = recurring ? event.title : undefined;
 
   // Build file path (routed into a subfolder; see meetingSubdir)
-  const { filename, meetingLink } = noteInfoForEvent(event);
+  const safeTitle = sanitizeFilename(event.title);
+  const filename = `${safeTitle} - ${localDate}.md`;
   const subdir = meetingSubdir(series, meetingType, localDate);
   const filepath = join(MEETINGS_DIR, subdir, filename);
+
+  // Journal links are bare filenames (vault wikilinks resolve by name, not path).
+  const meetingLink = `${safeTitle} - ${localDate}`;
 
   // Check for existing note
   if (existsSync(filepath)) {
