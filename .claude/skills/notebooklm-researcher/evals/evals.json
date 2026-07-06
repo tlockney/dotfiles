@@ -10,7 +10,7 @@
         {"name": "creates-notebook", "description": "Creates a dedicated notebook for this research task"},
         {"name": "adds-youtube-source", "description": "Adds the YouTube URL as a source using 'source add'"},
         {"name": "waits-for-processing", "description": "Waits for source processing before chat or generation"},
-        {"name": "generates-study-guide", "description": "Generates a report with --format study-guide (not just chat)"},
+        {"name": "generates-study-guide", "description": "Generates a report with --format \"Study Guide\" (not just chat)"},
         {"name": "organizes-output", "description": "Downloads output to a structured directory (~/Documents/notebooklm/... or similar)"},
         {"name": "analytical-questions", "description": "Asks targeted analytical questions before generating the study guide"}
       ]
@@ -38,7 +38,7 @@
       "assertions": [
         {"name": "creates-notebook", "description": "Creates a dedicated notebook"},
         {"name": "curated-sources", "description": "Adds specific relevant sources (official docs, tutorials) rather than only research"},
-        {"name": "custom-report-instructions", "description": "Uses --format custom or --append to tailor report for the audience"},
+        {"name": "custom-report-instructions", "description": "Uses --format \"Create Your Own\" with --prompt to tailor the report for the audience"},
         {"name": "audience-targeting", "description": "Report instructions mention target audience (Node.js developers)"},
         {"name": "organizes-output", "description": "Downloads to structured directory"},
         {"name": "shareable-output", "description": "Produces a downloadable artifact the user can share (not just chat)"}

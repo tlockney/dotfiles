@@ -15,21 +15,41 @@ description: >
 
 # NotebookLM Researcher
 
-Orchestrate deep research workflows using the `notebooklm` CLI. This skill manages
-the full lifecycle from topic scoping through source gathering, analysis, content
-generation, and organized local output.
+Orchestrate deep research workflows using the `nlm` CLI (from the
+`notebooklm-mcp-cli` package). This skill manages the full lifecycle from topic
+scoping through source gathering, analysis, content generation, and organized
+local output.
 
 For CLI command details, read `references/cli-reference.md` in this skill's directory.
+The CLI also self-documents: `nlm --ai` prints its own AI-assistant guide, and
+`nlm <command> --help` is authoritative for flags.
 
 ## Before You Start
 
 Verify the CLI is ready:
 
 ```bash
-notebooklm status
+nlm login --check
 ```
 
-If auth has expired, tell the user to run `notebooklm login` — it opens a browser.
+If auth has expired, tell the user to run `nlm login` — it opens a browser and
+extracts cookies automatically. The CLI auto-recovers from most auth and
+transient server errors (token refresh, headless re-auth, retries with
+backoff), so only re-login when a command explicitly reports expired cookies.
+
+**There is no "active notebook" context.** Every command takes a notebook ID
+as an argument. For a multi-step session, set an alias once and use it
+everywhere:
+
+```bash
+nlm alias list                    # check existing aliases first
+nlm alias set rust-async <notebook_id>
+nlm source list rust-async
+```
+
+**Generation and delete commands prompt for confirmation.** Always pass
+`--confirm` (or `-y`) so commands don't block. For deletes, get the user's
+explicit OK first — deletions are irreversible.
 
 ## Output Organization
 
@@ -38,7 +58,7 @@ the destination, but the default is:
 
 ```
 ~/Documents/notebooklm/<notebook-slug>/
-├── sources/          # Downloaded source texts (fulltext exports)
+├── sources/          # Downloaded source texts (raw content exports)
 ├── reports/          # Briefing docs, study guides, blog posts
 ├── audio/            # Podcast/audio overviews
 ├── video/            # Video overviews
@@ -81,13 +101,14 @@ Create a notebook with a descriptive title that captures the topic and angle.
 Good titles make notebooks findable later.
 
 ```bash
-notebooklm create "Research: Comparing Rust Async Runtimes" --json
+nlm notebook create "Research: Comparing Rust Async Runtimes" --json
 ```
 
-Capture the notebook ID from JSON output and set context:
+Capture the notebook ID from JSON output. For anything beyond a one-shot
+command, set an alias (after checking `nlm alias list` for conflicts):
 
 ```bash
-notebooklm use <notebook_id>
+nlm alias set rust-async <notebook_id>
 ```
 
 ### 3. Gather Sources
@@ -107,44 +128,50 @@ outputs; authoritative, diverse sources produce insightful ones.
 **Adding known sources** — When the user provides specific URLs, videos, or documents:
 
 ```bash
-notebooklm source add "https://..." --json
-notebooklm source add "https://youtube.com/watch?v=..." --json
-notebooklm source add ./document.pdf --json
+nlm source add <notebook_id> --url "https://..." --wait
+nlm source add <notebook_id> --youtube "https://youtube.com/watch?v=..." --wait
+nlm source add <notebook_id> --file ./document.pdf --wait
+nlm source add <notebook_id> --text "inline content" --title "My Notes"
 ```
 
-Add sources in sequence, capturing each source ID. After adding all sources,
-wait for processing before proceeding to analysis or generation.
+`--url` and `--youtube` are repeatable for bulk adds. The `--wait` flag blocks
+until processing completes, which guarantees the source is queryable — use it
+whenever you'll query or generate right after adding.
 
 **Web research** — When the user wants broad topic coverage:
 
-For quick results (5-10 sources, takes seconds):
+For quick results (~10 sources, ~30 seconds):
 ```bash
-notebooklm source add-research "specific query" --import-all
+nlm research start "specific query" --notebook-id <notebook_id> --auto-import
 ```
 
-For comprehensive coverage (20+ sources, takes 2-5 minutes):
+For comprehensive coverage (~40-80 sources, ~5 minutes), run deep mode and
+poll instead of blocking:
+
 ```bash
-notebooklm source add-research "specific query" --mode deep --no-wait
+nlm research start "specific query" --notebook-id <notebook_id> --mode deep
+# Note the task ID from the output, then:
+nlm research status <notebook_id> --max-wait 900
+nlm research import <notebook_id> <task_id>
 ```
 
-Then monitor and import:
-```bash
-notebooklm research wait --import-all --timeout 300
-```
+`nlm research import` takes `--indices 0,2,5` to import a subset, or
+`--cited-only` for just the sources the research summary actually cited.
 
 **Research query tips:**
-- Be specific. "Tokio vs async-std performance benchmarks 2025" beats "rust async"
+- Be specific. "Tokio vs async-std performance benchmarks 2026" beats "rust async"
 - Run multiple targeted queries rather than one broad one
 - Mix query angles: technical details, comparisons, tutorials, real-world usage
+- Only one research task can be pending per notebook — import (or `--force`) before starting another
 
 **After gathering:** Always verify sources are processed before moving on:
 
 ```bash
-notebooklm source list --json
+nlm source list <notebook_id> --json
 ```
 
-All sources should show `"status": "ready"`. If any are still processing,
-wait for them with `notebooklm source wait <id>`.
+All sources should show an enabled/ready status. If you added sources without
+`--wait` and some are still processing, give them a moment and re-check.
 
 ### 4. Analyze and Explore
 
@@ -155,23 +182,30 @@ This step is about building understanding — both yours and the user's.
 
 ```bash
 # Get the lay of the land
-notebooklm ask "What are the main themes across all sources?"
+nlm notebook query <notebook_id> "What are the main themes across all sources?"
 
 # Find agreements and disagreements
-notebooklm ask "Where do the sources agree and disagree?"
+nlm notebook query <notebook_id> "Where do the sources agree and disagree?"
 
-# Extract structured information
-notebooklm ask "What are the key technical tradeoffs discussed?" --json
+# Extract structured information with source citations
+nlm notebook query <notebook_id> "What are the key technical tradeoffs discussed?" --json
 
-# Deep dive on a specific aspect
-notebooklm ask "What do the sources say about performance under load?" -s <relevant_source_id>
+# Deep dive on specific sources only
+nlm notebook query <notebook_id> "What about performance under load?" --source-ids <id1,id2>
 
-# Save important findings as notes for later reference
-notebooklm ask "Summarize the three main approaches described" --save-as-note --note-title "Key Approaches"
+# Multi-turn: reuse the conversation ID from a previous answer
+nlm notebook query <notebook_id> "Expand on the second point" --conversation-id <cid>
 ```
 
-Use `--json` when you need to trace claims back to specific sources.
-Use `--save-as-note` to preserve key findings within the notebook.
+Use `--json` when you need to trace claims back to specific sources — the
+output includes citation references.
+
+**Preserve key findings as notes.** There's no flag to save an answer
+directly, so pipe important synthesis back in explicitly:
+
+```bash
+nlm note create <notebook_id> --title "Key Approaches" --content "..."
+```
 
 **For video/podcast sources:** After adding a YouTube URL or audio file as a source,
 the full transcript is indexed. Ask targeted questions to extract the key content
@@ -199,67 +233,78 @@ before investing in richer formats like audio or video.
 **Generating reports** (most reliable, start here when unsure):
 
 ```bash
-# Briefing doc — executive summary style
-notebooklm generate report --format briefing-doc --wait
+# Briefing doc — executive summary style (default format)
+nlm report create <notebook_id> --confirm
 
 # Study guide — structured learning material
-notebooklm generate report --format study-guide --append "Target audience: developers new to async programming" --wait
+nlm report create <notebook_id> --format "Study Guide" --confirm
 
 # Blog post — narrative style
-notebooklm generate report --format blog-post --wait
+nlm report create <notebook_id> --format "Blog Post" --confirm
 
-# Custom — full control
-notebooklm generate report --format custom "Write a quick-start tutorial covering setup, first project, and common pitfalls. Include code examples." --wait
+# Custom — full control over structure, focus, and audience
+nlm report create <notebook_id> --format "Create Your Own" --prompt "Write a quick-start tutorial covering setup, first project, and common pitfalls. Include code examples. Target audience: developers new to async programming." --confirm
 ```
 
-The `--append` flag is powerful for non-custom formats — it lets you add
-specific instructions without losing the built-in format template.
+The built-in formats take no extra instructions. When the user needs audience
+targeting or structural control, use `"Create Your Own"` with a detailed
+`--prompt` — that's where output quality is steered.
 
 **Generating other content:**
 
 ```bash
-# Mind map (instant, synchronous)
-notebooklm generate mind-map
+# Mind map
+nlm mindmap create <notebook_id> --confirm
 
-# Podcast — describe the angle and audience
-notebooklm generate audio "Focus on practical tradeoffs. Assume the listener has built web services but hasn't used async Rust."
+# Podcast — steer with --focus
+nlm audio create <notebook_id> --format deep_dive --focus "Practical tradeoffs. Assume the listener has built web services but hasn't used async Rust." --confirm
+# Formats: deep_dive, brief, critique, debate; --length short|default|long
 
 # Video explainer
-notebooklm generate video "Explain the core concepts visually, building from simple to complex"
+nlm video create <notebook_id> --focus "Explain the core concepts visually, building from simple to complex" --confirm
 
-# Quiz for review
-notebooklm generate quiz --difficulty medium
+# Quiz for review (difficulty is 1-5)
+nlm quiz create <notebook_id> --count 10 --difficulty 3 --confirm
 
-# From specific sources only
-notebooklm generate report --format study-guide -s <source_id_1> -s <source_id_2> --wait
+# Slide deck
+nlm slides create <notebook_id> --confirm
+
+# From specific sources only (any generation command)
+nlm report create <notebook_id> --format "Study Guide" --source-ids <id1,id2> --confirm
 ```
 
-**For long-running generation** (audio, video, slides): Use `--json` to capture the
-artifact ID, then either poll manually or use a background task to wait:
+**Polling for completion:** Generation is asynchronous. Audio/video takes
+1-5+ minutes; reports and quizzes usually under a minute. Check artifact
+status, grab the artifact ID, then download:
 
 ```bash
-notebooklm generate audio "..." --json
-# Returns {"task_id": "...", "status": "pending"}
-
-# Check later:
-notebooklm artifact list
-notebooklm artifact wait <artifact_id> --timeout 1200
+nlm studio status <notebook_id>          # list artifacts + status
+nlm studio status <notebook_id> --json   # machine-readable
 ```
+
+Wait until the artifact shows completed before downloading. Don't spin in a
+tight loop — sleep 30-60s between polls for audio/video.
 
 ### 6. Download and Organize
 
-Download completed artifacts into the output directory structure:
+Download completed artifacts into the output directory structure. Downloads
+take the notebook ID and fetch the latest artifact of that type; pass
+`--id <artifact_id>` to pick a specific one.
 
 ```bash
 # Create output directory
 mkdir -p ~/Documents/notebooklm/<notebook-slug>/reports
 
 # Download
-notebooklm download report ~/Documents/notebooklm/<notebook-slug>/reports/briefing.md
-notebooklm download audio ~/Documents/notebooklm/<notebook-slug>/audio/overview.mp3
-notebooklm download mind-map ~/Documents/notebooklm/<notebook-slug>/diagrams/concepts.json
-notebooklm download slide-deck ~/Documents/notebooklm/<notebook-slug>/slides/deck.pptx --format pptx
+nlm download report <notebook_id> --output ~/Documents/notebooklm/<notebook-slug>/reports/briefing.md
+nlm download audio <notebook_id> --output ~/Documents/notebooklm/<notebook-slug>/audio/overview.mp3
+nlm download mind-map <notebook_id> --output ~/Documents/notebooklm/<notebook-slug>/diagrams/concepts.json
+nlm download slide-deck <notebook_id> --format pptx --output ~/Documents/notebooklm/<notebook-slug>/slides/deck.pptx
 ```
+
+Quiz and flashcard downloads take the artifact ID and support format
+conversion (`--format json|markdown|html` — html is an interactive
+self-contained page).
 
 Always confirm with the user before downloading (it writes to the filesystem).
 
@@ -272,14 +317,13 @@ These are end-to-end patterns for common research tasks. Adapt as needed.
 When the user wants to understand a video or podcast:
 
 1. Create notebook titled after the content (e.g., "Video: Rich Harris on Signals")
-2. Add the YouTube URL or audio file as a source
-3. Wait for processing
-4. Ask targeted questions to extract key points:
+2. Add the YouTube URL or audio file as a source with `--wait`
+3. Ask targeted questions to extract key points:
    - "What are the main arguments presented?"
    - "What concrete examples or demos are shown?"
    - "What are the key takeaways for practitioners?"
-5. Generate a briefing doc to capture the summary
-6. Download the report
+4. Generate a briefing doc to capture the summary
+5. Download the report
 
 For multiple related videos, add them all to one notebook — the analysis
 will find connections across them.
@@ -288,15 +332,16 @@ will find connections across them.
 
 When the user wants to understand the current state of a field:
 
-1. Create notebook with survey scope (e.g., "Survey: WebAssembly Runtimes 2025")
+1. Create notebook with survey scope (e.g., "Survey: WebAssembly Runtimes 2026")
 2. Run deep research with 2-3 targeted queries covering different angles
+   (import each task's results before starting the next query)
 3. Add any specific URLs the user cares about
-4. Wait for all sources
+4. Verify all sources are processed
 5. Ask analytical questions:
    - "What are the main categories of approaches?"
    - "How do the major players compare?"
    - "What are the emerging trends?"
-6. Save key findings as notes
+6. Save key findings as notes with `nlm note create`
 7. Generate a study guide or briefing doc
 8. Generate a mind map for visual overview
 9. Download both to the output directory
@@ -310,7 +355,7 @@ When the user wants to create learning material:
 3. Wait for processing
 4. Generate a custom report with tutorial-focused instructions:
    ```bash
-   notebooklm generate report --format custom "Write a quick-start tutorial. Structure: Prerequisites, Installation, Hello World, First Real Project, Common Gotchas, Next Steps. Include code examples. Target audience: experienced developers new to this tool." --wait
+   nlm report create <notebook_id> --format "Create Your Own" --prompt "Write a quick-start tutorial. Structure: Prerequisites, Installation, Hello World, First Real Project, Common Gotchas, Next Steps. Include code examples. Target audience: experienced developers new to this tool." --confirm
    ```
 5. Download and review with the user
 
@@ -322,10 +367,10 @@ When the user needs comprehensive coverage of a topic in multiple formats:
 2. Generate in this order (most reliable first):
    - Briefing doc (fast, gives you a text review)
    - Study guide (structured differently, catches different angles)
-   - Mind map (instant, visual complement)
+   - Mind map (visual complement)
    - Slide deck (if presentation needed)
    - Audio overview (if podcast needed — long generation time)
-3. Download each as it completes
+3. Poll `nlm studio status` and download each as it completes
 4. Present the full package to the user
 
 ## Quality Guidance
@@ -334,20 +379,21 @@ When the user needs comprehensive coverage of a topic in multiple formats:
 generating from mediocre ones. A notebook with 5 authoritative sources beats one
 with 30 shallow ones.
 
-**Use `--append` to steer output quality.** The built-in report formats are good
-starting points. Use `--append` to add specificity:
-- `--append "Focus on practical implications, not theory"`
-- `--append "Include specific numbers and benchmarks where available"`
-- `--append "Target audience: C-level executives, keep it non-technical"`
+**Steer output with the right knob per type.** Reports: `"Create Your Own"` +
+`--prompt` for anything needing audience or structural control. Audio/video/quiz:
+`--focus` with a concrete angle:
+- `--focus "Practical implications, not theory"`
+- `--focus "Include specific numbers and benchmarks where available"`
+- `--focus "Audience: C-level executives, keep it non-technical"`
 
 **Review before generating expensive outputs.** Generate a briefing doc or ask
-a few questions before committing to audio/video generation (which takes 10-45
-minutes and may hit rate limits). Make sure the source material supports what
-the user wants.
+a few questions before committing to audio/video generation (which takes minutes
+and may hit rate limits — the CLI auto-retries transient errors). Make sure the
+source material supports what the user wants.
 
 **Save important chat answers as notes.** When you get a particularly good answer
-from `notebooklm ask`, save it with `--save-as-note`. These notes become part of
-the notebook's knowledge base and feed into future generation.
+from `nlm notebook query`, preserve it with `nlm note create`. These notes live
+in the notebook alongside your research.
 
 **For multi-source analysis**, ask questions that force cross-referencing:
 "Where do sources disagree?" and "What does source X say that contradicts source Y?"
