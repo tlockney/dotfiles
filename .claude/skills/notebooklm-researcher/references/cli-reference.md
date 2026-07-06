@@ -1,269 +1,308 @@
 # NotebookLM CLI Reference
 
-Complete command reference for `notebooklm` CLI (v0.3.3).
+Command reference for `nlm` (the `notebooklm-mcp-cli` package, v0.8.x).
+Source: https://github.com/jacob-bd/notebooklm-mcp-cli
+
+`nlm --help` and `nlm <command> --help` are authoritative. `nlm --ai` prints
+the CLI's own AI-assistant guide, but it can describe commands newer than the
+installed version — trust `--help` when they disagree.
+
+The CLI supports both noun-first (`nlm notebook create`) and verb-first
+(`nlm create notebook`) styles. This reference uses noun-first throughout.
 
 ## Table of Contents
 
 - [Authentication](#authentication)
 - [Notebooks](#notebooks)
+- [Aliases](#aliases)
 - [Sources](#sources)
 - [Research](#research)
-- [Chat](#chat)
+- [Chat / Query](#chat--query)
 - [Notes](#notes)
-- [Artifacts & Generation](#artifacts--generation)
+- [Generation (Studio)](#generation-studio)
+- [Artifact Status](#artifact-status)
 - [Downloads](#downloads)
+- [Export to Google Docs/Sheets](#export-to-google-docssheets)
+- [Batch, Cross-Notebook, Pipelines, Tags](#batch-cross-notebook-pipelines-tags)
 - [Configuration](#configuration)
 - [Output Formats](#output-formats)
 - [Error Handling](#error-handling)
-- [Known Limitations](#known-limitations)
+- [Timing Expectations](#timing-expectations)
 
 ## Authentication
 
 ```bash
-notebooklm login              # Opens browser for Google OAuth
-notebooklm auth check          # Diagnose auth issues
-notebooklm auth check --test   # Full validation with network test
-notebooklm status              # Show current context and auth state
+nlm login                  # Authenticate — opens browser, extracts cookies
+nlm login --check          # Only check if current auth is valid
+nlm login --profile work   # Named profile
+nlm login profile          # Manage auth profiles (subcommand)
+nlm doctor                 # Full diagnostics: install, auth, browser, tool configs
 ```
 
-Environment variables for CI/CD and parallel agents:
+The CLI auto-recovers from most failures: refreshes CSRF/session tokens on
+401s, reloads tokens updated by other sessions, attempts headless re-auth from
+the saved browser profile, and retries transient server errors (429/5xx) up to
+3 times with backoff. Only run `nlm login` when a command explicitly reports
+expired cookies.
 
-| Variable | Purpose |
-|----------|---------|
-| `NOTEBOOKLM_HOME` | Custom config directory (default: `~/.notebooklm`) |
-| `NOTEBOOKLM_AUTH_JSON` | Inline auth JSON — no file writes needed |
+Config and profiles live in `~/.notebooklm-mcp-cli/`. `NOTEBOOKLM_HL` sets the
+default BCP-47 language/locale for generation.
 
 ## Notebooks
 
 ```bash
-notebooklm list                          # List all notebooks
-notebooklm list --json                   # JSON output
-notebooklm create "Title"               # Create notebook
-notebooklm create "Title" --json        # Create and capture ID
-notebooklm use <notebook_id>            # Set active notebook context
-notebooklm status                        # Show active notebook
-notebooklm clear                         # Clear notebook context
-notebooklm rename <id> "New Title"      # Rename
-notebooklm delete <id>                  # Delete (destructive)
-notebooklm summary                       # AI-generated notebook insights
+nlm notebook list                       # List all notebooks
+nlm notebook list --json                # JSON output
+nlm notebook list --quiet               # IDs only (for piping)
+nlm notebook list --title               # "ID: Title" format
+nlm notebook create "Title" --json      # Create and capture ID
+nlm notebook get <id>                   # Notebook details
+nlm notebook describe <id>              # AI summary with topics
+nlm notebook rename <id> "New Title"
+nlm notebook delete <id> --confirm      # Destructive — ask the user first
 ```
 
-Partial IDs: Use first 6+ characters of UUIDs. Must be unique prefix.
+There is **no active-notebook context** — every command takes a notebook ID
+(or an alias, see below).
+
+## Aliases
+
+Memorable names for UUIDs, usable anywhere an ID is expected:
+
+```bash
+nlm alias list                 # ALWAYS check before creating
+nlm alias set myproject <uuid> # Create/update (type auto-detected)
+nlm alias get myproject        # Resolve to UUID
+nlm alias delete myproject
+```
 
 ## Sources
 
 ```bash
-# Adding sources (type auto-detected)
-notebooklm source add "https://example.com"              # URL
-notebooklm source add "https://youtube.com/watch?v=..."  # YouTube
-notebooklm source add ./document.pdf                     # File
-notebooklm source add "Inline text content" --title "My Notes"  # Text
+# Adding sources (flags, repeatable where noted)
+nlm source add <nb> --url "https://example.com"            # URL (repeatable)
+nlm source add <nb> --youtube "https://youtu.be/..."       # YouTube (repeatable)
+nlm source add <nb> --file ./document.pdf                  # Local file upload
+nlm source add <nb> --text "content" --title "My Notes"    # Inline text
+nlm source add <nb> --drive <doc-id> --type slides         # Drive (doc|slides|sheets|pdf)
+nlm source add <nb> --url "..." --wait                     # Block until processed
+nlm source add <nb> --file doc.pdf --wait --wait-timeout 600
 
 # Management
-notebooklm source list                    # List all sources
-notebooklm source list --json             # JSON output with status
-notebooklm source get <source_id>         # Source details
-notebooklm source fulltext <source_id>    # Full indexed text content
-notebooklm source guide <source_id>       # AI-generated summary and keywords
-notebooklm source rename <id> "New Name"  # Rename
-notebooklm source delete <id>             # Delete
-notebooklm source stale <id>              # Check if URL/Drive source needs refresh
-notebooklm source refresh <id>            # Refresh a URL/Drive source
-
-# Waiting for processing
-notebooklm source wait <source_id>                    # Block until ready
-notebooklm source wait <source_id> -n <notebook_id>   # With explicit notebook
-notebooklm source wait <source_id> --timeout 120      # Custom timeout
+nlm source list <nb>                   # List sources
+nlm source list <nb> --json            # JSON with status
+nlm source list <nb> --quiet           # IDs only
+nlm source get <source-id>             # Metadata
+nlm source describe <source-id>        # AI summary + keywords
+nlm source content <source-id>         # Raw indexed text
+nlm source content <source-id> --output file.txt
+nlm source rename <source-id> "New" --notebook <nb>
+nlm source delete <source-id> --confirm
+nlm source stale <nb>                  # Drive sources needing refresh
+nlm source sync <nb> --confirm         # Sync all stale Drive sources
 ```
 
-Supported types: PDFs, YouTube URLs, web URLs, Google Docs/Drive, text files, Markdown, Word docs, audio files, video files, images.
+Supported file types: PDF, TXT, MD, DOCX, CSV, EPUB, audio (MP3/M4A/WAV/AAC/OGG/OPUS),
+video (MP4), images (JPG/PNG/GIF/WEBP).
 
-Source limits by plan: Standard: 50, Plus: 100, Pro: 300, Ultra: 600 per notebook.
+Use `--wait` when you'll query or generate right after adding — it guarantees
+the source is ready.
 
 ## Research
 
-```bash
-# Fast search (5-10 sources, seconds)
-notebooklm source add-research "query"
-notebooklm source add-research "query" --import-all
-
-# Deep search (20+ sources, 2-5 minutes)
-notebooklm source add-research "query" --mode deep --import-all
-notebooklm source add-research "query" --mode deep --no-wait   # Non-blocking
-
-# Google Drive search
-notebooklm source add-research "query" --from drive
-
-# Monitor deep research
-notebooklm research status
-notebooklm research wait --import-all
-notebooklm research wait --import-all --timeout 300
-```
-
-## Chat
+Discover and import web (or Drive) sources:
 
 ```bash
-notebooklm ask "question"                                # Ask current notebook
-notebooklm ask "question" --json                         # With source references
-notebooklm ask "question" -s src_id1 -s src_id2          # Specific sources only
-notebooklm ask "question" --save-as-note                 # Save answer as note
-notebooklm ask "question" --save-as-note --note-title "Title"
-notebooklm ask "question" -c <conversation_id>           # Continue conversation
-notebooklm ask "question" -n <notebook_id>               # Explicit notebook
+# Start (needs a destination: existing notebook or new title)
+nlm research start "query" --notebook-id <nb>              # Fast web (~30s, ~10 sources)
+nlm research start "query" --notebook-id <nb> --mode deep  # Deep web (~5min, ~40-80 sources)
+nlm research start "query" --title "New Research Notebook" # Create destination notebook
+nlm research start "query" --notebook-id <nb> --source drive
+nlm research start "query" --notebook-id <nb> --auto-import  # Wait + import in one shot
+nlm research start "query" --notebook-id <nb> --force      # Override a pending task
 
-# Conversation history
-notebooklm history                    # Show recent Q&A
-notebooklm history --show-all         # Full content
-notebooklm history --json             # JSON format
-notebooklm history --save             # Save as note
-notebooklm history --save --note-title "Summary"
-notebooklm history --clear            # Clear local cache
+# Monitor (polls until done)
+nlm research status <nb>                   # Default max wait 5min
+nlm research status <nb> --max-wait 900    # For deep mode
+nlm research status <nb> --max-wait 0      # Single check, no blocking
+
+# Import discovered sources
+nlm research import <nb> <task-id>                 # Import all
+nlm research import <nb> <task-id> --indices 0,2,5 # Specific ones
+nlm research import <nb> <task-id> --cited-only    # Only cited sources
 ```
 
-JSON chat output includes `references` with `source_id`, `citation_number`, and `cited_text` for each citation.
+Only one research task can be pending per notebook — import or `--force`
+before starting another.
+
+## Chat / Query
+
+One-shot Q&A against notebook sources (persists to the web UI's chat history):
+
+```bash
+nlm notebook query <nb> "question"
+nlm notebook query <nb> "question" --json                  # Includes citations
+nlm notebook query <nb> "question" --source-ids <id1,id2>  # Specific sources
+nlm notebook query <nb> "follow-up" --conversation-id <cid>
+nlm notebook query <nb> "question" --timeout 180           # Default 120s
+
+# Chat behavior (per notebook)
+nlm chat configure <nb> --goal default|learning_guide|custom --prompt "..."
+nlm chat configure <nb> --response-length longer|default|shorter
+```
+
+**Never run `nlm chat start`** — it opens an interactive REPL that agents
+can't control. Use `nlm notebook query` instead.
 
 ## Notes
 
 ```bash
-notebooklm note list                      # List all notes
-notebooklm note create "Title" "Content"  # Create note
-notebooklm note get <note_id>             # Read note
-notebooklm note save <note_id> "New content"  # Update note
-notebooklm note rename <note_id> "New Title"
-notebooklm note delete <note_id>
+nlm note list <nb>
+nlm note create <nb> --content "..." --title "Title"   # --content is required
+nlm note update <nb> <note-id> --content "..." --title "..."
+nlm note delete <nb> <note-id>
 ```
 
-## Artifacts & Generation
+There's no flag to save a query answer as a note directly — pipe the answer
+into `nlm note create` yourself.
 
-All generate commands support:
-- `-s, --source` to limit to specific source(s)
-- `--language` to override output language
-- `--json` for machine-readable output (returns `task_id`)
-- `--retry N` for automatic retry on rate limits
-- `--wait / --no-wait` to control blocking behavior
+## Generation (Studio)
 
-| Type | Command | Key Options | Download Format |
-|------|---------|-------------|-----------------|
-| Podcast | `generate audio` | `--format [deep-dive\|brief\|critique\|debate]`, `--length [short\|default\|long]` | .mp3 |
-| Video | `generate video` | `--format [explainer\|brief]`, `--style [auto\|classic\|whiteboard\|kawaii\|anime\|watercolor\|retro-print\|heritage\|paper-craft]` | .mp4 |
-| Slide Deck | `generate slide-deck` | `--format [detailed\|presenter]`, `--length [default\|short]` | .pdf / .pptx |
-| Slide Revision | `generate revise-slide "prompt" --artifact <id> --slide N` | `--wait` | *(re-download parent deck)* |
-| Infographic | `generate infographic` | `--orientation [landscape\|portrait\|square]`, `--detail [concise\|standard\|detailed]` | .png |
-| Report | `generate report` | `--format [briefing-doc\|study-guide\|blog-post\|custom]`, `--append "instructions"` | .md |
-| Mind Map | `generate mind-map` | *(sync, instant)* | .json |
-| Data Table | `generate data-table` | description required | .csv |
-| Quiz | `generate quiz` | `--difficulty [easy\|medium\|hard]`, `--quantity [fewer\|standard\|more]` | .json/.md/.html |
-| Flashcards | `generate flashcards` | `--difficulty [easy\|medium\|hard]`, `--quantity [fewer\|standard\|more]` | .json/.md/.html |
+All generation commands take the notebook ID first and support:
+`--confirm`/`-y` (skip prompt — required for automation),
+`--source-ids <id1,id2>`, `--language <bcp-47>`, `--profile <name>`.
+
+| Type | Command | Key Options |
+|------|---------|-------------|
+| Podcast | `nlm audio create <nb>` | `--format deep_dive\|brief\|critique\|debate`, `--length short\|default\|long`, `--focus "topic"` |
+| Video | `nlm video create <nb>` | `--format explainer\|brief\|cinematic\|short`, `--style auto_select\|classic\|whiteboard\|kawaii\|anime\|watercolor\|retro_print\|heritage\|paper_craft`, `--focus "direction"` |
+| Report | `nlm report create <nb>` | `--format "Briefing Doc"\|"Study Guide"\|"Blog Post"\|"Create Your Own"`, `--prompt "..."` (required for Create Your Own) |
+| Mind map | `nlm mindmap create <nb>` | `--title "..."` |
+| Quiz | `nlm quiz create <nb>` | `--count N` (default 2), `--difficulty 1-5` (default 2), `--focus "..."` |
+| Flashcards | `nlm flashcards create <nb>` | `--difficulty easy\|medium\|hard` |
+| Slides | `nlm slides create <nb>` | `--format detailed_deck\|presenter_slides`, `--length short\|default` |
+| Slide revision | `nlm slides revise <artifact-id>` | `--slide '<N> <instruction>'` (repeatable; creates a new deck) |
+| Infographic | `nlm infographic create <nb>` | `--orientation landscape\|portrait\|square`, `--detail concise\|standard\|detailed` |
+| Data table | `nlm data-table create <nb> "description"` | Description argument is required |
+
+Notes:
+- Report format names are quoted strings ("Study Guide"), not slugs.
+- Built-in report formats take no extra instructions — use
+  `--format "Create Your Own" --prompt "..."` for custom structure/audience.
+- Audio accent follows the BCP-47 region subtag (`es-419` vs `es-ES`);
+  prompt text does not reliably override it.
+- Video `short` format is vertical ~60s, English-only, no `--style`.
+
+## Artifact Status
+
+Generation is asynchronous. Poll before downloading:
 
 ```bash
-# Artifact management
-notebooklm artifact list                        # List all artifacts
-notebooklm artifact list --json                 # JSON with status
-notebooklm artifact get <artifact_id>           # Details
-notebooklm artifact wait <artifact_id>          # Block until done
-notebooklm artifact wait <id> --timeout 600     # Custom timeout
-notebooklm artifact poll <id>                   # Single status check
-notebooklm artifact rename <id> "New Name"
-notebooklm artifact delete <id>
-notebooklm artifact suggestions                 # AI-suggested report topics
+nlm studio status <nb>              # All artifacts + status
+nlm studio status <nb> --json       # Machine-readable
+nlm studio status <nb> --full       # All details
+nlm studio delete <nb> <artifact-id> --confirm
 ```
+
+Wait for "completed" and note the artifact ID. Sleep 30-60s between polls for
+audio/video; don't spin.
 
 ## Downloads
 
+Downloads take the notebook ID and fetch the **latest** artifact of that type
+unless `--id <artifact-id>` is given. Use `--output`/`-o` for the path
+(otherwise a default name like `<nb>_report.md` lands in the cwd).
+
 ```bash
-notebooklm download audio ./output.mp3
-notebooklm download video ./output.mp4
-notebooklm download slide-deck ./slides.pdf
-notebooklm download slide-deck ./slides.pptx --format pptx
-notebooklm download report ./report.md
-notebooklm download mind-map ./map.json
-notebooklm download data-table ./data.csv
-notebooklm download quiz quiz.json
-notebooklm download quiz --format markdown quiz.md
-notebooklm download flashcards cards.json
-notebooklm download flashcards --format markdown cards.md
+nlm download audio <nb> --output podcast.mp3            # .mp3
+nlm download video <nb> --output overview.mp4           # .mp4
+nlm download report <nb> --output report.md             # .md/.txt
+nlm download mind-map <nb> --output map.json            # .json
+nlm download slide-deck <nb> --output deck.pdf          # .pdf (default)
+nlm download slide-deck <nb> --format pptx -o deck.pptx # .pptx
+nlm download infographic <nb> --output info.png         # .png
+nlm download data-table <nb> --output data.csv          # .csv
 
-# Batch download all of a type
-notebooklm download <type> --all
+# Quiz/flashcards take the artifact ID and convert formats
+nlm download quiz <nb> <artifact-id> --format json|markdown|html
+nlm download flashcards <nb> <artifact-id> --format json|markdown|html
+```
 
-# Explicit artifact/notebook for parallel safety
-notebooklm download audio ./out.mp3 -a <artifact_id> -n <notebook_id>
+`html` produces a self-contained interactive page with scoring.
+
+## Export to Google Docs/Sheets
+
+```bash
+nlm export to-docs <nb> <artifact-id> --title "My Doc"   # Reports → Google Docs
+nlm export to-sheets <nb> <artifact-id>                  # Data tables → Sheets
+```
+
+## Batch, Cross-Notebook, Pipelines, Tags
+
+```bash
+# Same operation across notebooks
+nlm batch query "question" --notebooks "id1,id2"
+nlm batch query "question" --tags "research"
+nlm batch add-source "https://..." --notebooks "id1,id2"
+
+# Aggregated answer with per-notebook citations
+nlm cross query "Common themes?" --notebooks "id1,id2"
+
+# Multi-step workflows (ingest→podcast, research→report, multi-format)
+nlm pipeline list
+nlm pipeline run ingest-and-podcast --notebook <nb> --input-url "https://..."
+# Custom pipelines: YAML in ~/.notebooklm-mcp-cli/pipelines/
+
+# Local tags for organization + batch targeting
+nlm tag add <nb> --tags "ai,research"
+nlm tag list
+nlm tag select "ai research"     # Find relevant notebooks
 ```
 
 ## Configuration
 
 ```bash
-# Chat persona
-notebooklm configure --mode learning-guide
-notebooklm configure --mode concise
-notebooklm configure --mode detailed
-notebooklm configure --persona "Act as a chemistry tutor"
-notebooklm configure --response-length longer
-
-# Language (global setting, affects all notebooks)
-notebooklm language list          # 80+ supported languages
-notebooklm language get           # Current setting
-notebooklm language set ja        # Set globally
-notebooklm language set zh_Hans --local  # Local only
-
-# Sharing
-notebooklm share status
-notebooklm share public --enable
-notebooklm share add "email@example.com"
-notebooklm share view-level --level editor
+nlm config show                # Current config (TOML; --json available)
+nlm config get <key>
+nlm config set <key> <value>
 ```
+
+Keys: `auth.browser` (auto/chrome/arc/brave/edge/chromium/vivaldi/opera),
+`auth.default_profile`, `output.format` (table/json), `output.color`,
+`output.short_ids`.
 
 ## Output Formats
 
-Commands with `--json` return structured data:
+| Flag | Description | Available on |
+|------|-------------|--------------|
+| (none) | Rich table, compact — token-efficient default | all |
+| `--json` / `-j` | Structured output for parsing | list, get, describe, query, status |
+| `--quiet` / `-q` | IDs only, for piping | list commands |
+| `--full` / `-a` | All columns/details | list, status |
 
-```json
-// notebooklm create "Title" --json
-{"id": "abc123de-...", "title": "Title"}
-
-// notebooklm source add "url" --json
-{"source_id": "def456...", "title": "...", "status": "processing"}
-
-// notebooklm generate audio "..." --json
-{"task_id": "xyz789...", "status": "pending"}
-
-// notebooklm ask "question" --json
-{"answer": "...", "conversation_id": "...", "turn_number": 1,
- "references": [{"source_id": "...", "citation_number": 1, "cited_text": "..."}]}
-```
-
-Status values:
-- Sources: `processing` -> `ready` (or `error`)
-- Artifacts: `pending` or `in_progress` -> `completed` (or `unknown`)
+When stdout is not a TTY (piping to `jq`), JSON is used automatically.
+JSON query output includes citation references back to source IDs.
 
 ## Error Handling
 
 | Error | Cause | Action |
 |-------|-------|--------|
-| Auth/cookie error | Session expired | `notebooklm auth check` then `notebooklm login` |
-| "No notebook context" | Context not set | Use `-n <id>` or `notebooklm use <id>` |
-| "No result found for RPC ID" | Rate limiting | Wait 5-10 min, retry |
-| `GENERATION_FAILED` | Google rate limit | Wait and retry later |
-| Download fails | Generation incomplete | Check `artifact list` for status |
-| Invalid ID | Wrong ID | Run `notebooklm list` to verify |
+| "Cookies have expired" / "authentication may have expired" | Session expired | `nlm login` |
+| "Notebook not found" | Wrong ID | `nlm notebook list` |
+| "Source not found" | Wrong ID | `nlm source list <nb>` |
+| Rate limit / 5xx | Google API flakiness | Auto-retried 3x with backoff; wait a few minutes if it still fails |
+| "Research already in progress" | Pending task | Import it, or `--force` |
+| Download fails | Generation incomplete | Check `nlm studio status <nb>` |
+| Command hangs at a prompt | Missing `--confirm` | Add `--confirm`/`-y` to generation/delete commands |
 
-Exit codes: 0 = success, 1 = error, 2 = timeout (wait commands only).
+## Timing Expectations
 
-## Known Limitations
-
-**Reliable operations** (always work): Notebooks, sources, chat, mind-map, report, data-table generation.
-
-**May hit rate limits:** Audio, video, quiz, flashcard, infographic, slide deck generation. Retry after 5-10 minutes or use web UI as fallback.
-
-**Processing times:**
-
-| Operation | Typical Time | Suggested Timeout |
-|-----------|-------------|-------------------|
-| Source processing | 30s - 10 min | 600s |
-| Research (fast) | 30s - 2 min | 180s |
-| Research (deep) | 15 - 30+ min | 1800s |
-| Notes, mind-map | instant | n/a |
-| Quiz, flashcards | 5 - 15 min | 900s |
-| Report, data-table | 5 - 15 min | 900s |
-| Audio generation | 10 - 20 min | 1200s |
-| Video generation | 15 - 45 min | 2700s |
+| Operation | Typical time |
+|-----------|-------------|
+| Source processing | 30s - a few min (use `--wait` on add) |
+| Research (fast) | ~30s |
+| Research (deep) | ~5 min (allow `--max-wait 900`) |
+| Reports, quizzes, flashcards | 30-60s |
+| Mind map, data table | under a minute |
+| Audio generation | 1-5+ min |
+| Video generation | several minutes |
