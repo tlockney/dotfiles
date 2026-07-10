@@ -21,3 +21,6 @@ fi
 
 . "$HOME/.local/bin/env"
 . "$HOME/.cargo/env"
+
+# Hermes Agent — ensure ~/.local/bin is on PATH
+export PATH="$HOME/.local/bin:$PATH"

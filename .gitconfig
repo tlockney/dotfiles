@@ -3,6 +3,7 @@
   name = Thomas Lockney
   email = thomas@lockney.net
   github = tlockney
+	signingkey = ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDV8/eESUTbQT1/gKktI5rE1+ZgzXG3VGI/L+6w3zVCA1JNw1e0ARTdFj0pqAmhJ1hfbCERB5o3zooVxchPZLnWlyLGrMIWrZXC2csHkYAnqqGgpwJUFssA1ShznP5zExKxloXibKBIU8bZto3hP3OEawPDBwcZ+VPucOG8CkmOTi9rlZykqNguTuO3Aj+7SpxkZqo5EMvZjgbMxO3KPamcOLE+GVb+OZ5ys8byfyaFc+6oVTDttjf73adtbypwyJAdSPupE4wPV+QAjkgS5NiRGb0beDaOKfHhlOGtHasbgYLYNCXWHbTQAX1C3oibd2LdgPz9XHrimnEb9r52S1wE+ZVS8rFu8Q9VbRpg+yuAAYSZ2xbcJpX43uc2PiYeOJtMQ17NSR2OXj4eO1CgJhzgTOxjFpDF0nOFeZ+bi+AqEQ+C0FzZ2ULo0TaNrHBrI7BZvNiH4M7uk8v8vGQzSC7JW1S7PThNC0YeaEbx8PhGBxWjqEWT+UzeTldMIs6Npo8=
 
 [includeIf "gitdir:~/src/metron"]
   path = ~/.gitconfig-metron
@@ -35,3 +36,7 @@
   unstage = reset HEAD --
   last = log -1 HEAD
   scrub = "!git branch --merged | grep -v main | grep -v master | xargs git branch -d"
+[gpg "ssh"]
+	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+[commit]
+	gpgsign = false
