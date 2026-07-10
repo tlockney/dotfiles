@@ -7,12 +7,13 @@
   },
   "attribution": {
     "commit": "",
-    "pr": ""
+    "pr": "",
+    "sessionUrl": false
   },
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "fable",
   "hooks": {
     "PermissionRequest": [
       {
@@ -104,6 +105,7 @@
     }
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "tui": "default",
   "skipDangerousModePermissionPrompt": true,
   "preferredNotifChannel": "terminal_bell",
@@ -112,8 +114,8 @@
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true,
-  "effortLevel": "medium",
   "feedbackSurveyState": {
     "lastShownTime": 1754111802128
-  }
+  },
+  "autoUpdates": true
 }
