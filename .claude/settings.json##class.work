@@ -150,23 +150,24 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "pr-review-toolkit@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": false,
     "obsidian@obsidian-skills": true,
-    "context7@claude-plugins-official": true,
+    "context7@claude-plugins-official": false,
     "learning-output-style@claude-plugins-official": false,
     "superpowers@claude-plugins-official": true,
     "metron-tools@metron-plugins": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": false,
+    "rust-analyzer-lsp@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
     "linear@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "lua-lsp@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": false,
+    "lua-lsp@claude-plugins-official": false,
     "skill-creator@claude-plugins-official": true,
-    "slack@claude-plugins-official": true,
+    "slack@claude-plugins-official": false,
     "frontend-design@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true,
-    "ponytail@ponytail": true
+    "claude-code-setup@claude-plugins-official": false,
+    "ponytail@ponytail": true,
+    "metron-skills@metron-skills": true
   },
   "extraKnownMarketplaces": {
     "obsidian-skills": {
@@ -192,10 +193,17 @@
         "source": "github",
         "repo": "DietrichGebert/ponytail"
       }
+    },
+    "metron-skills": {
+      "source": {
+        "source": "git",
+        "url": "git@github.com:Thomas-Lockney_metron/agent-skills.git"
+      },
+      "autoUpdate": true
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
+  "effortLevel": "low",
   "skipDangerousModePermissionPrompt": true,
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
