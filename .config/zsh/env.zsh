@@ -22,6 +22,12 @@ if command -v brew &>/dev/null; then
   [[ -d "$BREW_PREFIX/share/zsh-completions" ]] && fpath=("$BREW_PREFIX/share/zsh-completions" $fpath)
 fi
 
-# Dev caches relocated to external SSD (macmini storage optimization)
-export HOMEBREW_CACHE=/Volumes/Secondary/home/dev-caches/homebrew-cache
-export UV_CACHE_DIR=/Volumes/Secondary/home/dev-caches/uv-cache
+# Dev caches relocated to external SSD (macmini storage optimization).
+# Hostname-guarded: other machines don't have this volume, and Homebrew
+# fails hard when HOMEBREW_CACHE points at an uncreatable path. Deliberately
+# not a -d check — stat'ing /Volumes/Secondary at shell startup can hang in
+# D-state if the volume is unresponsive (see cargo note in .zshenv).
+if [[ "${HOST%%.*}" == "m4mini" ]]; then
+  export HOMEBREW_CACHE=/Volumes/Secondary/home/dev-caches/homebrew-cache
+  export UV_CACHE_DIR=/Volumes/Secondary/home/dev-caches/uv-cache
+fi
