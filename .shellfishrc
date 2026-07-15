@@ -4,12 +4,14 @@
 #
 # Running from Secure ShellFish
 # this gives access to:
+#  download to save files on device
 #  openUrl to open pages or deeps links
 #  pbcopy to copy text to iOS clipboard
 #  pbpaste to paste from iOS clipboard
 #  quicklook to preview files
 #  runShortcut to run Shortcuts
 #  setbarcolor to change toolbar color
+#  settitle to change the terminal title
 #  sharesheet to invoke iOS share sheet
 #  snip to add new snippets
 #
@@ -154,7 +156,35 @@ EOF
     ios_sequence "$OUTPUT"
     ios_handleResult "$FIFO"
   }
-  
+
+  download() {
+    if [[ $# -eq 0 ]]; then
+      cat <<EOF
+Usage: download [FILE]...
+
+Download files or directories saving them on the device with a file picker.
+EOF
+      return 0
+    fi
+
+    FIFO=$(ios_prepareResult)
+    OUTPUT=$(
+      awk 'BEGIN {printf "6;download://?ver=2&respond="}'
+      ios_printBase64Component "$FIFO"
+      awk 'BEGIN {printf "&pwd="}'
+      ios_printBase64Component "$PWD"
+      awk 'BEGIN {printf "&home="}'
+      ios_printBase64Component "$HOME"
+      for var in "$@"
+      do
+        awk 'BEGIN {printf "&path="}'
+        ios_printBase64Component "$var"
+      done
+     )
+    ios_sequence "$OUTPUT"
+    ios_handleResult "$FIFO"
+  }
+
   quicklook() {
     if [[ $# -eq 0 ]]; then
       if tty -s; then
@@ -207,6 +237,35 @@ EOF
     fi
   }
   
+  settitle() {
+    if [[ $# -eq 0 ]]; then
+      cat <<EOF
+Usage: settitle <title>
+
+Set the terminal title shown in the tab and window with the standard
+OSC 2 escape sequence. Call with an empty string to restore the default.
+
+   settitle "Build server"
+   settitle ""
+EOF
+    else
+      # emit OSC 2 directly with quoted printf so spaces in the
+      # title survive (ios_sequence strips whitespace)
+      if [[ -n "$TMUX" ]]; then
+        OUTPUT=$(ios_printf '\033Ptmux;\033\033]2;'; printf '%s' "$*"; ios_printf '\a\033\\')
+      else
+        OUTPUT=$(ios_printf '\033]2;'; printf '%s' "$*"; ios_printf '\a')
+      fi
+      if [ -t 1 ] ; then
+        printf '%s' "$OUTPUT"
+      elif [[ -n "$SSH_TTY" ]]; then
+        printf '%s' "$OUTPUT" > $SSH_TTY
+      else
+        echo >&2 'Standard output is not tty and there is no $SSH_TTY'
+      fi
+    fi
+  }
+
   openUrl() {
     if [[ $# -eq 0 ]]; then
       cat <<EOF
