@@ -65,11 +65,13 @@ When asked to research, compare, or survey topics, use the `notebooklm-researche
 
 ## Rendering documents to HTML / Artifacts
 
-For **simple documents** (notes, reports, investigation writeups, plans — mostly prose + tables), default to the gentle "parchment" theme at `~/.claude/assets/parchment-doc.css`: a warm low-glare parchment surface, soft slate text, warm-toned tables. Build by converting markdown with `pandoc <file> -f gfm -t html`, wrapping the body in `<div class="wrap">…</div>`, and inlining the CSS in a `<style>` block (Artifacts can't load external stylesheets). Don't hand-roll a new palette for ordinary docs — this is the sane default.
+**Default to the `field-dossier-html` skill** for rendered documents: dark evergreen cover band with a verdict strip, warm paper body, brass + verdigris accents, scrollspy TOC, faceoff comparison tables, hover-tooltip glossary. It was built for assessment documents (reviews, audits, comparisons, remediation plans, research briefings) but is the preferred style unless one of the exceptions below clearly fits better.
 
-For **distinctive / rich / diagram-heavy long-form** docs (architecture writeups, library or system-internals guides, postmortems, design records, RFCs, runbooks, playbooks — anything wanting inline SVG/Mermaid, hover states, or a published-handbook feel), use the `editorial-longform-html` skill instead. Its use cases overlap with the above, so choose by need: editorial when the doc warrants that gravitas/interactivity, the parchment default when it just needs clean, easy-on-the-eyes readability.
+Exception — **distinctive / rich / diagram-heavy long-form reference** docs (architecture writeups, library or system-internals guides, postmortems, design records, RFCs, runbooks, playbooks — anything wanting inline SVG/Mermaid, hover states, or a published-handbook feel): use the `editorial-longform-html` skill.
 
-For **assessment documents with a verdict** (reviews, audits, comparisons, remediation plans, research briefings — anything that evaluates something and lands on a recommendation), use the `field-dossier-html` skill: dark evergreen cover band with a verdict strip, warm paper body, brass + verdigris accents, scrollspy TOC, faceoff comparison tables, hover-tooltip glossary. Choose by document shape: dossier when there's a judgment to deliver, editorial when it's a lasting reference, parchment when it's just a clean read.
+Exception — **simple documents** (quick notes, plans — mostly prose + tables, no verdict, no handbook gravitas): the gentle "parchment" theme at `~/.claude/assets/parchment-doc.css` — a warm low-glare parchment surface, soft slate text, warm-toned tables. Build by converting markdown with `pandoc <file> -f gfm -t html`, wrapping the body in `<div class="wrap">…</div>`, and inlining the CSS in a `<style>` block (Artifacts can't load external stylesheets). Don't hand-roll a new palette.
+
+When in doubt, use the dossier style.
 
 ## Machine-local overrides
 
