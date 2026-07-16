@@ -14,8 +14,10 @@
 **/.claude/settings.local.json
 
 # Materialized per-machine Claude context — only the class alt-files
-# (local.md##class.work, local.md##class.personal) should be tracked.
+# (local.md##class.work / .personal, settings.json##class.work / .personal)
+# should be tracked; yadm alt materializes the bare files per machine.
 .claude/local.md
+.claude/settings.json
 
 .config/zsh/local.zsh
 .config/raycast-extensions/*/node_modules/

@@ -18,5 +18,8 @@ function prepend_to_path {
 # This is necessary because mise's hook-env replaces PATH entirely and would
 # otherwise move user directories to the end.
 
+# bun global bin (gbrain etc.)
+prepend_to_path "$HOME/.bun/bin"
+
 # Note: path_helper is already called by brew shellenv in env.zsh
 # Calling it again here would move user paths to the end of PATH
