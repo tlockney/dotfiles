@@ -176,6 +176,7 @@
             - glow
             - jless
             - jq
+            - just
             - lazygit
             - mise
             - pandoc
@@ -399,6 +400,16 @@
       shell: "{{ ansible_facts.env.HOME }}/.cargo/bin/cargo install cargo-update"
       args:
         creates: "{{ ansible_facts.env.HOME }}/.cargo/bin/cargo-install-update"
+
+    # just comes from Homebrew on macOS and 64-bit Linux; only 32-bit ARM
+    # (no Homebrew) falls back to building it from source via cargo. The
+    # "Update cargo packages" task below then keeps it current.
+    - name: Install just via cargo (non-Homebrew systems)
+      tags: [setup, rust]
+      when: not homebrew_supported
+      shell: "{{ ansible_facts.env.HOME }}/.cargo/bin/cargo install just"
+      args:
+        creates: "{{ ansible_facts.env.HOME }}/.cargo/bin/just"
 
     - name: Update cargo packages
       tags: [rust]

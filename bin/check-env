@@ -30,7 +30,7 @@ fi
 
 echo ""
 info "Checking for essential commands..."
-commands_to_check="eza bat fd rg atuin mise"
+commands_to_check="eza bat fd rg atuin mise just"
 missing=0
 for cmd in $commands_to_check; do
   if has_command "$cmd"; then
