@@ -34,7 +34,7 @@ fi
 
 # File system navigation and viewing with eza/exa
 if command -v eza >/dev/null 2>&1; then
-  STD_OPTIONS='-g --group-directories-first --icons --hyperlink'
+  STD_OPTIONS='-g --group-directories-first --icons --hyperlink=auto '
   TREE_IGNORE="cache|log|logs|node_modules|vendor"
   alias l="eza $STD_OPTIONS"
   alias ls="l"
