@@ -154,7 +154,7 @@
     "obsidian@obsidian-skills": true,
     "context7@claude-plugins-official": false,
     "learning-output-style@claude-plugins-official": false,
-    "superpowers@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
     "metron-tools@metron-plugins": true,
     "typescript-lsp@claude-plugins-official": false,
     "rust-analyzer-lsp@claude-plugins-official": false,
@@ -167,7 +167,8 @@
     "frontend-design@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": false,
     "ponytail@ponytail": true,
-    "metron-skills@metron-skills": true
+    "metron-skills@metron-skills": true,
+    "tlockney@tlockney-skills": true
   },
   "extraKnownMarketplaces": {
     "obsidian-skills": {
@@ -200,6 +201,12 @@
         "url": "git@github.com:Thomas-Lockney_metron/agent-skills.git"
       },
       "autoUpdate": true
+    },
+    "tlockney-skills": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/thomas.lockney/src/personal/agent-skills"
+      }
     }
   },
   "alwaysThinkingEnabled": true,
