@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "cleanupPeriodDays": "365",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "fable",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/capture-plan.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/thomas.lockney/.claude/shellfish-notify.sh claude"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/inject-project-context.ts"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": []
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/thomas.lockney/.claude/shellfish-notify.sh claude"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/capture-plan.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/thomas.lockney/.orca/agent-hooks/claude-hook.sh'; fi"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y ccstatusline@latest",
+    "padding": 0
+  },
+  "enabledPlugins": {
+    "pr-review-toolkit@claude-plugins-official": false,
+    "obsidian@obsidian-skills": true,
+    "context7@claude-plugins-official": false,
+    "learning-output-style@claude-plugins-official": false,
+    "superpowers@claude-plugins-official": false,
+    "metron-tools@metron-plugins": true,
+    "typescript-lsp@claude-plugins-official": false,
+    "rust-analyzer-lsp@claude-plugins-official": false,
+    "gopls-lsp@claude-plugins-official": true,
+    "linear@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": false,
+    "lua-lsp@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": true,
+    "slack@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": false,
+    "ponytail@ponytail": true,
+    "metron-skills@metron-skills": true,
+    "tlockney@tlockney-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "obsidian-skills": {
+      "source": {
+        "source": "github",
+        "repo": "kepano/obsidian-skills"
+      }
+    },
+    "metron-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "Metron-SWEng/claude-resources"
+      }
+    },
+    "claude-video": {
+      "source": {
+        "source": "github",
+        "repo": "bradautomates/claude-video"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "metron-skills": {
+      "source": {
+        "source": "git",
+        "url": "git@github.com:Thomas-Lockney_metron/agent-skills.git"
+      },
+      "autoUpdate": true
+    },
+    "tlockney-skills": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/thomas.lockney/src/personal/agent-skills"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "medium",
+  "skipDangerousModePermissionPrompt": true,
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true,
+  "feedbackSurveyState": {
+    "lastShownTime": 1754111802128
+  },
+  "autoUpdates": true
+}
