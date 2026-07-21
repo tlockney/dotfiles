@@ -76,10 +76,10 @@
     "@raycast/utils": "^1.17.0"
   },
   "devDependencies": {
-    "@raycast/eslint-config": "^1.0.11",
+    "@raycast/eslint-config": "^2.2.0",
     "@types/node": "^20.10.0",
     "@types/react": "^19.0.0",
-    "eslint": "^8.57.0",
+    "eslint": "^10.7.0",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4"
   },
