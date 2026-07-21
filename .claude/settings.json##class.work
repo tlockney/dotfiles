@@ -12,7 +12,7 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "fable",
+  "model": "opus",
   "hooks": {
     "PostToolUse": [
       {
@@ -168,7 +168,8 @@
     "claude-code-setup@claude-plugins-official": false,
     "ponytail@ponytail": true,
     "metron-skills@metron-skills": true,
-    "tlockney@tlockney-skills": true
+    "tlockney@tlockney-skills": true,
+    "i-have-adhd@i-have-adhd": true
   },
   "extraKnownMarketplaces": {
     "obsidian-skills": {
@@ -206,6 +207,12 @@
       "source": {
         "source": "directory",
         "path": "/Users/thomas.lockney/src/personal/agent-skills"
+      }
+    },
+    "i-have-adhd": {
+      "source": {
+        "source": "github",
+        "repo": "ayghri/i-have-adhd"
       }
     }
   },

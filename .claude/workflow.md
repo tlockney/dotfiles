@@ -126,3 +126,5 @@ git worktree add worktrees/ISSUE-123-description -b ISSUE-123-description
 # 5. Create PR
 gh pr create --title "..." --body "..." --base main
 ```
+
+**Never pass `--draft` to `gh pr create`.** Open PRs as ready for review unless I explicitly ask for a draft.
