@@ -1,7 +1,10 @@
 # Atuin shell history — guard against missing binary
 [ -f "$HOME/.atuin/bin/env" ] && . "$HOME/.atuin/bin/env"
 
-. "$HOME/.local/bin/env"
+# Guarded like the atuin line above: written by the uv/rustup installers, and
+# absent on a machine that has not run them, where sourcing it unconditionally
+# aborts the shell with status 127.
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
 # Cargo environment
 # ~/.cargo is a symlink to /Volumes/Secondary which can hang in uninterruptible
