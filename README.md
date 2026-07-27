@@ -111,17 +111,17 @@ done
 
 ### Development Workflow
 
-Each piece of work gets its own worktree on its own branch. `~/src/personal/dotfiles`
-stays parked on `working-branch` as a stable, up-to-date checkout, and is not
-where edits happen — that way a half-finished change never blocks switching to
-something else, and two tasks never share a working tree.
+Each piece of work gets its own worktree on its own branch.
+`~/src/personal/dotfiles` is the launcher: a checkout kept detached at
+`origin/main`, used to read the tree and start tasks from, never to edit in.
+Detached rather than on a branch for two reasons — a linked worktree cannot
+check out `main`, because `$HOME` already has it, and having no branch there
+means there is nowhere for a stray edit to accumulate.
 
 ```sh
 # From ~/src/personal/dotfiles — start a task
-git fetch origin
-git worktree add ../dotfiles-worktrees/<task> -b <task> origin/main
+just worktree <task>
 cd ../dotfiles-worktrees/<task>
-mise trust          # required: see note below
 
 # ... edit, then validate before anything reaches $HOME ...
 just check
@@ -139,18 +139,18 @@ After the PR merges, apply it to the live dotfiles and clean up:
 yadm fetch && yadm merge origin/main
 
 # From ~/src/personal/dotfiles
-git fetch origin && git merge --ff-only origin/main   # keep the parked checkout current
-git worktree remove ../dotfiles-worktrees/<task>
-git branch -d <task>
+just worktree-done <task>     # removes the worktree, deletes the branch,
+                              # and re-parks this checkout at origin/main
 ```
 
-**`mise trust` is not optional.** This repo ships `.config/mise/config.toml`, so
-mise treats any checkout of it as a project config — and refuses to run until
-that specific path is trusted. A newly created worktree is untrusted by
-default, and until you trust it every mise-shimmed binary (`python3`, `node`,
-`uvx`, …) exits 1 with a trust error instead of running. The symptom is
-confusing, because the failure surfaces wherever the shim was called rather
-than as anything about mise.
+`just worktree` handles the `mise trust` step for you, which matters because
+**it is not optional**. This repo ships `.config/mise/config.toml`, so mise
+treats any checkout of it as a project config — and refuses to run until that
+specific path is trusted. A newly created worktree is untrusted by default,
+and until you trust it every mise-shimmed binary (`python3`, `node`, `uvx`, …)
+exits 1 with a trust error instead of running. The symptom is confusing,
+because the failure surfaces wherever the shim was called rather than as
+anything about mise.
 
 Conventions worth keeping to:
 
@@ -279,7 +279,11 @@ Scripts should handle both macOS and Linux:
 Since yadm places all the files in situ, it's unlikely going to be a good idea to run `claude` in your home directory. Instead, run it in this checkout and follow the standard development workflow:
 
 1. `cd ~/src/personal/dotfiles` (or wherever this repo is checked out)
-2. Make sure you're on `working-branch`: `git checkout working-branch`
-3. Run `claude` and make whatever changes you need.
-4. Commit and push with standard `git` commands.
-5. When ready, apply to your home directory: `yadm merge working-branch`
+2. Start a task worktree: `just worktree <task>`, then `cd` into the path it prints.
+3. Run `claude` there and make whatever changes you need.
+4. Run `just check`, then commit and push with standard `git` commands and open a PR.
+5. After it merges, apply to your home directory: `yadm fetch && yadm merge origin/main`
+
+Run `claude` in the task worktree, not in `~/src/personal/dotfiles` itself —
+that checkout is detached at `origin/main` and is only there to read from and
+launch tasks from.
