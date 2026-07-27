@@ -10,8 +10,11 @@ check-env:
     ~/bin/check-env
 
 # Run the same checks CI runs (syntax, config parsing, shell startup, emacs, ansible)
+# Deliberately ./bin, not ~/bin: this validates the checkout you are standing
+# in, so it does the right thing from a worktree. The other recipes below use
+# ~/bin because they act on the live system instead.
 check *SECTION:
-    ~/bin/check-dotfiles {{ SECTION }}
+    ./bin/check-dotfiles {{ SECTION }}
 
 # Lint all shell scripts with shellcheck (advisory; not run in CI)
 lint:

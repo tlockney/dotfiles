@@ -111,14 +111,66 @@ done
 
 ### Development Workflow
 
-This repo uses a staging workflow to safely iterate on dotfiles before applying them to the home directory.
+Each piece of work gets its own worktree on its own branch. `~/src/personal/dotfiles`
+stays parked on `working-branch` as a stable, up-to-date checkout, and is not
+where edits happen — that way a half-finished change never blocks switching to
+something else, and two tasks never share a working tree.
 
-1. **Edit on `working-branch`** — All changes are made in this checkout (e.g., `~/src/personal/dotfiles`) on the `working-branch` branch.
-2. **Commit and push** — Use standard `git` CLI commands to commit and push changes, keeping a history of iterations.
-3. **Merge into home directory** — When ready, switch to the home directory and run `yadm merge working-branch` to apply changes to the live dotfiles.
-4. **Revert if needed** — If something breaks, yadm's git history makes it straightforward to revert to a known good state (e.g., `yadm revert` or `yadm checkout` specific files).
+```sh
+# From ~/src/personal/dotfiles — start a task
+git fetch origin
+git worktree add ../dotfiles-worktrees/<task> -b <task> origin/main
+cd ../dotfiles-worktrees/<task>
+mise trust          # required: see note below
 
-This keeps experimental changes isolated until they're validated, while still tracking everything in version control.
+# ... edit, then validate before anything reaches $HOME ...
+just check
+
+git add -- <specific paths>
+git commit
+git push -u origin <task>
+gh pr create --base main
+```
+
+After the PR merges, apply it to the live dotfiles and clean up:
+
+```sh
+# From $HOME — this is the yadm main worktree, checked out on main
+yadm fetch && yadm merge origin/main
+
+# From ~/src/personal/dotfiles
+git fetch origin && git merge --ff-only origin/main   # keep the parked checkout current
+git worktree remove ../dotfiles-worktrees/<task>
+git branch -d <task>
+```
+
+**`mise trust` is not optional.** This repo ships `.config/mise/config.toml`, so
+mise treats any checkout of it as a project config — and refuses to run until
+that specific path is trusted. A newly created worktree is untrusted by
+default, and until you trust it every mise-shimmed binary (`python3`, `node`,
+`uvx`, …) exits 1 with a trust error instead of running. The symptom is
+confusing, because the failure surfaces wherever the shim was called rather
+than as anything about mise.
+
+Conventions worth keeping to:
+
+- **Branch from `origin/main`, not from whatever is checked out.** Worktrees
+  are cheap precisely because they don't inherit each other's state.
+- **Stage with explicit paths.** `git add -- <paths>` then `git commit`, never a
+  bare `git commit` after a `git rm` — a bare commit takes the whole index and
+  will quietly sweep unrelated staged changes into your commit.
+- **Never `git checkout main` in a linked worktree.** `main` is checked out by
+  the yadm main worktree at `$HOME`; git will refuse, and forcing it is how you
+  end up with `$HOME` on a detached HEAD.
+- **`just check` before pushing.** It runs exactly what CI runs, against the
+  checkout you are standing in, so a shell that would fail to start is caught
+  before `yadm merge` rather than after.
+- **One worktree per task, removed when merged.** `git worktree list` should be
+  short; stale worktrees hold branch checkouts and get stale silently.
+
+Why not edit directly in `$HOME`? It is the yadm main worktree on `main`, so
+there is no staging step between an edit and your live environment — a broken
+`.zshrc` locks you out of new terminals immediately.
 
 ### Tool Management
 
@@ -154,13 +206,33 @@ provision --extra-vars "is_desktop=false"
 
 To add new tools, edit `.config/dotfiles/playbook.yml`. To change runtime versions (node, python, etc.), edit `.mise.toml`.
 
-### Shell Script Linting
+### Checks
 
-All shell scripts should pass shellcheck:
+`just check` runs the same checks CI runs, against the checkout you are
+standing in. Run it before pushing.
 
 ```sh
-~/bin/lint-shell
+just check            # everything
+just check shell      # one section: syntax | configs | shell | emacs | ansible
 ```
+
+| Section | What it does |
+|---|---|
+| `syntax` | `zsh -n` over the zsh files, `bash -n` over the bash and sh files |
+| `configs` | TOML, YAML, JSON and Lua parse checks (VS Code's JSONC included) |
+| `shell` | Stages the tracked shell config into an empty `HOME` and actually starts `zsh -i`, `zsh -l` and `bash -l` there |
+| `emacs` | Boots `init.el` against an empty init-directory, the way a new machine does |
+| `ansible` | `--syntax-check` on the provisioning playbook |
+
+The `shell` section is the one that earns its keep: it catches an unguarded
+`source` of a file that happens to exist on this machine but not on a fresh
+one, which is a class of bug no syntax-level tool can see. A check whose tool
+is missing reports `SKIP` rather than passing, and the script refuses to
+report success if it matched no files at all.
+
+`~/bin/lint-shell` still runs shellcheck over `bin/`, as an advisory local
+tool. It is not part of CI: shellcheck cannot parse zsh, which is what most of
+this configuration is written in.
 
 ## Repository Structure
 

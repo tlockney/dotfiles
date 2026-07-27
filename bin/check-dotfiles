@@ -23,6 +23,27 @@ source "${SCRIPT_DIR}/lib/common.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}" || exit 1
 
+# Checks run against the checkout this script lives in, which is what makes it
+# usable from a worktree. Refuse to run if that is not a git checkout at all --
+# otherwise `git ls-files` returns nothing and every section trivially
+# "passes", which is the most dangerous result this script could produce.
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    error "${REPO_ROOT} is not a git checkout; refusing to report a pass over nothing"
+fi
+
+# This repo ships .config/mise/config.toml, so mise picks it up as a project
+# config whenever the cwd is inside a checkout. Until that path is trusted,
+# every mise-shimmed binary -- python3, node, uvx -- exits 1 instead of
+# running, which is the default state of a freshly created worktree. Probe for
+# it up front: otherwise the failure arrives as dozens of bogus "parse error"s
+# pointing at perfectly valid config files.
+if has_command python3 && ! python3 -c 'pass' >/dev/null 2>&1; then
+    probe=$(python3 -c 'pass' 2>&1 | head -2)
+    error "python3 will not run in ${REPO_ROOT}:
+${probe}
+  If that mentions mise, this checkout is untrusted. Run: mise trust"
+fi
+
 FAILURES=0
 CHECKED=0
 
@@ -262,4 +283,12 @@ if [[ $FAILURES -gt 0 ]]; then
     echo "${FAILURES} check(s) failed, ${CHECKED} passed" >&2
     exit 1
 fi
+
+# "All 0 checks passed" is not a pass. If a section matched no files at all,
+# something is wrong with where or how this ran, and reporting success would
+# hide it.
+if [[ $CHECKED -eq 0 ]]; then
+    error "no files were checked -- expected at least one match in ${REPO_ROOT}"
+fi
+
 success "All ${CHECKED} checks passed"
