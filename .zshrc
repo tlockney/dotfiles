@@ -18,4 +18,6 @@ source_if_exists "$HOME/.config/zsh/prompt.zsh"
 source_if_exists "$HOME/.config/zsh/aliases.zsh"
 source_if_exists "$HOME/.config/zsh/open-agent.zsh"
 
-. "$HOME/.local/bin/env"
+# Written by the uv/rustup installers; absent on a machine that has not run
+# them yet, where an unguarded source aborts the whole shell with status 127.
+source_if_exists "$HOME/.local/bin/env"

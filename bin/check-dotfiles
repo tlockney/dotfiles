@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+#
+# Validate the dotfiles the way they actually fail.
+#
+# The failure mode for this repo is not an unquoted variable in a helper
+# script -- it is "I merged, opened a terminal, and my shell is broken", or
+# "I provisioned a new laptop and the bootstrap died". These checks target
+# that, and every one of them runs locally as well as in CI, so a broken
+# shell can be caught before `yadm merge` rather than after.
+#
+# Usage:
+#   check-dotfiles              # everything available on this machine
+#   check-dotfiles syntax       # one section (syntax|configs|shell|emacs|ansible)
+#
+# Exits non-zero if any check fails.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "${SCRIPT_DIR}/lib/common.sh"
+
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${REPO_ROOT}" || exit 1
+
+FAILURES=0
+CHECKED=0
+
+fail() { echo "  FAIL  $*" >&2; FAILURES=$((FAILURES + 1)); }
+pass() { CHECKED=$((CHECKED + 1)); }
+
+# Only consider files git knows about, so untracked scratch never breaks CI.
+tracked() { git ls-files -z "$@"; }
+
+# A check that needs a tool we don't have is reported and skipped, never
+# silently passed -- a green run that quietly checked nothing is worse than
+# a red one.
+need() {
+    if has_command "$1"; then
+        return 0
+    fi
+    warn "  SKIP  ${2:-$1 checks}: $1 not installed"
+    return 1
+}
+
+# ---------------------------------------------------------------- syntax
+
+check_syntax() {
+    print_section "Shell syntax"
+
+    if need zsh "zsh syntax"; then
+        while IFS= read -r -d '' f; do
+            if out=$(zsh -n "$f" 2>&1); then pass; else fail "$f: $out"; fi
+        done < <(tracked '*.zsh' .zshrc .zshenv .zprofile)
+    fi
+
+    if need bash "bash syntax"; then
+        while IFS= read -r -d '' f; do
+            if out=$(bash -n "$f" 2>&1); then pass; else fail "$f: $out"; fi
+        done < <(tracked .bashrc .bash_profile .profile '.config/shell/*.sh')
+
+        # Executables in bin/ that declare a bash or sh shebang.
+        while IFS= read -r -d '' f; do
+            head -n1 "$f" | grep -qE '^#! */[^ ]*/(env +)?(bash|sh)' || continue
+            if out=$(bash -n "$f" 2>&1); then pass; else fail "$f: $out"; fi
+        done < <(tracked 'bin/*')
+    fi
+}
+
+# --------------------------------------------------------------- configs
+
+check_configs() {
+    print_section "Config file syntax"
+
+    if need python3 "TOML/JSON checks"; then
+        while IFS= read -r -d '' f; do
+            if out=$(python3 -c 'import tomllib,sys; tomllib.load(open(sys.argv[1],"rb"))' "$f" 2>&1); then
+                pass
+            else
+                fail "$f: ${out##*tomllib.}"
+            fi
+        done < <(tracked '*.toml')
+
+        # VS Code settings are JSONC: comments and trailing commas are legal
+        # there and a strict JSON parser rejects them, so they are checked
+        # with the comments stripped rather than skipped outright.
+        while IFS= read -r -d '' f; do
+            if out=$(python3 "${SCRIPT_DIR}/lib/check-json.py" "$f" 2>&1); then
+                pass
+            else
+                fail "$f: $out"
+            fi
+        done < <(tracked '*.json')
+    fi
+
+    # yq if it is around, otherwise PyYAML, so CI does not need a yq install
+    # just for this. Note neither uses `yq -e`: a comment-only document is
+    # valid YAML that evaluates to null, and -e would call that a failure.
+    local yaml_check=()
+    if has_command yq; then
+        yaml_check=(yq '.')
+    elif python3 -c 'import yaml' 2>/dev/null; then
+        yaml_check=(python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))')
+    else
+        warn "  SKIP  YAML checks: neither yq nor PyYAML available"
+    fi
+    if [[ ${#yaml_check[@]} -gt 0 ]]; then
+        while IFS= read -r -d '' f; do
+            if out=$("${yaml_check[@]}" "$f" 2>&1 >/dev/null); then pass; else fail "$f: $out"; fi
+        done < <(tracked '*.yml' '*.yaml')
+    fi
+
+    # Distros ship the compiler as luac5.4, luac5.3, ... rather than plain luac.
+    local luac=""
+    for candidate in luac luac5.4 luac5.3 luac5.2 luajit; do
+        has_command "$candidate" && { luac="$candidate"; break; }
+    done
+    if [[ -z "$luac" ]]; then
+        warn "  SKIP  Lua checks: no luac found"
+    else
+        while IFS= read -r -d '' f; do
+            if out=$("$luac" -p "$f" 2>&1); then pass; else fail "$f: $out"; fi
+        done < <(tracked '*.lua')
+    fi
+}
+
+# ----------------------------------------------------------------- shell
+
+# The check that earns its keep. Stages the tracked shell config into an
+# empty HOME and actually starts a shell there, which is the only way to
+# catch an unguarded `source` of a file that happens to exist on your own
+# machine but not on a fresh one.
+check_shell_startup() {
+    print_section "Shell startup (clean HOME)"
+
+    need zsh "shell startup" || return 0
+
+    local fake
+    fake=$(mktemp -d) || { fail "could not create temp HOME"; return 1; }
+    trap 'rm -rf "${fake}"' RETURN
+
+    mkdir -p "${fake}/.config"
+    while IFS= read -r -d '' f; do
+        mkdir -p "${fake}/$(dirname "$f")"
+        cp "$f" "${fake}/$f"
+    done < <(tracked .zshrc .zshenv .zprofile .bashrc .bash_profile .profile \
+                     '.config/zsh/*' '.config/shell/*')
+
+    # Anything matching these in stderr means the config reached for
+    # something that was not there. Warnings from tools that are genuinely
+    # absent on a bare machine are fine; broken references are not.
+    local broken='no such file or directory|command not found|parse error|syntax error|not found$'
+
+    local shell_desc
+    for shell_desc in "zsh -i:interactive zsh" "zsh -l:login zsh" "bash -l:login bash"; do
+        local cmd="${shell_desc%%:*}"
+        local desc="${shell_desc##*:}"
+        local bin="${cmd%% *}"
+
+        has_command "$bin" || { warn "  SKIP  ${desc}: ${bin} not installed"; continue; }
+
+        local err rc
+        err=$(HOME="${fake}" ZDOTDIR="${fake}" $cmd -c 'exit 0' 2>&1 >/dev/null)
+        rc=$?
+
+        if [[ $rc -ne 0 ]]; then
+            fail "${desc} exited ${rc}"
+            [[ -n "$err" ]] && echo "${err}" | sed 's/^/          /' >&2
+        elif echo "$err" | grep -qiE "$broken"; then
+            fail "${desc} referenced something that does not exist:"
+            echo "$err" | grep -iE "$broken" | sed 's/^/          /' >&2
+        else
+            pass
+        fi
+    done
+}
+
+# ----------------------------------------------------------------- emacs
+
+# Boots init.el against an empty init-directory, which is what a new machine
+# does. Installs packages from ELPA, so it needs the network.
+check_emacs() {
+    print_section "Emacs cold start"
+
+    need emacs "Emacs checks" || return 0
+
+    local dir
+    dir=$(mktemp -d) || { fail "could not create temp init dir"; return 1; }
+    trap 'rm -rf "${dir}"' RETURN
+
+    cp .emacs.d/init.el .emacs.d/early-init.el "${dir}/" || { fail "could not stage init files"; return 1; }
+
+    local log="${dir}/boot.log"
+    emacs --batch --init-directory="${dir}/" \
+          -l "${dir}/early-init.el" -l "${dir}/init.el" \
+          --eval '(message "COLD-START-OK")' >"${log}" 2>&1
+
+    if ! grep -q 'COLD-START-OK' "${log}"; then
+        fail "init.el did not finish loading"
+        tail -30 "${log}" | sed 's/^/          /' >&2
+        return
+    fi
+
+    # Byte-compile warnings from third-party packages are upstream's problem;
+    # an error raised while loading our own config is ours.
+    if grep -iE '^(Error|Symbol.s (value|function) as variable)' "${log}" | grep -qv 'pkg\.el'; then
+        fail "errors during cold start:"
+        grep -iE '^Error' "${log}" | head -10 | sed 's/^/          /' >&2
+    else
+        pass
+    fi
+}
+
+# --------------------------------------------------------------- ansible
+
+check_ansible() {
+    print_section "Ansible playbook"
+
+    local playbook=".config/dotfiles/playbook.yml"
+    [[ -f "$playbook" ]] || { warn "  SKIP  no playbook at ${playbook}"; return 0; }
+
+    local runner=()
+    if has_command ansible-playbook; then
+        runner=(ansible-playbook)
+    elif has_command uvx; then
+        runner=(uvx --from ansible-core ansible-playbook)
+    else
+        warn "  SKIP  Ansible checks: neither ansible-playbook nor uvx installed"
+        return 0
+    fi
+
+    if out=$(cd "$(dirname "$playbook")" && "${runner[@]}" --syntax-check "$(basename "$playbook")" 2>&1); then
+        pass
+    else
+        fail "playbook syntax:"
+        echo "$out" | tail -20 | sed 's/^/          /' >&2
+    fi
+}
+
+# ------------------------------------------------------------------ main
+
+case "${1:-all}" in
+    syntax)  check_syntax ;;
+    configs) check_configs ;;
+    shell)   check_shell_startup ;;
+    emacs)   check_emacs ;;
+    ansible) check_ansible ;;
+    all)
+        check_syntax
+        check_configs
+        check_shell_startup
+        check_emacs
+        check_ansible
+        ;;
+    *)
+        error "unknown section '$1' (expected: syntax|configs|shell|emacs|ansible|all)"
+        ;;
+esac
+
+echo
+if [[ $FAILURES -gt 0 ]]; then
+    echo "${FAILURES} check(s) failed, ${CHECKED} passed" >&2
+    exit 1
+fi
+success "All ${CHECKED} checks passed"
