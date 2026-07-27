@@ -240,7 +240,11 @@ Run for each new frame rather than once at startup, because under
   :config
   (setq dabbrev-case-fold-search nil))
 
-;; Built in as of Emacs 30 -- no package needed.
+;; Built in as of Emacs 30. Older builds -- Ubuntu 24.04 still ships 29 --
+;; need the package, so ask for it only if the library isn't already there.
+(unless (require 'which-key nil 'noerror)
+  (package-install 'which-key)
+  (require 'which-key))
 (setq which-key-idle-delay 0.8
       which-key-max-display-columns 4
       which-key-max-description-length 25)
@@ -266,6 +270,97 @@ Run for each new frame rather than once at startup, because under
 ;; here on purpose.
 (use-package markdown-mode
   :mode ("\\.md\\'" "\\.markdown\\'"))
+
+;;; -------------------------------------------------------------- editing qol
+
+;; project.el already binds C-x p; nothing to configure. C-x p f finds a file
+;; in the current project, C-x p g greps it, C-x p p switches projects.
+(electric-pair-mode 1)
+(add-hook 'prog-mode-hook #'subword-mode)
+
+;;; ----------------------------------------------------------- tree-sitter
+
+;; Emacs 30 ships the *-ts-modes but no grammar sources, so
+;; `treesit-install-language-grammar' has nothing to install from until this
+;; alist is populated. bash, toml and yaml are already built here; the rest
+;; install on demand with M-x treesit-install-language-grammar.
+(setq treesit-language-source-alist
+      '((typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+        (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+        (rust       "https://github.com/tree-sitter/tree-sitter-rust")
+        (json       "https://github.com/tree-sitter/tree-sitter-json")
+        (python     "https://github.com/tree-sitter/tree-sitter-python")))
+
+;; Opt in per language, and only where the grammar is actually present. The
+;; previous config used treesit-auto with `(treesit-auto-add-to-auto-mode-alist
+;; 'all)', which remapped every language whether or not its grammar existed --
+;; opening any JSON file then failed with "Tree-sitter for JSON isn't
+;; available". Gating on `treesit-language-available-p' makes that class of
+;; error impossible: a missing grammar just means you get the plain mode.
+;;
+;; Two levers are needed, because they solve different problems. Where a
+;; built-in mode already claims the extension, remap it:
+(dolist (spec '((json   js-json-mode . json-ts-mode)
+                (python python-mode  . python-ts-mode)
+                (toml   conf-toml-mode . toml-ts-mode)))
+  (when (treesit-language-available-p (car spec))
+    (add-to-list 'major-mode-remap-alist (cdr spec))))
+
+;; ...and where nothing claims it at all, register the extension directly.
+;; Emacs 30 ships typescript-ts-mode, tsx-ts-mode, rust-ts-mode and
+;; yaml-ts-mode but puts none of them in `auto-mode-alist', so .ts, .tsx, .rs
+;; and .yaml all fall through to text-mode on a stock build.
+;;
+;; sh-mode is deliberately left alone: it also handles .zsh, and bash-ts-mode
+;; would be the wrong grammar for those.
+(dolist (spec '((typescript "\\.ts\\'"    . typescript-ts-mode)
+                (tsx        "\\.tsx\\'"   . tsx-ts-mode)
+                (rust       "\\.rs\\'"    . rust-ts-mode)
+                (yaml       "\\.ya?ml\\'" . yaml-ts-mode)))
+  (when (treesit-language-available-p (car spec))
+    (add-to-list 'auto-mode-alist (cons (cadr spec) (cddr spec)))))
+
+;;; ------------------------------------------------------------------- eglot
+
+;; Emacs 30's built-in LSP client. Deliberately not required here: naming
+;; `eglot-ensure' in a hook is enough to autoload it, so eglot stays unloaded
+;; until the first file of a supported type is opened, and startup pays
+;; nothing for it.
+
+(defun tl/typescript-server (_interactive project)
+  "Return the language server contact for a TypeScript PROJECT.
+
+Deno and typescript-language-server disagree about module resolution, so
+this has to follow the project rather than a global preference: a tree with
+a deno.json gets `deno lsp', anything else gets tsserver.  Eglot has no
+built-in Deno entry, which is why this exists at all."
+  (let ((root (and project (project-root project))))
+    (if (and root
+             (or (file-exists-p (expand-file-name "deno.json" root))
+                 (file-exists-p (expand-file-name "deno.jsonc" root))))
+        '("deno" "lsp" :initializationOptions (:enable t :lint t))
+      '("typescript-language-server" "--stdio"))))
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '(((typescript-ts-mode :language-id "typescript")
+                  (tsx-ts-mode        :language-id "typescriptreact")
+                  (js-ts-mode         :language-id "javascript"))
+                 . tl/typescript-server)))
+
+;; Only the modes whose servers are actually installed. Eglot signals if it
+;; can't find a server, so hooking a mode with no server is a per-file error,
+;; not a silent no-op.
+(dolist (hook '(rust-ts-mode-hook
+                typescript-ts-mode-hook
+                tsx-ts-mode-hook))
+  (add-hook hook #'eglot-ensure))
+
+;;; --------------------------------------------------------------------- git
+
+;; Autoloaded on the keybinding, so nothing loads until C-x g is pressed.
+(use-package magit
+  :bind ("C-x g" . magit-status))
 
 ;;; ------------------------------------------------------------------ server
 
