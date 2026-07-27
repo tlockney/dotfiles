@@ -7,8 +7,10 @@ alias mkdir="mkdir -p"
 # fd is installed as fdfind on Ubuntu/Debian
 command -v fdfind > /dev/null && alias fd=fdfind
 
-# Emacs client with proper socket
-alias e="emacsclient -a 'emacs' --socket-name $EMACS_SOCKET_NAME"
+# Emacs client. No --socket-name: emacsclient derives the same default socket
+# path that server-start writes, so hardcoding it only creates a way for the
+# two to disagree (they did, on macOS).
+alias e="emacsclient -a 'emacs'"
 
 # Deno web server
 alias serve="deno run --allow-read --allow-net jsr:@std/http/file-server"

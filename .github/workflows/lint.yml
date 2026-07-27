@@ -23,3 +23,13 @@ jobs:
           scandir: './bin'
           ignore_names: '*.md'
           additional_files: '.config/shell/common-profile.sh .config/zsh/update-completions.sh'
+          # Fail on real defects, leave info/style advisory -- the same posture
+          # bin/lint-shell already takes by running shellcheck with `|| true`.
+          #
+          # Every info-level finding here is SC1091 "Not following:
+          # lib/common.sh", raised because the scripts source it via a
+          # SCRIPT_DIR computed at runtime. `shellcheck -x -P SCRIPTDIR`
+          # resolves all of them, but action-shellcheck@2.0.0 declares an
+          # `options` input and never uses it, so there is no way to pass
+          # those flags at this version.
+          severity: warning
