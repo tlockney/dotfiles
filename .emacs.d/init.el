@@ -1,21 +1,71 @@
-;; Increase garbage collection threshold during startup
-(setq gc-cons-threshold (* 50 1000 1000))
+;;; init.el --- A lean Emacs -*- lexical-binding: t; -*-
 
-;; Reset it after startup
+;; Goals, in priority order:
+;;   1. Start fast, and start clean on a machine that has never run it.
+;;   2. Be a comfortable general-purpose text editor, not an IDE.
+;;   3. Behave the same in a terminal (emacs -nw, tmux, ssh) as in a GUI frame.
+;;
+;; See early-init.el for the parts that must run before the first frame.
+;; There is deliberately no LSP, no tree-sitter auto-installer, and no
+;; per-language package here.  Emacs 30 ships Eglot and the built-in *-ts-modes;
+;; if a project ever needs them, `M-x eglot' is one command away and costs
+;; nothing until it is called.
+
+;;; ----------------------------------------------------------------- startup
+
 (add-hook 'emacs-startup-hook
-	  (lambda ()
-	    (setq gc-cons-threshold (* 2 1000 1000))))
+          (lambda ()
+            (setq gc-cons-threshold (* 16 1024 1024)
+                  gc-cons-percentage 0.1
+                  file-name-handler-alist tl/file-name-handler-alist)))
 
-(fset `yes-or-no-p `y-or-n-p)
-(transient-mark-mode t)
-(column-number-mode t)
+;;; ---------------------------------------------------------------- packages
 
-(setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
-(setq major-mode 'text-mode)
-(setq confirm-nonexistent-file-or-buffer nil)
-(setq vc-follow-symlinks t)
-(setq kill-buffer-query-functions (remq 'process-kill-buffer-query-function
-					kill-buffer-query-functions))
+(require 'package)
+
+(setq package-archives
+      '(("gnu"    . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("melpa"  . "https://melpa.org/packages/"))
+      package-archive-priorities
+      '(("gnu" . 3) ("nongnu" . 2) ("melpa" . 1))
+      package-install-upgrade-built-in t)
+
+(package-initialize)
+
+;; First run on a new machine: fetch the archive contents once, before any
+;; `use-package' form needs them.  Doing it here rather than letting each
+;; :ensure discover the empty cache also avoids repeated network round-trips.
+(unless package-archive-contents
+  (package-refresh-contents))
+
+;; compat must exist and be activated before the packages that macro-expand
+;; against it are byte-compiled, or the first run dies with
+;; "Cannot open load file: compat-NN".
+(unless (package-installed-p 'compat)
+  (package-install 'compat))
+
+(require 'use-package)
+(setq use-package-always-ensure t
+      use-package-expand-minimally t)
+
+;;; ---------------------------------------------------------------- defaults
+
+(setq-default major-mode 'text-mode
+              indent-tabs-mode nil
+              fill-column 80)
+
+(setq use-short-answers t
+      confirm-nonexistent-file-or-buffer nil
+      vc-follow-symlinks t
+      create-lockfiles nil
+      sentence-end-double-space nil
+      require-final-newline t
+      load-prefer-newer t)
+
+;; Don't ask before killing a buffer that still has a live process.
+(setq kill-buffer-query-functions
+      (remq 'process-kill-buffer-query-function kill-buffer-query-functions))
 
 (setq inhibit-startup-screen t
       inhibit-startup-echo-area-message user-login-name
@@ -23,176 +73,187 @@
       initial-major-mode 'fundamental-mode
       initial-scratch-message nil)
 
-(setq backup-by-copying t
-      backup-directory-alist '(("." . "~/.emacs.d/backups/"))
-      delete-old-versions t
-      kept-new-versions 6
-      kept-old-versions 2
-      version-control t
-      auto-save-file-name-transforms '((".*" "~/.emacs.d/auto-save-list/" t)))
-
-(desktop-save-mode 1)
-(setq desktop-path '("~/.emacs.d")
-      desktop-base-file-name "emacs-desktop")
-(require 'saveplace)
-(setq-default save-place t)
-(add-to-list 'desktop-modes-not-to-save 'dired-mode)
-(add-to-list 'desktop-modes-not-to-save 'Info-mode)
-(add-to-list 'desktop-modes-not-to-save 'comint-mode)
-(add-to-list 'desktop-modes-not-to-save 'doc-view-mode)
-(add-to-list 'desktop-modes-not-to-save 'info-lookup-mode)
-(add-to-list 'desktop-modes-not-to-save 'fundamental-mode)
-
-;; Remove toolbar, scrollbar, and menubar
-(tool-bar-mode -1)
-;;(scroll-bar-mode -1)
-(menu-bar-mode -1)
-(tooltip-mode -1)
-
-;; set font
-(defun font-exists-p (font)
-  (if (null (x-list-fonts font)) nil t))
-
-(when (display-graphic-p)
-  (cond ((font-exists-p "FiraCode Nerd Font Mono")
-	 (set-frame-font "FiraCode Nerd Font Mono:spacing=100:size=16" nil t))
-	((font-exists-p "Fira Code")
-	 (set-frame-font "Fira Code:spacing=100:size=16" nil t))
-	(t (message "Preferred fonts not found, using default"))))
-
-(load-theme 'wombat)
-
-(column-number-mode)
-(global-display-line-numbers-mode t)
-
-;; Enable mouse
-(require 'mouse)
-(xterm-mouse-mode t)
-(require 'mwheel nil 'noerror)
-(mouse-wheel-mode t)
-
-;; Mouse support in terminal (useful for tmux)
-(unless (display-graphic-p)
-  (xterm-mouse-mode 1)
-  (global-set-key [mouse-4] 'scroll-down-line)
-  (global-set-key [mouse-5] 'scroll-up-line))
-
-;; Better terminal experience
-(unless (display-graphic-p)
-  ;; Faster terminal updates
-  (setq echo-keystrokes 0.02)
-  ;; Better colors in terminal
-  (setq frame-background-mode 'dark)
-  ;; Reduce visual noise
-  (setq visible-bell nil)
-  (setq ring-bell-function 'ignore)
-  ;; Better scrolling in terminal
-  (setq scroll-conservatively 10000)
-  (setq scroll-preserve-screen-position t))
-
-;; Highlight Current Line
-(add-hook 'after-init-hook 'global-hl-line-mode)
-
-;; Highlight corresponding parantheses when cursor is on one
-(setq show-paren-delay 0) ;; show matching parens without delay
-(show-paren-mode t)
-
-;; Proper line wrapping
-(global-visual-line-mode t)
-
-;; Show trailing white spaces
-(setq-default show-trailing-whitespace t)
-
-;; Remove useless whitespace before saving a file
-(add-hook 'before-save-hook 'whitespace-cleanup)
-(add-hook 'before-save-hook (lambda() (delete-trailing-whitespace)))
-
-;; Make ESC quit prompts
-(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
-
-;; set up some essentials
 (setq user-full-name "Thomas Lockney"
       user-mail-address "thomas@lockney.net"
       custom-file (expand-file-name "custom.el" user-emacs-directory))
+(load custom-file 'noerror 'nomessage)
 
-(require 'server)
-(unless (server-running-p) (server-start))
+;;; ------------------------------------------------------------------- files
 
-;; Set up package management
-(setq package-install-upgrade-built-in t)
-(setq package-archives
-      '(("melpa" . "https://melpa.org/packages/")
-	("elpa" . "https://elpa.gnu.org/packages/")
-	("nongnu" . "https://elpa.nongnu.org/nongnu/")))
-(package-initialize)
+(let ((backups   (expand-file-name "backups/" user-emacs-directory))
+      (autosaves (expand-file-name "auto-save-list/" user-emacs-directory)))
+  (make-directory backups t)
+  (make-directory autosaves t)
+  (setq backup-by-copying t
+        backup-directory-alist `(("." . ,backups))
+        auto-save-file-name-transforms `((".*" ,autosaves t))
+        delete-old-versions t
+        kept-new-versions 6
+        kept-old-versions 2
+        version-control t))
 
-(require 'use-package)
-(setq use-package-always-ensure t)
+;; Cursor position per file, minibuffer history, and a recent-files list.
+;; These are the cheap parts of session persistence; full desktop restore was
+;; the single largest startup cost and restored paths that don't exist on
+;; other machines.
+(save-place-mode 1)
+(savehist-mode 1)
+(setq recentf-max-saved-items 1000
+      recentf-auto-cleanup 'never
+      recentf-save-file (expand-file-name ".recentf" user-emacs-directory))
+(recentf-mode 1)
+(keymap-global-set "C-x C-r" #'recentf-open-files)
 
-(use-package compat
-  :ensure t)
+;;; -------------------------------------------------------------- appearance
+
+;; Exactly one theme.  This used to load wombat and then material on top of
+;; it, which is pointless work at startup either way.
+
+(column-number-mode)
+(global-display-line-numbers-mode)
+(global-visual-line-mode)
+(show-paren-mode)
+(setq show-paren-delay 0)
+(add-hook 'after-init-hook #'global-hl-line-mode)
+
+(defun tl/font-available-p (family)
+  "Return non-nil if FAMILY is usable in the current frame."
+  (and (display-graphic-p)
+       (find-font (font-spec :family family))))
+
+(defun tl/frame-appearance (&optional frame)
+  "Apply per-display settings to FRAME.
+
+Run for each new frame rather than once at startup, because under
+`emacsclient' the daemon has no display when init.el is read and
+`display-graphic-p' would answer for the wrong frame."
+  (with-selected-frame (or frame (selected-frame))
+    (cond ((tl/font-available-p "FiraCode Nerd Font Mono")
+           (set-frame-font "FiraCode Nerd Font Mono:spacing=100:size=16" nil t))
+          ((tl/font-available-p "Fira Code")
+           (set-frame-font "Fira Code:spacing=100:size=16" nil t)))
+    ;; doom-modeline draws tofu when it asks for glyphs the frame's font
+    ;; can't supply, which is every terminal and every machine without a
+    ;; patched font installed.
+    (setq doom-modeline-icon (and (tl/font-available-p "Symbols Nerd Font Mono") t))))
+
+(add-hook 'after-make-frame-functions #'tl/frame-appearance)
+(add-hook 'window-setup-hook #'tl/frame-appearance)
+
+;;; ---------------------------------------------------------------- terminal
+
+(setq echo-keystrokes 0.02
+      scroll-conservatively 10000
+      scroll-preserve-screen-position t
+      visible-bell nil
+      ring-bell-function #'ignore)
+
+(unless (display-graphic-p)
+  (xterm-mouse-mode 1))
+(mouse-wheel-mode 1)
+;; Fallback for terminals that report the old button protocol rather than SGR.
+(keymap-global-set "<mouse-4>" #'scroll-down-line)
+(keymap-global-set "<mouse-5>" #'scroll-up-line)
+
+;;; -------------------------------------------------------------- whitespace
+
+;; Only where it is signal.  As a global default it also lit up dired,
+;; *Messages*, and every other buffer you can't edit anyway.
+(dolist (hook '(prog-mode-hook text-mode-hook conf-mode-hook))
+  (add-hook hook (lambda () (setq show-trailing-whitespace t))))
+
+;; `whitespace-cleanup' already deletes trailing whitespace, so the separate
+;; `delete-trailing-whitespace' hook this replaces was redundant.
+(add-hook 'before-save-hook #'whitespace-cleanup)
+
+;;; ---------------------------------------------------------------- bindings
+
+(keymap-global-set "<escape>" #'keyboard-escape-quit)
+
+;;; -------------------------------------------------------------- completion
 
 (use-package vertico
-  :init
-  (vertico-mode))
+  :init (vertico-mode))
 
-(use-package savehist
-  :init
-  (savehist-mode))
+(use-package orderless
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides '((file (styles basic partial-completion)))))
 
 (use-package marginalia
-  :init
-  (marginalia-mode))
+  :init (marginalia-mode))
 
-(use-package treesit-auto
+(use-package consult
+  :bind (("M-s l" . consult-line)
+         ("C-x b" . consult-buffer)
+         ("M-y"   . consult-yank-pop)
+         ("M-g g" . consult-goto-line)
+         ("C-c h" . consult-history)
+         ("C-c f" . consult-find)
+         ("C-c r" . consult-recent-file)))
+
+(use-package corfu
   :custom
-  (treesit-auto-install t)
+  (corfu-cycle t)
+  (corfu-auto t)
+  (corfu-auto-prefix 1)
+  (corfu-auto-delay 0.1)
+  (corfu-separator ?\s)
+  (corfu-quit-at-boundary 'separator)
+  (corfu-quit-no-match t)
+  (corfu-preview-current nil)
+  (corfu-preselect 'prompt)
+  (corfu-on-exact-match 'insert)
+  (corfu-scroll-margin 3)
+  (corfu-max-width 80)
+  (corfu-min-width 20)
+  (corfu-count 10)
+  :bind
+  (:map corfu-map
+        ("TAB"     . corfu-next)
+        ([tab]     . corfu-next)
+        ("S-TAB"   . corfu-previous)
+        ([backtab] . corfu-previous)
+        ("C-n"     . corfu-next)
+        ("C-p"     . corfu-previous)
+        ("RET"     . corfu-insert)
+        ("C-g"     . corfu-quit))
+  :init (global-corfu-mode))
+
+;; corfu's child frames don't exist in a terminal; corfu-terminal draws the
+;; popup with overlays instead.  Decided per frame, for the same daemon
+;; reason as `tl/frame-appearance'.
+(use-package corfu-terminal
+  :after corfu
   :config
-  (treesit-auto-add-to-auto-mode-alist 'all)
-  (global-treesit-auto-mode))
+  (defun tl/corfu-terminal (&optional frame)
+    (with-selected-frame (or frame (selected-frame))
+      (corfu-terminal-mode (if (display-graphic-p) -1 1))))
+  (add-hook 'after-make-frame-functions #'tl/corfu-terminal)
+  (tl/corfu-terminal))
 
-(use-package lsp-mode
-  :diminish "LSP"
-  :init (setq lsp-keymap-prefix "C-l")
-  :hook (((deno-ts-mode
-	   rust-mode
-	   tsx-ts-mode
-	   typescript-ts-mode
-	   js-ts-mode))
-	 (lsp-mode . lsp-enable-which-key-integration))
-  :commands (lsp lsp-deferred))
-
-(use-package lsp-ui
-  :commands lsp-ui-mode
-  :hook (lsp-mode . lsp-ui-mode))
-
-(use-package lsp-treemacs
-  :after lsp)
-
-(use-package deno-ts-mode)
-
-(use-package typescript-ts-mode)
-
-;; Display possible completions at all places
-(use-package ido-completing-read+
-  :ensure t
+(use-package cape
+  :after corfu
+  :init
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+  (add-to-list 'completion-at-point-functions #'cape-file)
   :config
-  ;; This enables ido in all contexts where it could be useful, not just
-  ;; for selecting buffer and file names
-  (ido-mode t)
-  (ido-everywhere t)
-  ;; This allows partial matches, e.g. "uzh" will match "Ustad Zakir Hussain"
-  (setq ido-enable-flex-matching t)
-  (setq ido-use-filename-at-point nil)
-  ;; Includes buffer names of recently opened files, even if they're not open now.
-  (setq ido-use-virtual-buffers t)
-  :diminish nil)
+  (setq dabbrev-case-fold-search nil))
 
+;; Built in as of Emacs 30 -- no package needed.
+(setq which-key-idle-delay 0.8
+      which-key-max-display-columns 4
+      which-key-max-description-length 25)
+(which-key-mode)
+
+;;; ------------------------------------------------------------------ pretty
+
+;; material-theme is unmaintained (last release 2015) and specifies some face
+;; attributes as nil, which Emacs 30 warns about into *Messages* whenever a
+;; graphical frame applies it.  Harmless, but it is the only startup noise
+;; left; `(load-theme 'modus-vivendi)' is a built-in, warning-free swap.
 (use-package material-theme
-  :config
-  (progn (load-theme 'material t)))
-
-(use-package writeroom-mode)
+  :config (load-theme 'material t))
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1))
@@ -200,90 +261,19 @@
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
 
-(use-package rust-mode
-  :mode "\\.rs\\'")
+;; Emacs has no built-in markdown mode, and markdown is text editing rather
+;; than IDE work.  It arrived as an lsp-mode dependency before; now it is
+;; here on purpose.
+(use-package markdown-mode
+  :mode ("\\.md\\'" "\\.markdown\\'"))
 
-(use-package typescript-mode
-  :mode "\\.ts\\'"
-  :hook (typescript-mode . lsp-deferred)
-  :config
-  (setq typescript-indent-mode 2))
+;;; ------------------------------------------------------------------ server
 
-(use-package corfu
-  :custom
-  (corfu-cycle t)                    ;; Enable cycling for `corfu-next/previous`
-  (corfu-auto t)                     ;; Enable auto completion
-  (corfu-auto-prefix 1)              ;; Trigger after 1 character (faster for quick edits)
-  (corfu-auto-delay 0.1)             ;; Very fast trigger for quick work
-  (corfu-separator ?\s)              ;; Orderless field separator
-  (corfu-quit-at-boundary 'separator) ;; Quit at word boundaries (good for quick edits)
-  (corfu-quit-no-match t)            ;; Quit if no match (less intrusive)
-  (corfu-preview-current nil)        ;; Disable preview (cleaner in terminal)
-  (corfu-preselect 'prompt)          ;; Preselect the prompt
-  (corfu-on-exact-match 'insert)     ;; Auto-insert exact matches (faster workflow)
-  (corfu-scroll-margin 3)            ;; Smaller scroll margin
-  (corfu-max-width 80)               ;; Limit width (better for terminal/SSH)
-  (corfu-min-width 20)               ;; Minimum width
-  (corfu-count 10)                   ;; Show fewer candidates (less overwhelming)
-  :bind
-  (:map corfu-map
-	("TAB" . corfu-next)
-	([tab] . corfu-next)
-	("S-TAB" . corfu-previous)
-	([backtab] . corfu-previous)
-	("C-n" . corfu-next)
-	("C-p" . corfu-previous)
-	("RET" . corfu-insert)
-	("C-g" . corfu-quit))         ;; Easy exit
-  :init
-  (global-corfu-mode))
+;; $EDITOR is `emacsclient -a emacs', so the server needs to be up.  Started
+;; last so a failure anywhere above doesn't leave a half-configured server
+;; serving clients.
+(require 'server)
+(unless (server-running-p)
+  (server-start))
 
-;; corfu-terminal for SSH/terminal use
-(use-package corfu-terminal
-  :if (not (display-graphic-p))
-  :config
-  (corfu-terminal-mode +1))
-
-(use-package cape
-  :init
-  ;; Add useful completion functions to completion-at-point-functions
-  (add-to-list 'completion-at-point-functions #'cape-dabbrev)  ;; Dynamic abbreviations
-  (add-to-list 'completion-at-point-functions #'cape-file)     ;; File paths
-  (add-to-list 'completion-at-point-functions #'cape-elisp-block) ;; Elisp in org blocks
-  :config
-  ;; Make dabbrev case-sensitive for better matches in quick edits
-  (setq dabbrev-case-fold-search nil))
-
-
-;; Recent buffers in a new Emacs session
-(use-package recentf
-  :config
-  (setq recentf-auto-cleanup 'never
-	recentf-max-saved-items 1000
-	recentf-save-file (concat user-emacs-directory ".recentf"))
-  (recentf-mode t)
-  :bind ("C-x C-r" . recentf-open-files)
-  :diminish nil)
-
-(use-package which-key
-  :config
-  (which-key-mode)
-  (setq which-key-idle-delay 0.8)            ;; Slightly longer delay for less distraction
-  (setq which-key-max-display-columns 4)     ;; Better for terminal windows
-  (setq which-key-max-description-length 25) ;; Shorter descriptions
-  (setq which-key-replacement-alist
-      '(("C-l" . "LSP"))))                   ;; Show "LSP" instead of the full prefix
-
-(use-package consult
-  :bind (("M-s l" . consult-line)           ; Alternative to C-s (keep default for now)
-	 ("C-x b" . consult-buffer)         ; Enhanced buffer switching
-	 ("M-y" . consult-yank-pop)         ; Better kill ring
-	 ("M-g g" . consult-goto-line)      ; Quick line jumping
-	 ("C-c h" . consult-history)        ; Command history
-	 ("C-c f" . consult-find)           ; Find files
-	 ("C-c r" . consult-recent-file)))  ; Recent files
-
-(use-package orderless
-  :custom
-  (completion-styles '(orderless basic))
-  (completion-category-overrides '((file (styles basic partial-completion)))))
+;;; init.el ends here
