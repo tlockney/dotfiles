@@ -1,0 +1,59 @@
+name: Checks
+
+# These run bin/check-dotfiles, the same script you can run locally with
+# `just check`. CI and local should never disagree about what "passing" means,
+# so the logic lives in the script and this file only installs what it needs.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate dotfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install check dependencies
+        run: |
+          sudo apt-get update -qq
+          # zsh: the shell most of this config is written in, and the one
+          #      shellcheck could never parse.
+          # lua5.4: luac, for the hammerspoon and nvim configs.
+          # emacs-nox: 29.x on Ubuntu 24.04, deliberately older than the 30.2
+          #      on the Macs -- if init.el works here it works there.
+          sudo apt-get install -y -qq zsh lua5.4 emacs-nox
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml ansible-core
+
+      - name: Report versions
+        run: |
+          zsh --version
+          bash --version | head -1
+          emacs --version | head -1
+          python3 --version
+          ansible-playbook --version | head -1
+
+      - name: Shell syntax
+        run: ./bin/check-dotfiles syntax
+
+      - name: Config file syntax
+        run: ./bin/check-dotfiles configs
+
+      # The one that earns its keep: stages the tracked shell config into an
+      # empty HOME and actually starts a shell there. Catches an unguarded
+      # `source` of a file that exists on your machine but not a fresh one --
+      # which is exactly how this repo has broken before.
+      - name: Shell startup
+        run: ./bin/check-dotfiles shell
+
+      - name: Emacs cold start
+        run: ./bin/check-dotfiles emacs
+
+      - name: Ansible playbook
+        run: ./bin/check-dotfiles ansible

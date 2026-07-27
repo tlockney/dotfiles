@@ -9,7 +9,11 @@ default:
 check-env:
     ~/bin/check-env
 
-# Lint all shell scripts with shellcheck
+# Run the same checks CI runs (syntax, config parsing, shell startup, emacs, ansible)
+check *SECTION:
+    ~/bin/check-dotfiles {{ SECTION }}
+
+# Lint all shell scripts with shellcheck (advisory; not run in CI)
 lint:
     ~/bin/lint-shell
 
