@@ -111,14 +111,66 @@ done
 
 ### Development Workflow
 
-This repo uses a staging workflow to safely iterate on dotfiles before applying them to the home directory.
+Each piece of work gets its own worktree on its own branch.
+`~/src/personal/dotfiles` is the launcher: a checkout kept detached at
+`origin/main`, used to read the tree and start tasks from, never to edit in.
+Detached rather than on a branch for two reasons — a linked worktree cannot
+check out `main`, because `$HOME` already has it, and having no branch there
+means there is nowhere for a stray edit to accumulate.
 
-1. **Edit on `working-branch`** — All changes are made in this checkout (e.g., `~/src/personal/dotfiles`) on the `working-branch` branch.
-2. **Commit and push** — Use standard `git` CLI commands to commit and push changes, keeping a history of iterations.
-3. **Merge into home directory** — When ready, switch to the home directory and run `yadm merge working-branch` to apply changes to the live dotfiles.
-4. **Revert if needed** — If something breaks, yadm's git history makes it straightforward to revert to a known good state (e.g., `yadm revert` or `yadm checkout` specific files).
+```sh
+# From ~/src/personal/dotfiles — start a task
+just worktree <task>
+cd ../dotfiles-worktrees/<task>
 
-This keeps experimental changes isolated until they're validated, while still tracking everything in version control.
+# ... edit, then validate before anything reaches $HOME ...
+just check
+
+git add -- <specific paths>
+git commit
+git push -u origin <task>
+gh pr create --base main
+```
+
+After the PR merges, apply it to the live dotfiles and clean up:
+
+```sh
+# From $HOME — this is the yadm main worktree, checked out on main
+yadm fetch && yadm merge origin/main
+
+# From ~/src/personal/dotfiles
+just worktree-done <task>     # removes the worktree, deletes the branch,
+                              # and re-parks this checkout at origin/main
+```
+
+`just worktree` handles the `mise trust` step for you, which matters because
+**it is not optional**. This repo ships `.config/mise/config.toml`, so mise
+treats any checkout of it as a project config — and refuses to run until that
+specific path is trusted. A newly created worktree is untrusted by default,
+and until you trust it every mise-shimmed binary (`python3`, `node`, `uvx`, …)
+exits 1 with a trust error instead of running. The symptom is confusing,
+because the failure surfaces wherever the shim was called rather than as
+anything about mise.
+
+Conventions worth keeping to:
+
+- **Branch from `origin/main`, not from whatever is checked out.** Worktrees
+  are cheap precisely because they don't inherit each other's state.
+- **Stage with explicit paths.** `git add -- <paths>` then `git commit`, never a
+  bare `git commit` after a `git rm` — a bare commit takes the whole index and
+  will quietly sweep unrelated staged changes into your commit.
+- **Never `git checkout main` in a linked worktree.** `main` is checked out by
+  the yadm main worktree at `$HOME`; git will refuse, and forcing it is how you
+  end up with `$HOME` on a detached HEAD.
+- **`just check` before pushing.** It runs exactly what CI runs, against the
+  checkout you are standing in, so a shell that would fail to start is caught
+  before `yadm merge` rather than after.
+- **One worktree per task, removed when merged.** `git worktree list` should be
+  short; stale worktrees hold branch checkouts and get stale silently.
+
+Why not edit directly in `$HOME`? It is the yadm main worktree on `main`, so
+there is no staging step between an edit and your live environment — a broken
+`.zshrc` locks you out of new terminals immediately.
 
 ### Tool Management
 
@@ -154,13 +206,33 @@ provision --extra-vars "is_desktop=false"
 
 To add new tools, edit `.config/dotfiles/playbook.yml`. To change runtime versions (node, python, etc.), edit `.mise.toml`.
 
-### Shell Script Linting
+### Checks
 
-All shell scripts should pass shellcheck:
+`just check` runs the same checks CI runs, against the checkout you are
+standing in. Run it before pushing.
 
 ```sh
-~/bin/lint-shell
+just check            # everything
+just check shell      # one section: syntax | configs | shell | emacs | ansible
 ```
+
+| Section | What it does |
+|---|---|
+| `syntax` | `zsh -n` over the zsh files, `bash -n` over the bash and sh files |
+| `configs` | TOML, YAML, JSON and Lua parse checks (VS Code's JSONC included) |
+| `shell` | Stages the tracked shell config into an empty `HOME` and actually starts `zsh -i`, `zsh -l` and `bash -l` there |
+| `emacs` | Boots `init.el` against an empty init-directory, the way a new machine does |
+| `ansible` | `--syntax-check` on the provisioning playbook |
+
+The `shell` section is the one that earns its keep: it catches an unguarded
+`source` of a file that happens to exist on this machine but not on a fresh
+one, which is a class of bug no syntax-level tool can see. A check whose tool
+is missing reports `SKIP` rather than passing, and the script refuses to
+report success if it matched no files at all.
+
+`~/bin/lint-shell` still runs shellcheck over `bin/`, as an advisory local
+tool. It is not part of CI: shellcheck cannot parse zsh, which is what most of
+this configuration is written in.
 
 ## Repository Structure
 
@@ -207,7 +279,11 @@ Scripts should handle both macOS and Linux:
 Since yadm places all the files in situ, it's unlikely going to be a good idea to run `claude` in your home directory. Instead, run it in this checkout and follow the standard development workflow:
 
 1. `cd ~/src/personal/dotfiles` (or wherever this repo is checked out)
-2. Make sure you're on `working-branch`: `git checkout working-branch`
-3. Run `claude` and make whatever changes you need.
-4. Commit and push with standard `git` commands.
-5. When ready, apply to your home directory: `yadm merge working-branch`
+2. Start a task worktree: `just worktree <task>`, then `cd` into the path it prints.
+3. Run `claude` there and make whatever changes you need.
+4. Run `just check`, then commit and push with standard `git` commands and open a PR.
+5. After it merges, apply to your home directory: `yadm fetch && yadm merge origin/main`
+
+Run `claude` in the task worktree, not in `~/src/personal/dotfiles` itself —
+that checkout is detached at `origin/main` and is only there to read from and
+launch tasks from.
