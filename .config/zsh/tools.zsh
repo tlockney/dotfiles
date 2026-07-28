@@ -78,19 +78,11 @@ if [[ -z "$XDG_RUNTIME_DIR" ]]; then
   fi
 fi
 
-# Configure Emacs socket name based on platform
-# These paths must match Emacs's default server-socket-dir behavior
-# Emacs checks XDG_RUNTIME_DIR first (on any platform), then falls back
-if [[ -n "$XDG_RUNTIME_DIR" ]]; then
-  EMACS_SOCKET_NAME="${XDG_RUNTIME_DIR}/emacs/server"
-elif [[ "$CURRENT_OS" = "Darwin" ]]; then
-  # Darwin fallback: $TMPDIR/emacs (no UID)
-  EMACS_SOCKET_NAME="${TMPDIR%/}/emacs/server"
-else
-  # Linux fallback without XDG_RUNTIME_DIR: /tmp/emacs<uid>
-  EMACS_SOCKET_NAME="/tmp/emacs$(id -u)/server"
-fi
-export EMACS_SOCKET_NAME
+# No EMACS_SOCKET_NAME here on purpose. This block used to re-derive Emacs's
+# default server-socket-dir, and got it wrong on macOS: Emacs 30 uses
+# $TMPDIR/user/<uid>/emacs, not $TMPDIR/emacs, so every `e' missed the running
+# server and cold-started a new Emacs instead. emacsclient computes the same
+# default the server does, so the right fix is to not pass --socket-name.
 
 # Set up Java environment
 export JAVA_OPTIONS="-Djava.awt.headless=true"

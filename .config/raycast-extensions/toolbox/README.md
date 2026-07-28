@@ -40,7 +40,7 @@ Set in Raycast under Extensions → Toolbox:
 
 Browse Meetings needs the enriched `mtg list --json` output shipped
 by this repo's `bin/mtg`. Apply it to `~/bin/mtg` by running `yadm
-merge working-branch` from the home directory.
+fetch && yadm merge origin/main` from the home directory.
 
 ## Install / development
 
