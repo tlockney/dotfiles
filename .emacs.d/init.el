@@ -39,6 +39,33 @@
 (unless package-archive-contents
   (package-refresh-contents))
 
+(defun tl/package-install-refresh-on-error (install package &rest args)
+  "Call INSTALL on PACKAGE, refreshing the archives and retrying once on failure.
+
+The cached archive index outlives the tarballs it names: nongnu ELPA and GNU
+ELPA keep only the current version of each package, so once the cache is
+stale, installing anything whose dependency has since been released again
+fails with a 404 rather than a missing-package error.
+
+use-package cannot recover from that on its own.  `use-package-ensure-elpa'
+refreshes only when the package is absent from `package-archive-contents'; a
+package that is present but points at a version the server has deleted goes
+straight to `package-install' and fails.  Adding magit to this file on a
+machine whose cache was weeks old is exactly that case -- it failed on
+with-editor-3.4.9.tar, which no longer exists.
+
+Retrying after a refresh costs nothing when the cache is fresh, and is the
+only thing that helps when it is not."
+  (condition-case err
+      (apply install package args)
+    (error
+     (message "Installing %s failed (%s); refreshing archives and retrying"
+              package (error-message-string err))
+     (package-refresh-contents)
+     (apply install package args))))
+
+(advice-add 'package-install :around #'tl/package-install-refresh-on-error)
+
 ;; compat must exist and be activated before the packages that macro-expand
 ;; against it are byte-compiled, or the first run dies with
 ;; "Cannot open load file: compat-NN".
