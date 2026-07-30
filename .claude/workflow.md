@@ -1,6 +1,16 @@
 # Development Workflow
 
-**CRITICAL: ALWAYS FOLLOW THIS WORKFLOW - NO EXCEPTIONS**
+## When this workflow applies
+
+This workflow is graduated, not all-or-nothing. Match the ceremony to the work:
+
+- **Editing a file that already exists** (code, doc, config, anything) → just make the change. No issue, no worktree, no prompt.
+- **Creating a new substantive artifact** — a new doc under `docs/`, a new plan, a new audit, a new source file in a product repo, or the start of a new investigation → ask once, at creation: *"Want this tracked in Linear, or is it a one-off?"* Then proceed either way. This is a prompt, not a gate — a dismissible "should we track this?", fired once when the artifact is born, never again on later edits. Stay quiet for dotfiles, machine config, and Obsidian vault notes.
+- **Code changes to a product repo** → the full workflow below is required (issue → worktree → branch → PR). This is the hard gate; the "NO EXCEPTIONS" language below is scoped to *this* case.
+
+Everything below assumes you're in the third case.
+
+**CRITICAL: FOR CODE CHANGES TO A PRODUCT REPO, ALWAYS FOLLOW THIS WORKFLOW - NO EXCEPTIONS**
 
 ## Version Control
 
