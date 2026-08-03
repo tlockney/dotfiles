@@ -13,7 +13,7 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "opus",
   "hooks": {
     "PermissionRequest": [
       {
@@ -80,9 +80,10 @@
     "rust-analyzer-lsp@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "slack@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
     "typescript-lsp@claude-plugins-official": true,
-    "watch@claude-video": true
+    "watch@claude-video": true,
+    "tlockney@tlockney-skills": true
   },
   "extraKnownMarketplaces": {
     "claude-video": {
@@ -102,9 +103,16 @@
         "source": "github",
         "repo": "Metron-SWEng/claude-resources"
       }
+    },
+    "tlockney-skills": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/tlockney/src/personal/agent-skills"
+      }
     }
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "medium",
   "tui": "default",
   "skipDangerousModePermissionPrompt": true,
   "preferredNotifChannel": "terminal_bell",
@@ -113,7 +121,6 @@
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true,
-  "effortLevel": "medium",
   "feedbackSurveyState": {
     "lastShownTime": 1754111802128
   }
