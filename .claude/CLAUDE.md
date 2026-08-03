@@ -52,6 +52,13 @@ personal work skills live in the private `metron-skills` plugin repo
 "Where a skill belongs" — consult it, and nudge me to promote anything that's
 lingered in `~/.claude/skills/` once it's proven.
 
+## Work tracking
+
+- **Editing an existing file**: just do it, no ceremony.
+- **Creating a new substantive artifact** (new doc under `docs/`, new plan/audit, new source file in a product repo, start of a new investigation): ask once at creation — "Track this in Linear, or one-off?" — then proceed either way. One dismissible prompt, fired at birth only, never on later edits. Skip it for dotfiles, config, and vault notes.
+- **Code changes to a product repo**: full issue → worktree → branch → PR workflow. Read `~/.claude/workflow.md` before starting.
+- **Open PRs as ready for review, never drafts** unless I explicitly ask for a draft — drafts keep Weir (the `metron-code-review` bot) from starting its review. Use `gh pr create` without `--draft`; `gh pr ready <number>` fixes one already opened as a draft.
+
 ## Situational context (read when relevant)
 
 - **`~/.claude/testing.md`** — test strategy, TDD, tooling
