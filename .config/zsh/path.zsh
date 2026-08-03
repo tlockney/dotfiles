@@ -21,5 +21,8 @@ function prepend_to_path {
 # bun global bin (gbrain etc.)
 prepend_to_path "$HOME/.bun/bin"
 
+# nb-cli (Jupyter notebook CLI for AI agents)
+prepend_to_path "$HOME/.nb-cli/bin"
+
 # Note: path_helper is already called by brew shellenv in env.zsh
 # Calling it again here would move user paths to the end of PATH
