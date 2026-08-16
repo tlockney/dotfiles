@@ -217,9 +217,21 @@ records = true
 ## static: length of the longest command stored in the history.
 # strategy = "auto"
 
+[tmux]
+## When inside tmux, open the search UI in a popup floating above the current
+## pane instead of drawing over it. Falls back to normal rendering outside
+## tmux or on tmux < 3.2.
+enabled = true
+
+[pty_proxy]
+## Experimental PTY proxy: the search popup renders over previous output and
+## restores it on close. Your existing `atuin init` line starts the proxy.
+enabled = true
+
 [daemon]
-enabled = false
-autostart = false
+## Output capture (for Atuin AI / MCP) requires pty-proxy AND the daemon.
+enabled = true
+autostart = true
 
 [ai]
 # enabled = false

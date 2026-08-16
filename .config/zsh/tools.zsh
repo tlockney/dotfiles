@@ -113,9 +113,8 @@ export JAVA_OPTIONS="-Djava.awt.headless=true"
 # Note: op completions are managed by update-completions.sh (fpath-based)
 [[ -f ~/.config/op/plugins.sh ]] && source ~/.config/op/plugins.sh
 
-# Atuin shell history (PATH for standalone install set in common.sh)
-# Works for both Homebrew and standalone installations
-command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
+# Atuin shell history (moved to top of ~/.zshrc for pty-proxy startup)
+# PATH for standalone install set in common.sh above
 
 # Run autosuggestions asynchronously so typing never blocks on atuin subprocess forks
 ZSH_AUTOSUGGEST_USE_ASYNC=1

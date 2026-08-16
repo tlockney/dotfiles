@@ -7,6 +7,7 @@ source_if_exists() {
 }
 
 # Load configuration modules in order
+source_if_exists "$HOME/.config/zsh/early.zsh" # first: tools needing early init (see file)
 source_if_exists "$HOME/.config/zsh/local.zsh" # be sure this is gitignored
 source_if_exists "$HOME/.config/zsh/env.zsh"
 source_if_exists "$HOME/.config/zsh/init.zsh"
@@ -21,3 +22,4 @@ source_if_exists "$HOME/.config/zsh/open-agent.zsh"
 # Written by the uv/rustup installers; absent on a machine that has not run
 # them yet, where an unguarded source aborts the whole shell with status 127.
 source_if_exists "$HOME/.local/bin/env"
+export PATH="$HOME/.nb-cli/bin:$PATH"
