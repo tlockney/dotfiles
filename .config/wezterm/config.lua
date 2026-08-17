@@ -52,6 +52,22 @@ function module.apply_to_config(config)
   config.window_background_opacity = 0.95
   config.macos_window_background_blur = 30
 
+  -- Rendering: WebGpu (wgpu) is smoother than the default OpenGL
+  -- front-end on Apple Silicon; 120fps helps on ProMotion displays and
+  -- is a no-op on 60Hz panels.
+  config.front_end = "WebGpu"
+  config.max_fps = 120
+
+  -- Dim inactive panes so the focused pane is obvious at a glance.
+  config.inactive_pane_hsb = {
+    saturation = 0.85,
+    brightness = 0.75,
+  }
+
+  -- When closing the active tab, return to the last-active tab (browser
+  -- behavior) instead of the left neighbor.
+  config.switch_to_last_active_tab_when_closing_tab = true
+
   -- Terminal
   config.scrollback_lines = 50000
   config.set_environment_variables = {

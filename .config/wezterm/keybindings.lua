@@ -118,6 +118,21 @@ function module.apply_to_config(config)
       action = action.MoveTab(i - 1),
     })
   end
+
+  -- Selection: QuickSelect (pattern-based copy) and CopyMode, both placed
+  -- next to the existing Cmd+Shift+P palette muscle memory.
+  table.insert(config.keys, { key = 'Space', mods = 'CMD|SHIFT', action = action.QuickSelectArgs })
+  table.insert(config.keys, { key = 'X', mods = 'CMD|SHIFT', action = action.ActivateCopyMode })
+  -- Tab cycling: relative switching mirrors the Cmd+arrow pane navigation;
+  -- Ctrl+Tab toggles to the last-active tab (browser behavior).
+  table.insert(config.keys, { key = 'LeftArrow', mods = 'CMD|SHIFT', action = action.ActivateTabRelative(-1) })
+  table.insert(config.keys, { key = 'RightArrow', mods = 'CMD|SHIFT', action = action.ActivateTabRelative(1) })
+  table.insert(config.keys, { key = 'Tab', mods = 'CTRL', action = action.ActivateLastTab })
+  -- Pane resize: Cmd+Opt+arrows, 5 cells per press (mirrors tmux = + < >).
+  table.insert(config.keys, { key = 'LeftArrow', mods = 'CMD|OPT', action = action.AdjustPaneSize { 'Left', 5 } })
+  table.insert(config.keys, { key = 'RightArrow', mods = 'CMD|OPT', action = action.AdjustPaneSize { 'Right', 5 } })
+  table.insert(config.keys, { key = 'UpArrow', mods = 'CMD|OPT', action = action.AdjustPaneSize { 'Up', 5 } })
+  table.insert(config.keys, { key = 'DownArrow', mods = 'CMD|OPT', action = action.AdjustPaneSize { 'Down', 5 } })
 end
 
 return module
