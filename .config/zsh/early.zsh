@@ -14,4 +14,10 @@
   *":$HOME/.atuin/bin:"*) ;;  # already in PATH
   *) PATH="$HOME/.atuin/bin:$PATH" ;;
 esac
-command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh)"
+# Atuin pty-proxy derives the shell from ZSH_ARGZERO, which is a bare name
+# ("-zsh"/"zsh") for login shells (SSH, WezTerm). atuin can't stat a bare
+# name, warns "$SHELL -> \"zsh\" which is not executable" and falls back to
+# the passwd db — harmless but noisy on every new pane (atuinsh/atuin#3606,
+# open as of 18.19.0). Resolve the name to a path before passing it; the
+# sed is a no-op once upstream fixes this.
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh | sed 's|--shell "\${_atuin_pty_proxy_zsh#-}"|--shell "$(command -v "\${_atuin_pty_proxy_zsh#-}")"|')"
