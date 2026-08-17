@@ -109,6 +109,15 @@ function module.apply_to_config(config)
       action = action.ActivateTab(i - 1),
     })
   end
+
+  -- Move current tab to absolute position (Cmd+Shift+N = tab N becomes position N)
+  for i = 1, 9 do
+    table.insert(config.keys, {
+      key = tostring(i),
+      mods = 'CMD|SHIFT',
+      action = action.MoveTab(i - 1),
+    })
+  end
 end
 
 return module
