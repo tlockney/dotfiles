@@ -234,6 +234,7 @@ enabled = true
 autostart = true
 
 [ai]
+enabled = true
 # enabled = false
 
 ## How often the daemon should sync in seconds
