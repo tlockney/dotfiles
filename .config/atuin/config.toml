@@ -226,14 +226,15 @@ enabled = true
 [pty_proxy]
 ## Experimental PTY proxy: the search popup renders over previous output and
 ## restores it on close. Your existing `atuin init` line starts the proxy.
-enabled = true
+enabled = false
 
 [daemon]
 ## Output capture (for Atuin AI / MCP) requires pty-proxy AND the daemon.
-enabled = true
-autostart = true
+enabled = false
+autostart = false
 
 [ai]
+enabled = false
 # enabled = false
 
 ## How often the daemon should sync in seconds
