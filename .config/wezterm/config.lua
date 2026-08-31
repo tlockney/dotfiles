@@ -20,10 +20,11 @@ function module.apply_to_config(config)
   config.use_fancy_tab_bar = true
   config.native_macos_fullscreen_mode = true
 
+  config.harfbuzz_features = { 'calt=1', 'liga=1', 'ss02=1', 'zero=1' }
   -- Font
   config.font = wezterm.font_with_fallback {
-    "BlexMono Nerd Font Mono",
     "JetBrainsMono Nerd Font Mono",
+    "BlexMono Nerd Font Mono",
     "FiraCode Nerd Font Mono"
   }
   config.font_size = FONT_SIZE

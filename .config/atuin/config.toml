@@ -234,8 +234,7 @@ enabled = false
 autostart = false
 
 [ai]
-enabled = false
-# enabled = false
+enabled = true
 
 ## How often the daemon should sync in seconds
 # sync_frequency = 300
