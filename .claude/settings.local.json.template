@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(deno task:*)",
+      "Bash(deno check:*)",
+      "Bash(deno fmt:*)",
+      "Bash(deno lint:*)",
+      "Bash(deno test:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git worktree:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh run:*)",
+      "Bash(gh api repos/tlockney/*)",
+      "Read(//tmp/**)",
+      "Read(//Users/tlockney/src/personal/**)"
+    ]
+  }
+}

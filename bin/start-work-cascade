@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# start-work-cascade — create one worktree per repo for a task, across
+# multiple repos, so a cross-repo change can be developed in parallel
+# worktrees with matching branch names.
+#
+# Usage:
+#   start-work-cascade <task-name> [repo...]
+#
+# Default repos (personal): reading-room open-agent agent-skills
+# Override with: START_WORK_CASCADE_REPOS="repo1 repo2" or pass repos as args.
+#
+# Each worktree lands at <repo>/.claude/worktrees/<task-name> on branch
+# <task-name> off origin/main — the same convention reading-room already
+# uses. Idempotent: existing worktrees are skipped, not recreated.
+set -euo pipefail
+
+TASK="${1:-}"
+if [ -z "$TASK" ]; then
+  echo "usage: start-work-cascade <task-name> [repo...]" >&2
+  exit 1
+fi
+shift || true
+
+if [ "$#" -gt 0 ]; then
+  REPOS=("$@")
+elif [ -n "${START_WORK_CASCADE_REPOS:-}" ]; then
+  read -r -a REPOS <<< "$START_WORK_CASCADE_REPOS"
+else
+  REPOS=(reading-room open-agent agent-skills)
+fi
+
+SRC_ROOT="${START_WORK_CASCADE_ROOT:-$HOME/src/personal}"
+
+created=0
+skipped=0
+for repo in "${REPOS[@]}"; do
+  dir="$SRC_ROOT/$repo"
+  if [ ! -d "$dir/.git" ] && [ ! -f "$dir/.git" ]; then
+    echo "skip: $repo (not a repo at $dir)" >&2
+    continue
+  fi
+  dest="$dir/.claude/worktrees/$TASK"
+  if [ -e "$dest" ]; then
+    echo "skip: $repo (worktree exists: $dest)"
+    skipped=$((skipped + 1))
+    continue
+  fi
+  (
+    cd "$dir"
+    git fetch -q origin
+    git worktree add "$dest" -b "$TASK" origin/main
+  )
+  echo "created: $dest"
+  created=$((created + 1))
+done
+
+echo
+echo "cascade ready: $created created, $skipped skipped"
+echo "branches: $TASK (one per repo)"
