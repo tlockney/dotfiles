@@ -235,6 +235,7 @@ autostart = false
 
 [ai]
 enabled = true
+model = "fast"
 
 ## How often the daemon should sync in seconds
 # sync_frequency = 300
