@@ -74,6 +74,8 @@ When asked to research, compare, or survey topics, use the `notebooklm-researche
 
 **Default to the `field-dossier-html` skill** for rendered documents: dark evergreen cover band with a verdict strip, warm paper body, brass + verdigris accents, scrollspy TOC, faceoff comparison tables, hover-tooltip glossary. It was built for assessment documents (reviews, audits, comparisons, remediation plans, research briefings) but is the preferred style unless one of the exceptions below clearly fits better.
 
+Exception — **technical material where code is the substance** (Jupyter notebooks, how-tos, step-by-step guides, library or system guides with real code, tutorials, build logs): use the `bench-sheet-html` skill. For technical long-form, prefer it over `editorial-longform-html`; keep editorial for mostly-prose reference (architecture narratives, postmortems, RFCs, design records, playbooks).
+
 Exception — **distinctive / rich / diagram-heavy long-form reference** docs (architecture writeups, library or system-internals guides, postmortems, design records, RFCs, runbooks, playbooks — anything wanting inline SVG/Mermaid, hover states, or a published-handbook feel): use the `editorial-longform-html` skill.
 
 Exception — **simple documents** (quick notes, plans — mostly prose + tables, no verdict, no handbook gravitas): the gentle "parchment" theme at `~/.claude/assets/parchment-doc.css` — a warm low-glare parchment surface, soft slate text, warm-toned tables. Build by converting markdown with `pandoc <file> -f gfm -t html`, wrapping the body in `<div class="wrap">…</div>`, and inlining the CSS in a `<style>` block (Artifacts can't load external stylesheets). Don't hand-roll a new palette.
