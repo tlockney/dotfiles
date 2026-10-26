@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# worktree-cascade-done — finish a cascade: remove the worktree and branch
+# in every repo that has one for the task. Mirrors the dotfiles
+# `just worktree-done` semantics: -d (never -D) so unmerged branches are
+# refused, and the launcher checkout is left alone.
+#
+# Usage:
+#   worktree-cascade-done <task-name> [repo...]
+set -euo pipefail
+
+TASK="${1:-}"
+if [ -z "$TASK" ]; then
+  echo "usage: worktree-cascade-done <task-name> [repo...]" >&2
+  exit 1
+fi
+shift || true
+
+if [ "$#" -gt 0 ]; then
+  REPOS=("$@")
+elif [ -n "${START_WORK_CASCADE_REPOS:-}" ]; then
+  read -r -a REPOS <<< "$START_WORK_CASCADE_REPOS"
+else
+  REPOS=(reading-room open-agent agent-skills)
+fi
+
+SRC_ROOT="${START_WORK_CASCADE_ROOT:-$HOME/src/personal}"
+
+removed=0
+for repo in "${REPOS[@]}"; do
+  dir="$SRC_ROOT/$repo"
+  dest="$dir/.claude/worktrees/$TASK"
+  if [ ! -d "$dest" ]; then
+    continue
+  fi
+  (
+    cd "$dir"
+    git worktree remove "$dest"
+    git branch -d "$TASK" 2>/dev/null || echo "  $repo: branch $TASK not deleted (unmerged?)"
+  )
+  echo "removed: $dest"
+  removed=$((removed + 1))
+done
+
+echo "cascade done: $removed worktrees removed"
