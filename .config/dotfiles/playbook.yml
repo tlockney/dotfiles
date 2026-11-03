@@ -264,6 +264,11 @@
               - git
               - libssl-dev
               - pkg-config
+              # Runtime deps for the mise `swift` tool on Debian: the official
+              # swift tarball links libncurses.so.6, which libtinfo6 alone does
+              # not provide. Without it the mise task fails silently and swift
+              # stays "missing".
+              - libncurses6
             state: present
           become: yes
           become_exe: "{{ sudo_exe }}"
