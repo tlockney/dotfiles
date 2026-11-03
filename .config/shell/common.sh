@@ -27,6 +27,12 @@ prepend_path "$HOME/.local/bin"
 prepend_path "$HOME/bin"
 prepend_path "$HOME/.deno/bin" # deno-installed global tools (e.g. reading-room)
 
+# mise shims — bash has no equivalent of ~/.zshenv, so without this the
+# mise-managed runtimes (node, deno, python, go, bun) are invisible to bash and
+# to non-interactive agent shells. Guarded on the directory, so it is a no-op
+# before mise is installed; zsh gets the same path via .zshenv.
+prepend_path "$HOME/.local/share/mise/shims"
+
 # Cargo environment
 # ~/.cargo is a symlink to /Volumes/Secondary which can hang in uninterruptible
 # D-state I/O wait if the volume is unresponsive. Any filesystem operation on
@@ -54,6 +60,15 @@ fi
 # consistently across machines (matches the prepend_path above), rather than
 # alongside the active mise-managed runtime.
 export DENO_INSTALL_ROOT="$HOME/.deno"
+
+# Linuxbrew (x86_64/aarch64 Linux only — the playbook provisions it via the
+# `homebrew` tag). macOS gets brew earlier via env.zsh / common-profile.sh, so
+# this is guarded to stay a no-op there. Skipped when brew is already on PATH
+# to avoid paying the extra `brew shellenv` subshell twice per shell.
+if [ "$CURRENT_OS" = "Linux" ] && [ -x /home/linuxbrew/.linuxbrew/bin/brew ] &&
+   ! command -v brew >/dev/null 2>&1; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
 
 # System-local binaries (e.g. tailscale, manually-installed tools). Appended so
 # it sits behind Homebrew/mise rather than shadowing them.

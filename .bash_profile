@@ -1,3 +1,8 @@
+# Shared bash/zsh config (PATH, brew, mise shims, editor, etc.)
+# Without this, bash login shells never see common.sh — .profile is only read
+# when .bash_profile is absent, and this file exists.
+[ -f "$HOME/.config/shell/common.sh" ] && . "$HOME/.config/shell/common.sh"
+
 # Atuin shell history — guard against missing binary
 [ -f "$HOME/.atuin/bin/env" ] && . "$HOME/.atuin/bin/env"
 

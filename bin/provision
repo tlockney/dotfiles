@@ -48,7 +48,9 @@ fi
 # Parse arguments
 DEV_MODE="true"  # Dev tools included by default
 ASK_BECOME_PASS="--ask-become-pass"
-SETUP_ONLY=""
+# Array, not a string: "--tags setup" as one argv element is rejected by
+# ansible-playbook (it never gets split), so --setup-only used to fail hard.
+SETUP_ONLY=()
 REMAINING_ARGS=()
 
 for arg in "$@"; do
@@ -60,7 +62,7 @@ for arg in "$@"; do
             ASK_BECOME_PASS=""
             ;;
         --setup-only)
-            SETUP_ONLY="--tags setup"
+            SETUP_ONLY=(-t setup)
             ;;
         *)
             REMAINING_ARGS+=("$arg")
@@ -77,7 +79,7 @@ ANSIBLE_CMD=(
 
 # Add optional arguments
 [[ -n "$ASK_BECOME_PASS" ]] && ANSIBLE_CMD+=("$ASK_BECOME_PASS")
-[[ -n "$SETUP_ONLY" ]] && ANSIBLE_CMD+=("$SETUP_ONLY")
+[[ ${#SETUP_ONLY[@]} -gt 0 ]] && ANSIBLE_CMD+=("${SETUP_ONLY[@]}")
 [[ ${#REMAINING_ARGS[@]} -gt 0 ]] && ANSIBLE_CMD+=("${REMAINING_ARGS[@]}")
 
 # Run the Ansible playbook

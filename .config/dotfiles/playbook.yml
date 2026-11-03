@@ -247,6 +247,27 @@
     # ========================================
     # APT (Linux only)
     # ========================================
+    # Build dependencies needed for compiling native code (Rust crates, etc.).
+    # Tagged setup as well as apt: on a fresh apt box, --setup-only runs
+    # `cargo install cargo-update` before anything else would supply
+    # pkg-config/OpenSSL headers, and that build fails with rc=101.
+    - name: Install build dependencies
+      tags: [setup, apt]
+      when: ansible_facts.pkg_mgr == "apt"
+      block:
+        - name: Install build dependencies
+          apt:
+            name:
+              - build-essential
+              - cmake
+              - curl
+              - git
+              - libssl-dev
+              - pkg-config
+            state: present
+          become: yes
+          become_exe: "{{ sudo_exe }}"
+
     # Use dynamic sudo_exe to work around Ansible/sudo-rs incompatibility on Ubuntu 24.04+
     # See: https://github.com/ansible/ansible/issues/85837
     - name: Update APT packages
@@ -266,20 +287,6 @@
           become: yes
           become_exe: "{{ sudo_exe }}"
           register: apt_upgrade
-
-        # Build dependencies needed for compiling native code (Rust crates, etc.)
-        - name: Install build dependencies
-          apt:
-            name:
-              - build-essential
-              - cmake
-              - curl
-              - git
-              - libssl-dev
-              - pkg-config
-            state: present
-          become: yes
-          become_exe: "{{ sudo_exe }}"
 
         # Essential CLI tools for all Linux systems
         - name: Install essential apt packages
